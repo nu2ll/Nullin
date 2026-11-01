@@ -11,6 +11,7 @@ final class Business
     private const CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
     private const STT_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
     private const WHISPER = 'whisper-large-v3-turbo';
+    private const RETRY = [0, 401, 402, 403, 408, 429, 500, 502, 503, 504];
     private const VISION = 'qwen/qwen3.8-27b';
 
     private static function modes(): array
@@ -25,8 +26,25 @@ final class Business
 
     public static function cfg(int $uid): array
     {
-        $c = Store::get('biz_cfg', (string) $uid);
-        return array_merge(['on' => true, 'key' => '', 'prompt' => '', 'model' => '', 'pause' => '20', 'del' => false, 'edit' => false, 'think' => 'auto', 'hrs' => false, 'hf' => 0, 'ht' => 10], is_array($c) ? $c : []);
+        $c   = Store::get('biz_cfg', (string) $uid);
+        $cfg = array_merge(['on' => true, 'keys' => [], 'prompt' => '', 'model' => '', 'pause' => '20', 'del' => false, 'edit' => false, 'think' => 'auto', 'hrs' => false, 'hf' => 0, 'ht' => 10], is_array($c) ? $c : []);
+        $cfg['keys'] = self::keyList($cfg);
+        return $cfg;
+    }
+
+    private static function keyList(array $c): array
+    {
+        $keys = array_merge((array) ($c['keys'] ?? []), [(string) ($c['key'] ?? '')]);
+        return array_values(array_unique(array_filter(array_map('trim', $keys), static fn($k) => $k !== '')));
+    }
+
+    private static function rotate(array $keys): array
+    {
+        if (count($keys) < 2) {
+            return $keys;
+        }
+        $s = random_int(0, count($keys) - 1);
+        return array_merge(array_slice($keys, $s), array_slice($keys, 0, $s));
     }
 
     private static function save(int $uid, array $patch): void
@@ -317,7 +335,7 @@ final class Business
             return;
         }
 
-        if ($cfg['key'] === '') {
+        if (!$cfg['keys']) {
             return;
         }
 
@@ -330,12 +348,14 @@ final class Business
             . self::person('اطلاعات صاحب حساب کاربری', (array) ($conn['user'] ?? ['id' => $owner]), self::bio($owner)) . "\n"
             . self::person('اطلاعات کاربر در حال گفتگو', (array) ($msg['from'] ?? []), self::bio($chat));
 
-        $key     = "{$owner}_{$chat}";
-        $reply   = null;
-        $built   = self::build($msg, $cfg['key']);
-        $content = $built['content'] ?? null;
-        $saved   = $built['saved'] ?? '';
-        $model   = !empty($built['vision']) ? self::visionModel($cfg['model']) : self::model($cfg['model']);
+        $key      = "{$owner}_{$chat}";
+        $reply    = null;
+        $keys     = self::rotate($cfg['keys']);
+        $deadline = microtime(true) + 60;
+        $built    = self::build($msg, $keys, $deadline);
+        $content  = $built['content'] ?? null;
+        $saved    = $built['saved'] ?? '';
+        $model    = !empty($built['vision']) ? self::visionModel($cfg['model']) : self::model($cfg['model']);
 
         if ($content !== null) {
             $messages = [['role' => 'system', 'content' => $system]];
@@ -343,7 +363,7 @@ final class Business
                 $messages[] = $h;
             }
             $messages[] = ['role' => 'user', 'content' => $content];
-            $text       = self::groq($cfg['key'], $model, $messages, (string) $cfg['think']);
+            $text       = self::attempt($keys, $deadline, fn(string $k, int $t): array => self::groq($k, $model, $messages, (string) $cfg['think'], $t));
             if ($text !== null) {
                 $text = AI::clean($text);
                 if ($text !== '') {
@@ -364,7 +384,7 @@ final class Business
         ]);
     }
 
-    private static function build(array $msg, string $key): ?array
+    private static function build(array $msg, array $keys, float $deadline): ?array
     {
         $question = trim((string) ($msg['text'] ?? $msg['caption'] ?? ''));
         $notes    = [];
@@ -378,7 +398,7 @@ final class Business
             if (isset($msg['voice'])) {
                 $a     = $msg['voice'];
                 $bytes = ($a['file_size'] ?? 0) <= 20000000 ? App::tg()->download((string) $a['file_id']) : null;
-                $tr    = $bytes ? self::stt($key, $bytes, (string) ($a['mime_type'] ?? 'audio/ogg')) : null;
+                $tr    = $bytes ? self::stt($keys, $bytes, (string) ($a['mime_type'] ?? 'audio/ogg'), $deadline) : null;
                 if ($tr === null) {
                     return null;
                 }
@@ -427,7 +447,27 @@ final class Business
         return null;
     }
 
-    private static function groq(string $key, string $model, array $messages, string $think = 'auto'): ?string
+    private static function attempt(array $keys, float $deadline, callable $call): ?string
+    {
+        foreach ($keys as $k) {
+            $left = $deadline - microtime(true);
+            if ($left < 2) {
+                return null;
+            }
+            $r = $call($k, (int) min($left, 55));
+            AI::noteKey('groq', $k, $r['code']);
+            if ($r['text'] !== null) {
+                return $r['text'];
+            }
+            logWarn('biz', 'key…' . substr($k, -4) . " HTTP {$r['code']}: " . $r['err']);
+            if (!in_array($r['code'], self::RETRY, true)) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static function groq(string $key, string $model, array $messages, string $think, int $timeout): array
     {
         $payload = ['model' => $model, 'messages' => $messages];
         if (($effort = self::effort($model, $think)) !== null) {
@@ -436,16 +476,34 @@ final class Business
         if (AI::searchOn() && preg_match('/gpt-oss/i', $model) === 1 && !str_contains($model, 'safeguard')) {
             $payload['tools'] = [['type' => 'browser_search']];
         }
-        $r = Http::postJson(self::CHAT_URL, $payload, ['Authorization: Bearer ' . $key], 55);
-        if ($r['code'] === 400 && isset($payload['reasoning_effort']) && stripos((string) ($r['raw'] ?? ''), 'reasoning') !== false) {
-            unset($payload['reasoning_effort']);
-            $r = Http::postJson(self::CHAT_URL, $payload, ['Authorization: Bearer ' . $key], 55);
+        $merged = false;
+        for ($try = 0; $try < 4; $try++) {
+            $r   = Http::postJson(self::CHAT_URL, $payload, ['Authorization: Bearer ' . $key], $timeout);
+            $raw = (string) ($r['raw'] ?? '');
+            if ($r['code'] === 400 && isset($payload['reasoning_effort']) && stripos($raw, 'reasoning') !== false) {
+                unset($payload['reasoning_effort']);
+                continue;
+            }
+            if (isset($payload['tools']) && in_array($r['code'], [400, 429], true) && preg_match('/tool|search|browser|function/i', $raw) === 1) {
+                unset($payload['tools']);
+                continue;
+            }
+            if ($r['code'] === 400 && !$merged && preg_match('/instruction|system/i', $raw) === 1) {
+                $payload['messages'] = FreeAI::mergeSystem($payload['messages']);
+                $merged              = true;
+                continue;
+            }
+            break;
         }
         $t = $r['code'] === 200 ? ($r['data']['choices'][0]['message']['content'] ?? null) : null;
-        return is_string($t) ? $t : null;
+        return [
+            'text' => is_string($t) ? $t : null,
+            'code' => (int) $r['code'],
+            'err'  => mb_substr((string) ($r['data']['error']['message'] ?? $r['raw'] ?? ''), 0, 160),
+        ];
     }
 
-    private static function stt(string $key, string $bytes, string $mime): ?string
+    private static function stt(array $keys, string $bytes, string $mime, float $deadline): ?string
     {
         $tmp = tempnam(sys_get_temp_dir(), 'nbz');
         if ($tmp === false) {
@@ -457,15 +515,23 @@ final class Business
             @unlink($file);
             return null;
         }
-        $r = Http::request('POST', self::STT_URL, [
-            'headers' => ['Authorization: Bearer ' . $key],
-            'body'    => ['file' => new CURLFile($file, $mime, 'audio.ogg'), 'model' => (string) (array_values(array_filter((array) (App::cfg('ai', [])['free_stt']['groq'] ?? [])))[0] ?? self::WHISPER), 'response_format' => 'json'],
-            'timeout' => 40,
-        ]);
+        $model = (string) (array_values(array_filter((array) (App::cfg('ai', [])['free_stt']['groq'] ?? [])))[0] ?? self::WHISPER);
+        $text  = self::attempt($keys, $deadline, static function (string $key, int $timeout) use ($file, $mime, $model): array {
+            $r = Http::request('POST', self::STT_URL, [
+                'headers' => ['Authorization: Bearer ' . $key],
+                'body'    => ['file' => new CURLFile($file, $mime, 'audio.ogg'), 'model' => $model, 'response_format' => 'json'],
+                'timeout' => min(40, $timeout),
+            ]);
+            $j = $r['body'] !== null ? json_decode($r['body'], true) : null;
+            $t = $r['code'] === 200 && is_array($j) ? trim((string) ($j['text'] ?? '')) : '';
+            return [
+                'text' => $t !== '' ? $t : null,
+                'code' => (int) $r['code'],
+                'err'  => mb_substr((string) ($r['body'] ?? $r['error'] ?? ''), 0, 160),
+            ];
+        });
         @unlink($file);
-        $j = $r['body'] !== null ? json_decode($r['body'], true) : null;
-        $t = $r['code'] === 200 && is_array($j) ? trim((string) ($j['text'] ?? '')) : '';
-        return $t !== '' ? $t : null;
+        return $text;
     }
 
     private static function history(string $key): array
@@ -638,7 +704,7 @@ final class Business
             . "به پیام‌های پیوی اکانتت\n"
             . "با هوش مصنوعی جواب می‌دم؛ به هر نوع پیامی.\n\n"
             . '🔌 وضعیت: <b>' . ($c['on'] ? 'روشن' : 'خاموش') . "</b>\n"
-            . '🔑 کلید گروک: <b>' . ($c['key'] !== '' ? 'ثبت شده' : 'ثبت نشده') . "</b>\n"
+            . '🔑 کلید گروک: <b>' . ($c['keys'] ? fa((string) count($c['keys'])) . ' کلید' : 'ثبت نشده') . "</b>\n"
             . '🤖 مدل: <b>' . bidi(h(self::model($c['model']))) . "</b>\n"
             . '📝 پرامپت: <b>' . ($c['prompt'] !== '' ? 'سفارشی' : 'بدون پرامپت') . "</b>\n"
             . '⏱ حالت پاسخ‌دهی: <b>' . h($modes[$c['pause']][0] ?? $c['pause']) . "</b>\n"
@@ -682,9 +748,11 @@ final class Business
             self::save($uid, ['prompt' => '']);
         } elseif ($data === 'bz:key') {
             Store::set('biz_wait', (string) $uid, ['step' => 'key']);
-            $tg->editMessage($chatId, $msgId, "<b>🔑 کلید گروک</b>\nکلید API گروکت رو همین‌جا بفرست؛\nبا <code>gsk_</code> شروع می‌شه.\nرایگانه، از console.groq.com/keys بگیر.\n\n💡 بعد از ذخیره، پیامی که کلید توشه پاک می‌شه.\nبرای لغو بنویس «لغو».", ikb([$back]));
+            $tg->editMessage($chatId, $msgId, "<b>🔑 کلید گروک</b>\nکلید API گروکت رو همین‌جا بفرست؛\nبا <code>gsk_</code> شروع می‌شه.\nرایگانه، از console.groq.com/keys بگیر.\n\n🔁 می‌تونی چند کلید بفرستی (هر کدوم تو یه خط)\nیا هر بار یکی اضافه کنی؛ منشی بینشون می‌چرخه\nو اگه یکی خطا داد، سراغ بعدی می‌ره.\n\n💡 بعد از ذخیره، پیامی که کلید توشه پاک می‌شه.", ikb([[btn('🗑 حذف همه کلیدها', 'bz:kc', 'danger')], $back]));
             $tg->answer($cq);
             return;
+        } elseif ($data === 'bz:kc') {
+            self::save($uid, ['keys' => [], 'key' => '']);
         } elseif ($data === 'bz:md') {
             $rows = [];
             foreach (FreeAI::models('groq') as $i => $e) {
@@ -698,7 +766,7 @@ final class Business
             self::save($uid, ['model' => FreeAI::models('groq')[(int) $m[1]]['id']]);
         } elseif ($data === 'bz:prompt') {
             Store::set('biz_wait', (string) $uid, ['step' => 'prompt']);
-            $tg->editMessage($chatId, $msgId, "<b>📝 پرامپت منشی</b>\nشخصیت و دستورالعمل منشی رو بفرست.\n\nمثال:\n<code>تو منشی شخصی من هستی؛ وقتی نیستم مودب و کوتاه جواب بده و بگو خودم بعداً جواب می‌دم.</code>\n\n💡 اگه پرامپت نذاری، بدون پرامپت جواب می‌ده.\nبرای لغو بنویس «لغو».", ikb([[btn('🗑 حذف پرامپت', 'bz:clr', 'danger')], $back]));
+            $tg->editMessage($chatId, $msgId, "<b>📝 پرامپت منشی</b>\nشخصیت و دستورالعمل منشی رو بفرست.\n\nمثال:\n<code>تو منشی شخصی من هستی؛ وقتی نیستم مودب و کوتاه جواب بده و بگو وقتی خودم اومدم راهنماییت می‌کنم.</code>\n\n💡 اگه پرامپت نذاری، بدون پرامپت جواب می‌ده.", ikb([[btn('🗑 حذف پرامپت', 'bz:clr', 'danger')], $back]));
             $tg->answer($cq);
             return;
         } elseif ($data === 'bz:pm') {
@@ -771,24 +839,25 @@ final class Business
         $tg   = App::tg();
         $text = mbTrim((string) ($msg['text'] ?? ''));
         if ($text === '') {
-            $tg->reply($msg, "فقط متن بفرست،\nیا بنویس «لغو».");
+            $tg->reply($msg, 'فقط متن بفرست.');
             return true;
         }
-        if ($w['step'] === 'key' && $text !== 'لغو' && !str_starts_with($text, 'gsk_')) {
-            $tg->reply($msg, "😕 این شبیه کلید گروک نیست؛\nباید با <code>gsk_</code> شروع بشه.\nدوباره بفرست یا بنویس «لغو».");
-            return true;
+        $found = [];
+        if ($w['step'] === 'key') {
+            $found = array_values(array_filter(preg_split('/\s+/u', $text) ?: [], static fn($t) => str_starts_with($t, 'gsk_')));
+            if (!$found) {
+                $tg->reply($msg, "😕 این شبیه کلید گروک نیست؛\nباید با <code>gsk_</code> شروع بشه.\nدوباره بفرست.");
+                return true;
+            }
         }
         self::clear($uid);
-        $done = 'لغو شد.';
-        if ($text !== 'لغو') {
-            if ($w['step'] === 'key') {
-                self::save($uid, ['key' => $text]);
-                $tg->call('deleteMessage', ['chat_id' => $msg['chat']['id'], 'message_id' => $msg['message_id']], 8);
-                $done = 'کلید ذخیره شد ✅';
-            } else {
-                self::save($uid, ['prompt' => mb_substr($text, 0, 2000)]);
-                $done = 'پرامپت ذخیره شد ✅';
-            }
+        if ($w['step'] === 'key') {
+            self::save($uid, ['keys' => array_values(array_unique(array_merge(self::cfg($uid)['keys'], $found))), 'key' => '']);
+            $tg->call('deleteMessage', ['chat_id' => $msg['chat']['id'], 'message_id' => $msg['message_id']], 8);
+            $done = 'کلید ذخیره شد ✅';
+        } else {
+            self::save($uid, ['prompt' => mb_substr($text, 0, 2000)]);
+            $done = 'پرامپت ذخیره شد ✅';
         }
         [$panel, $kb] = self::panel($uid);
         $tg->send($msg['chat']['id'], "{$done}\n\n" . $panel, ['reply_markup' => $kb]);

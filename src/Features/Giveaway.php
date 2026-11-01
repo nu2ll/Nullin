@@ -224,23 +224,6 @@ final class Giveaway
         return is_array(Store::getToday('gw_wiz', (string) $uid));
     }
 
-    public static function cancel(array $msg): void
-    {
-        $tg   = App::tg();
-        $uid  = (int) $msg['from']['id'];
-        $chat = $msg['chat']['id'];
-        $w    = Store::getToday('gw_wiz', (string) $uid);
-        $mid  = is_array($w) ? (int) ($w['m'] ?? 0) : 0;
-        self::clear($uid);
-        $text = '👌 ساخت قرعه‌کشی لغو شد.';
-        if (!$mid) {
-            $tg->send($chat, $text, ['reply_markup' => ['remove_keyboard' => true]]);
-            return;
-        }
-        self::dropKeyboard($chat, $w);
-        self::put($chat, $mid, $text);
-    }
-
     public static function input(array $msg): bool
     {
         $tg   = App::tg();
@@ -251,11 +234,6 @@ final class Giveaway
             return false;
         }
         $text = mbTrim((string) ($msg['text'] ?? ''));
-        if ($text === 'لغو') {
-            self::cancel($msg);
-            return true;
-        }
-
         if ($w['step'] === 'target') {
             $target = null;
             $fwd    = $msg['forward_origin']['chat'] ?? $msg['forward_from_chat'] ?? null;
@@ -539,9 +517,12 @@ final class Giveaway
             self::clear($uid);
             if ($chat !== null) {
                 self::dropKeyboard($chat, $w);
-                $tg->editMessage($chat, $mid, '👌 ساخت قرعه‌کشی لغو شد.');
+                $r = $tg->call('deleteMessage', ['chat_id' => $chat, 'message_id' => $mid], 8);
+                if (empty($r['ok'])) {
+                    $tg->editMessage($chat, $mid, '👌 ساخت قرعه‌کشی لغو شد.');
+                }
             }
-            $tg->answer($cq);
+            $tg->answer($cq, '👌 ساخت قرعه‌کشی لغو شد');
             return;
         }
         if (preg_match('/^gw:w:(\d{1,2})$/', $data, $m)) {

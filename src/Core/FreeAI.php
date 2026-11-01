@@ -136,7 +136,7 @@ final class FreeAI
         foreach ($models as $model) {
             for ($i = 0; $i < $n; $i++) {
                 $left = $deadline - microtime(true);
-                if ($left < 3) {
+                if ($left < 2) {
                     break 2;
                 }
                 $idx = ($start + $i) % $n;
@@ -214,7 +214,7 @@ final class FreeAI
             if (self::isCooling($prov, $model)) {
                 continue;
             }
-            if ($deadline - microtime(true) < 3) {
+            if ($deadline - microtime(true) < 2) {
                 return null;
             }
             $r = self::call($prov, $model, $messages, $opt);
@@ -315,7 +315,7 @@ final class FreeAI
 
         for ($i = 0; $i < $n; $i++) {
             $left = $deadline - microtime(true);
-            if ($left < 3) {
+            if ($left < 2) {
                 return ['text' => null, 'kind' => 'timeout', 'seen' => $seen];
             }
             $idx = ($start + $i) % $n;
@@ -463,7 +463,7 @@ final class FreeAI
         return $out ?: null;
     }
 
-    private static function mergeSystem(array $messages): array
+    public static function mergeSystem(array $messages): array
     {
         $sys  = [];
         $rest = [];

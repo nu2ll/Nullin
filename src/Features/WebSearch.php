@@ -66,7 +66,7 @@ final class WebSearch
         $start = random_int(0, $n - 1);
         for ($i = 0; $i < $n; $i++) {
             $left = $deadline - microtime(true);
-            if ($left < 3) {
+            if ($left < 2) {
                 return null;
             }
             $key = $keys[($start + $i) % $n];
