@@ -12,6 +12,7 @@ final class InlineHandler
         'love'    => ['love', 'عشق'],
         'roast'   => ['roast', 'روست', 'بشور'],
         'qr'      => ['qr', 'کیوآر'],
+        'short'   => ['sh'],
         'search'  => ['g', 'google', 'search', 'گوگل', 'سرچ', 'جستجو'],
         'font'    => ['ft', 'font', 'fonts', 'فونت'],
         'wiki'    => ['wk', 'wiki', 'ویکی‌پدیا', 'ویکیپدیا', 'ویکی'],
@@ -63,6 +64,7 @@ final class InlineHandler
                         'love'    => self::love($rest),
                         'roast'   => self::roast($rest),
                         'qr'      => self::qr($rest),
+                        'short'   => self::short($rest),
                         'search'  => self::search($rest),
                         'font'    => self::font($rest),
                         'gw'      => self::giveaway($rest),
@@ -459,6 +461,21 @@ final class InlineHandler
         ]], 300, false);
     }
 
+    private static function short(string $rest): void
+    {
+        $url = ShortLink::extract($rest);
+        if ($url === null) {
+            self::guide('short', 'short', '🔗 کوتاه‌کننده لینک', 'بعد از sh لینک بلند رو بنویس');
+            return;
+        }
+        $short = ShortLink::shorten($url);
+        if ($short === null) {
+            self::fail('sh_fail', '❌ کوتاه نشد', 'چند لحظه‌ی دیگه دوباره امتحان کن', '❌ الان نتونستم این لینک رو کوتاه کنم. چند لحظه‌ی دیگه دوباره امتحان کن.');
+            return;
+        }
+        self::answer([Ui::article('sh_' . substr(md5($url), 0, 16), 'short', '🔗 ' . $short, mb_substr($url, 0, 80), ShortLink::text($short, $url), ShortLink::keyboard($short))], 0);
+    }
+
     private static function search(string $q): void
     {
         if ($q === '') {
@@ -561,6 +578,7 @@ final class InlineHandler
             Ui::article('help_font', 'font', '✨ فونت‌ساز', 'ft [اسم یا متن]', Ui::guide('font'), Ui::tryKeyboard('font')),
             Ui::article('help_weather', 'weather', '🌦 آب‌وهوا', 'hv [شهر]', Ui::guide('weather'), Ui::tryKeyboard('weather')),
             Ui::article('help_qr', 'qr', '🔳 QR کد', 'qr [متن یا لینک]', Ui::guide('qr'), Ui::tryKeyboard('qr')),
+            Ui::article('help_short', 'short', '🔗 کوتاه‌کننده لینک', 'sh [لینک بلند]', Ui::guide('short'), Ui::tryKeyboard('short')),
             Ui::article('help_roast', 'roast', '🔥 روست', 'roast [@یوزرنیم] [آیدی]', Ui::guide('roast'), Ui::tryKeyboard('roast')),
             Ui::article('help_love', 'love', '💘 تطابق عشقی', 'love [یوزرنیم/آیدی] [یوزرنیم/آیدی۲]', Ui::guide('love'), Ui::tryKeyboard('love')),
             Ui::article('help_nid', 'nid', '🪪 کد ملی', 'meli [کد ملی]', Ui::guide('nid'), Ui::tryKeyboard('nid')),
@@ -570,7 +588,7 @@ final class InlineHandler
 
         $swMap = ['info' => 'userinfo', 'chess' => 'chess', 'ttt' => 'ttt', 'c4' => 'c4', 'rps' => 'rps', 'math' => 'math', 'calc' => 'calc', 'rates' => 'rates', 'date' => 'date', 'pass' => 'password', 'coin' => 'coin', 'fal' => 'fal',
             'help_image' => 'image', 'help_whisper' => 'whisper', 'help_giveaway' => 'giveaway', 'help_wiki' => 'wiki', 'help_ai' => 'ai', 'help_translate' => 'translate', 'help_search' => 'search',
-            'help_font' => 'font', 'help_weather' => 'weather', 'help_qr' => 'qr', 'help_roast' => 'roast', 'help_love' => 'love', 'help_nid' => 'nid', 'help_funstat' => 'funstat', 'help_linkcheck' => 'linkcheck'];
+            'help_font' => 'font', 'help_weather' => 'weather', 'help_qr' => 'qr', 'help_short' => 'short', 'help_roast' => 'roast', 'help_love' => 'love', 'help_nid' => 'nid', 'help_funstat' => 'funstat', 'help_linkcheck' => 'linkcheck'];
         $items = array_values(array_filter($items, static fn($r) => !isset($swMap[$r['id']]) || Switches::on($swMap[$r['id']])));
 
         if ($filter !== '') {

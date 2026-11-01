@@ -766,7 +766,7 @@ final class Business
             self::save($uid, ['model' => FreeAI::models('groq')[(int) $m[1]]['id']]);
         } elseif ($data === 'bz:prompt') {
             Store::set('biz_wait', (string) $uid, ['step' => 'prompt']);
-            $tg->editMessage($chatId, $msgId, "<b>📝 پرامپت منشی</b>\nشخصیت و دستورالعمل منشی رو بفرست.\n\nمثال:\n<code>تو منشی شخصی من هستی؛ وقتی نیستم مودب و کوتاه جواب بده و بگو وقتی خودم اومدم راهنماییت می‌کنم.</code>\n\n💡 اگه پرامپت نذاری، بدون پرامپت جواب می‌ده.", ikb([[btn('🗑 حذف پرامپت', 'bz:clr', 'danger')], $back]));
+            $tg->editMessage($chatId, $msgId, "<b>📝 پرامپت منشی</b>\nشخصیت و دستورالعمل منشی رو بفرست.\n\nمثال:\n<code>تو منشی شخصی من هستی؛\nوقتی نیستم مودب و کوتاه جواب بده\nو بگو وقتی خودم اومدم راهنماییت می‌کنم.</code>\n\n💡 اگه پرامپت نذاری، بدون پرامپت جواب می‌ده.", ikb([[btn('🗑 حذف پرامپت', 'bz:clr', 'danger')], $back]));
             $tg->answer($cq);
             return;
         } elseif ($data === 'bz:pm') {
@@ -783,8 +783,8 @@ final class Business
         } elseif ($data === 'bz:th') {
             $cur  = self::cfg($uid)['think'];
             $rows = [];
-            foreach (array_chunk(array_keys(AI::THINK_LEVELS), 2) as $pair) {
-                $rows[] = array_map(static fn($k) => btn(($k === $cur ? '✅ ' : '') . AI::THINK_LEVELS[$k], 'bz:th:' . $k, $k === $cur ? 'success' : null), $pair);
+            foreach (array_keys(AI::THINK_LEVELS) as $k) {
+                $rows[] = [btn(($k === $cur ? '✅ ' : '') . AI::THINK_LEVELS[$k], 'bz:th:' . $k, $k === $cur ? 'success' : null)];
             }
             $rows[] = $back;
             $tg->editMessage($chatId, $msgId, "<b>🧠 سطح فکر کردن</b>\nمنشی قبل از جواب چقدر فکر کنه؟\n\nفقط روی مدل‌هایی اثر داره که فکر کردن دارن.\nکمتر = سریع‌تر، بیشتر = دقیق‌تر.\n\nاین تنظیم مخصوص منشی توئه و به هوش مصنوعی اصلی ربات ربطی نداره.", ikb($rows));

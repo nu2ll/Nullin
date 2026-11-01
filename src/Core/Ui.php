@@ -42,6 +42,7 @@ final class Ui
         'wiki'     => ['Books', 'books'],
         'group'    => ['Busts in silhouette', 'busts_in_silhouette'],
         'linkcheck' => ['Shield', 'shield'],
+        'short'    => ['Link', 'link'],
     ];
 
     public static function icon(string $key): string
@@ -422,6 +423,7 @@ final class Ui
         'weather'   => '🌦 آب‌وهوا',
         'calc'      => '🧮 محاسبه سریع',
         'qr'        => '🔳 QR کد',
+        'short'     => '🔗 کوتاه‌کننده لینک',
         'love'      => '💘 تطابق عشقی',
         'roast'     => '🔥 روست',
         'nid'       => '🪪 کد ملی',
@@ -546,6 +548,10 @@ final class Ui
                 . "هر متن یا لینکی رو به QR تبدیل کن.\n\n"
                 . "• " . $c('qr https://t.me/nullini'),
 
+            'short' => "<b>🔗 کوتاه‌کننده لینک</b>\n"
+                . "هر لینک بلندی رو کوتاه کن.\n\n"
+                . "• " . $c('sh https://t.me/nullini'),
+
             'love' => "<b>💘 تطابق عشقی</b>\n"
                 . "درصد عشق بین دو نفر (کاملاً شانسی و فان 😄).\n\n"
                 . "• " . $c('love @ali @sara') . "\n"
@@ -602,7 +608,7 @@ final class Ui
 
     private const HELP_LAYOUT = [
         1 => [['ai', 'image'], ['translate', 'search'], ['whisper', 'linkcheck'], ['font', 'download'], ['giveaway', 'wiki']],
-        2 => [['weather', 'calc'], ['qr', 'love'], ['group'], ['roast', 'nid'], ['funstat', 'games']],
+        2 => [['weather', 'calc'], ['qr', 'short'], ['love', 'group'], ['roast', 'nid'], ['funstat', 'games']],
     ];
 
     public static function helpPage(string $key): int
@@ -638,7 +644,7 @@ final class Ui
         return ikb($rows);
     }
 
-    private const TRY_PREFIX = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'love' => 'love ', 'roast' => 'roast ',
+    private const TRY_PREFIX = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'love ', 'roast' => 'roast ',
         'nid' => 'meli ', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'calc' => '2+2', 'linkcheck' => 'st '];
 
     private static function tryButton(string $key): array

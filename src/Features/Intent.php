@@ -2,7 +2,7 @@
 
 final class Intent
 {
-    public const NAMES = ['translate', 'download', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'love', 'roast', 'userinfo', 'giveaway'];
+    public const NAMES = ['translate', 'download', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'short', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'love', 'roast', 'userinfo', 'giveaway'];
 
     public static function prompt(): string
     {
@@ -13,6 +13,7 @@ final class Intent
             . "\n- rates: قیمت لحظه‌ای ارز، طلا، سکه یا کریپتو."
             . "\n- font | <متن>: نوشتن متن با فونت‌های فانتزی."
             . "\n- qr | <متن یا لینک>: ساخت QR کد."
+            . "\n- short | <لینک>: کوتاه کردن لینک."
             . "\n- fal: فال حافظ."
             . "\n- password: ساخت رمز قوی."
             . "\n- date: تاریخ یا ساعت الان."
@@ -138,6 +139,17 @@ final class Intent
 
             case 'qr':
                 return $arg === '' ? null : ['photo' => Tools::qrUrl($arg, 512), 'text' => '🔳 <code>' . h(mb_substr($arg, 0, 1000)) . '</code>'];
+
+            case 'short':
+                $url = ShortLink::extract($arg) ?? ShortLink::extract(trim($reply));
+                if ($url === null) {
+                    return null;
+                }
+                $short = ShortLink::shorten($url);
+                if ($short === null) {
+                    return ['text' => '❌ الان نتونستم این لینک رو کوتاه کنم؛ چند لحظه‌ی دیگه دوباره امتحان کن.'];
+                }
+                return ['text' => ShortLink::text($short, $url), 'kb' => ShortLink::keyboard($short)];
 
             case 'fal':
                 return ['anim' => Tools::hafezUrl(), 'text' => Tools::hafezCaption()];
