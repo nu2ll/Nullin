@@ -177,6 +177,7 @@ final class MessageHandler
 
             case 'monshi':
                 if ($private) {
+                    Store::set('biz_back', (string) $from['id'], 0);
                     [$bt, $bk] = Business::panel((int) $from['id']);
                     $tg->send($chatId, $bt, ['reply_markup' => $bk]);
                 }

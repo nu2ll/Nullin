@@ -722,7 +722,7 @@ final class Business
                 btn($c['del'] ? '🗑 روشن' : '🗑 خاموش', 'bz:del', $c['del'] ? 'success' : 'danger'),
                 btn($c['edit'] ? '✏️ روشن' : '✏️ خاموش', 'bz:edit', $c['edit'] ? 'success' : 'danger'),
             ],
-            [btn('🔙 برگشت', 'home', null)],
+            ...(Store::get('biz_back', (string) $uid) === 1 ? [[btn('🔙 برگشت', 'home', null)]] : []),
         ]);
         return [$text, $kb];
     }
@@ -739,7 +739,9 @@ final class Business
         }
         $back = [btn('🔙 برگشت', 'bz:menu', null)];
 
-        if ($data === 'bz:on') {
+        if ($data === 'bz:menu:h') {
+            Store::set('biz_back', (string) $uid, 1);
+        } elseif ($data === 'bz:on') {
             self::save($uid, ['on' => !self::cfg($uid)['on']]);
         } elseif ($data === 'bz:del') {
             self::save($uid, ['del' => !self::cfg($uid)['del']]);

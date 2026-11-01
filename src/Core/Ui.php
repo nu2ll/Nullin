@@ -82,7 +82,7 @@ final class Ui
         $bot = App::botUsername();
         return "سلام " . safeName($from) . " 👋\n"
             . "من <b>نالینی</b>‌ام؛\n"
-            . "یه ربات اینلاین همه‌کاره با هوش مصنوعی 😎\n\n"
+            . "یه ربات اینلاین و همه‌کاره با هوش مصنوعی 😎\n\n"
             . "✨ تو <b>هر چتی</b> بنویس\n"
             . "<code>@{$bot}</code>\n"
             . "و از منو انتخاب کن،\n"
@@ -373,11 +373,11 @@ final class Ui
     public static function startKeyboard(): array
     {
         $bot = App::botUsername();
-        $mid = Switches::on('business') ? [btn('🤝 منشی', 'bz:menu')] : [];
+        $mid = Switches::on('business') ? [btn('🤝 منشی', 'bz:menu:h')] : [];
         return ikb([
             [['text' => '🚀 امتحانش کن', 'switch_inline_query_current_chat' => '', 'style' => 'success']],
             array_merge([btn('📘 راهنما', 'help:menu')], $mid, [btn('ℹ️ درباره', 'about')]),
-            [urlBtn('➕ افزودن به گروه', "https://t.me/{$bot}?startgroup=true")],
+            [urlBtn('➕ افزودن به گروه', "https://t.me/{$bot}?startgroup=true", 'danger')],
         ]);
     }
 
