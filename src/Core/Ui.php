@@ -373,9 +373,10 @@ final class Ui
     public static function startKeyboard(): array
     {
         $bot = App::botUsername();
+        $mid = Switches::on('business') ? [btn('🤝 منشی', 'bz:menu')] : [];
         return ikb([
             [['text' => '🚀 امتحانش کن', 'switch_inline_query_current_chat' => '', 'style' => 'success']],
-            [btn('📘 راهنما', 'help:menu'), btn('ℹ️ درباره', 'about')],
+            array_merge([btn('📘 راهنما', 'help:menu')], $mid, [btn('ℹ️ درباره', 'about')]),
             [urlBtn('➕ افزودن به گروه', "https://t.me/{$bot}?startgroup=true")],
         ]);
     }

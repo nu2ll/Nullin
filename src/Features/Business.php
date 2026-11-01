@@ -722,6 +722,7 @@ final class Business
                 btn($c['del'] ? '🗑 روشن' : '🗑 خاموش', 'bz:del', $c['del'] ? 'success' : 'danger'),
                 btn($c['edit'] ? '✏️ روشن' : '✏️ خاموش', 'bz:edit', $c['edit'] ? 'success' : 'danger'),
             ],
+            [btn('🔙 برگشت', 'home', null)],
         ]);
         return [$text, $kb];
     }
@@ -818,7 +819,7 @@ final class Business
             return;
         } elseif ($data === 'bz:how') {
             $bot = App::botUsername();
-            $tg->editMessage($chatId, $msgId, "<b>➕ اتصال به اکانت</b>\n\n۱. تلگرام ← تنظیمات\n۲. Telegram Business\n۳. Chatbots\n۴. یوزرنیم منو بزن: <code>@{$bot}</code>\n۵. چت‌هایی که می‌خوای جواب بدم رو انتخاب کن\n\n💡 دسترسی «پاسخ به پیام‌ها» رو هم بده،\nوگرنه نمی‌تونم جواب بدم.", ikb([$back]));
+            $tg->editMessage($chatId, $msgId, "<b>➕ اتصال به اکانت</b>\n\n۱. تلگرام ← پروفایل\n۲. ویرایش پروفایل\n۳. خودکار سازی گفت و گو\n۴. یوزرنیم منو بزن: <code>@{$bot}</code>\n۵. چت‌هایی که می‌خوای جواب بدم رو انتخاب کن\n\n💡 دسترسی «پاسخ به پیام‌ها» رو هم بده،\nوگرنه نمی‌تونم جواب بدم.", ikb([$back]));
             $tg->answer($cq);
             return;
         }
