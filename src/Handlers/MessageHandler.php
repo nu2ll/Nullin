@@ -137,7 +137,7 @@ final class MessageHandler
         }
         Users::hit("cmd:{$cmd}");
 
-        $gate = ['wk' => 'wiki', 'wiki' => 'wiki', 'giveaway' => 'giveaway', 'gw' => 'giveaway', 'image' => 'image', 'img' => 'image', 'font' => 'font', 'ft' => 'font', 'tr' => 'translate', 'translate' => 'translate'][$cmd] ?? null;
+        $gate = ['wk' => 'wiki', 'wiki' => 'wiki', 'giveaway' => 'giveaway', 'gw' => 'giveaway', 'image' => 'image', 'img' => 'image', 'font' => 'font', 'ft' => 'font', 'tr' => 'translate', 'translate' => 'translate', 'link' => 'linkcheck', 'lc' => 'linkcheck'][$cmd] ?? null;
         if ($gate !== null && !Switches::guard($gate)) {
             return true;
         }
@@ -202,6 +202,12 @@ final class MessageHandler
             case 'tr':
             case 'translate':
                 Assistant::translate($msg, $args);
+                return true;
+
+            case 'link':
+            case 'lc':
+                $tg->action($chatId, 'typing');
+                $tg->reply($msg, LinkCheck::respond((int) $from['id'], $args, LinkCheck::replyText($msg)), ['link_preview_options' => ['is_disabled' => true]]);
                 return true;
 
             case 'stats':

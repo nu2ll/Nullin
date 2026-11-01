@@ -2,12 +2,56 @@
 
 final class Http
 {
+    private static function impersonated(string $method, string $url, array $opt): ?array
+    {
+        $script = (defined('NULLINI_ROOT') ? NULLINI_ROOT : dirname(__DIR__, 2)) . '/bin/impersonate.py';
+        if (!is_file($script) || !function_exists('proc_open')) {
+            return null;
+        }
+        $timeout = (int) ($opt['timeout'] ?? 15);
+        $payload = json_encode([
+            'method'      => $method,
+            'url'         => $url,
+            'headers'     => $opt['headers'] ?? [],
+            'body'        => isset($opt['body']) ? (string) $opt['body'] : null,
+            'follow'      => $opt['follow'] ?? true,
+            'timeout'     => $timeout,
+            'max_bytes'   => $opt['max_bytes'] ?? 2000000,
+            'impersonate' => is_string($opt['impersonate']) ? $opt['impersonate'] : 'chrome',
+        ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        $proc = @proc_open(['timeout', (string) ($timeout + 5), 'python3', $script], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        if (!is_resource($proc)) {
+            return null;
+        }
+        fwrite($pipes[0], (string) $payload);
+        fclose($pipes[0]);
+        $out = (string) stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        proc_close($proc);
+        $j = json_decode($out, true);
+        if (!is_array($j) || stripos((string) ($j['error'] ?? ''), 'No module named') !== false) {
+            return null;
+        }
+        $body = base64_decode((string) ($j['body'] ?? ''), true);
+        return [
+            'code'     => (int) ($j['code'] ?? 0),
+            'body'     => (int) ($j['code'] ?? 0) === 0 ? null : (string) $body,
+            'error'    => (string) ($j['error'] ?? ''),
+            'redirect' => (string) ($j['redirect'] ?? ''),
+            'url'      => (string) ($j['url'] ?? $url),
+        ];
+    }
+
     public static function request(string $method, string $url, array $opt = []): array
     {
+        if (!empty($opt['impersonate']) && ($viaPy = self::impersonated($method, $url, $opt)) !== null) {
+            return $viaPy;
+        }
         $ch = curl_init($url);
         $set = [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_FOLLOWLOCATION => $opt['follow'] ?? true,
             CURLOPT_MAXREDIRS      => 4,
             CURLOPT_TIMEOUT        => $opt['timeout'] ?? 15,
             CURLOPT_CONNECTTIMEOUT => $opt['connect_timeout'] ?? 8,
@@ -20,14 +64,35 @@ final class Http
             $set[CURLOPT_CUSTOMREQUEST] = $method;
             $set[CURLOPT_POSTFIELDS]    = $opt['body'] ?? '';
         }
+        if (!empty($opt['head'])) {
+            $set[CURLOPT_NOBODY] = true;
+        }
+        if (!empty($opt['resolve'])) {
+            $set[CURLOPT_RESOLVE] = $opt['resolve'];
+        }
+        $buf = null;
+        if (isset($opt['max_bytes'])) {
+            $buf = '';
+            $max = (int) $opt['max_bytes'];
+            $set[CURLOPT_RETURNTRANSFER] = false;
+            $set[CURLOPT_WRITEFUNCTION]  = static function ($ch, string $data) use (&$buf, $max): int {
+                $buf .= $data;
+                return strlen($buf) > $max ? 0 : strlen($data);
+            };
+        }
         curl_setopt_array($ch, $set);
 
-        $body  = curl_exec($ch);
-        $code  = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
+        $body     = curl_exec($ch);
+        $code     = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $redirect = (string) curl_getinfo($ch, CURLINFO_REDIRECT_URL);
+        $effective = (string) curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+        $error    = curl_error($ch);
         curl_close($ch);
+        if ($buf !== null) {
+            $body = $buf;
+        }
 
-        return ['code' => $code, 'body' => $body === false ? null : (string) $body, 'error' => $error];
+        return ['code' => $code, 'body' => $body === false ? null : (string) $body, 'error' => $error, 'redirect' => $redirect, 'url' => $effective];
     }
 
     public static function getJson(string $url, array $headers = [], int $timeout = 12): ?array

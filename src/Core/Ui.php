@@ -344,7 +344,7 @@ final class Ui
             $c('start', '🏠 شروع'),
             $c('help', '📘 راهنما'),
         ];
-        foreach ([['img', '🎨 ساخت عکس'], ['tr', '🌐 ترجمه'], ['ft', '✨ فونت‌ساز'], ['gw', '🎁 قرعه‌کشی'], ['wk', '📖 ویکی‌پدیا']] as [$cmd, $desc]) {
+        foreach ([['img', '🎨 ساخت عکس'], ['tr', '🌐 ترجمه'], ['ft', '✨ فونت‌ساز'], ['gw', '🎁 قرعه‌کشی'], ['wk', '📖 ویکی‌پدیا'], ['link', '🛡 چک لینک']] as [$cmd, $desc]) {
             if (Switches::on(Switches::COMMAND_SWITCH[$cmd])) {
                 $base[] = $c($cmd, $desc);
             }
@@ -422,6 +422,7 @@ final class Ui
         'roast'     => '🔥 روست',
         'nid'       => '🪪 کد ملی',
         'funstat'   => '🔍 استعلام کاربر',
+        'linkcheck' => '🛡 چک لینک',
         'games'     => '🎮 بازی‌ها',
         'group'     => '👥 در گروه',
     ];
@@ -568,6 +569,20 @@ final class Ui
                 . "با آیدی عددیش.\n\n"
                 . "• " . $c('id 12345678'),
 
+            'linkcheck' => "<b>🛡 چک لینک</b>\n"
+                . "قبل از بازکردن یه لینک، بررسیش کن:\n\n"
+                . "• نشانه‌های مشکوک تو آدرس\n"
+                . "• مسیر ریدایرکت‌ها تا مقصد نهایی\n"
+                . "• اطلاعات عمومی پشت لینک‌های اشتراک:\n"
+                . "تلگرام، دیسکورد، گیت‌هاب، گیت‌لب، هاگینگ‌فیس، گوگل داکس،\n"
+                . "SharePoint، تیک‌تاک، اینستاگرام، یوتیوب، ردیت، نوشن، لینکدین،\n"
+                . "چت‌جی‌پی‌تی، کلود، پرپلکسیتی، پینترست، سابستک و سونو\n\n"
+                . "• دستور: <code>/link https://example.com</code>\n"
+                . "• یا روی پیامی که لینک داره ریپلای کن و <code>/link</code> بزن\n"
+                . "• تو گروه یا پیوی هم می‌تونی از خود نالینی بخوای لینک رو چک کنه\n\n"
+                . "⚠️ فقط بررسی ظاهر لینکه، نه اسکن ویروس.\n"
+                . "⏱ هر چند ثانیه یه لینک.",
+
             'games' => "<b>🎮 بازی‌ها</b>\n"
                 . "همه از منوی اصلی در دسترسن؛\n"
                 . "<code>{$b}</code>\n"
@@ -590,7 +605,7 @@ final class Ui
 
     private const HELP_LAYOUT = [
         1 => [['ai', 'image'], ['translate', 'search'], ['whisper'], ['font', 'download'], ['giveaway', 'wiki']],
-        2 => [['weather', 'calc'], ['qr', 'love'], ['group'], ['roast', 'nid'], ['funstat', 'games']],
+        2 => [['weather', 'calc'], ['qr', 'love'], ['group'], ['roast', 'nid'], ['funstat', 'games'], ['linkcheck']],
     ];
 
     public static function helpPage(string $key): int
@@ -646,7 +661,7 @@ final class Ui
             $try = btn('🎁 بساز', 'gw:new', 'primary');
         }
         return ikb([
-            [$try],
+            $key === 'linkcheck' ? [] : [$try],
             [btn('🔙 راهنما', self::helpPage($key) === 2 ? 'help:p2' : 'help:menu', null)],
         ]);
     }

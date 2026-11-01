@@ -11,6 +11,7 @@ final class Switches
         'weather'  => '🌦 آب‌وهوا',
         'rates'    => '💱 نرخ ارز و طلا',
         'download' => '⬇️ دانلودر',
+        'linkcheck' => '🛡 چک لینک',
         'whisper'  => '🤫 نجوا',
         'giveaway' => '🎁 قرعه‌کشی',
         'font'     => '✨ فونت‌ساز',
@@ -37,6 +38,7 @@ final class Switches
         'ft'  => 'font', 'font' => 'font',
         'gw'  => 'giveaway', 'giveaway' => 'giveaway',
         'wk'  => 'wiki', 'wiki' => 'wiki',
+        'link' => 'linkcheck', 'lc' => 'linkcheck',
     ];
 
     private const GAME_KEYS = ['chess', 'ttt', 'c4', 'rps', 'math'];

@@ -2,7 +2,7 @@
 
 final class Intent
 {
-    public const NAMES = ['translate', 'download', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'love', 'roast', 'userinfo', 'giveaway'];
+    public const NAMES = ['translate', 'download', 'linkcheck', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'love', 'roast', 'userinfo', 'giveaway'];
 
     public static function prompt(): string
     {
@@ -19,6 +19,7 @@ final class Intent
             . "\n- coin: شیر یا خط."
             . "\n- giveaway: ساختن قرعه‌کشی."
             . "\n- download | <لینک کامل؛ اگه لینک تو پیامیه که روش ریپلای کرده خالی بذار>: دانلود ویدیو، عکس یا آهنگ یه لینک."
+            . "\n- linkcheck | <لینک کامل؛ اگه لینک تو پیامیه که روش ریپلای کرده خالی بذار>: بررسی امنیتی و مقصد واقعی یه لینک، نه دانلودش."
             . "\n- calc | <عبارت ریاضی با + - * / ^ و پرانتز>: حساب عددی."
             . "\n- nid | <کد ملی>: بررسی درستی کد ملی."
             . "\n- love | <نفر اول> | <نفر دوم>: درصد عشق دو نفر."
@@ -64,7 +65,7 @@ final class Intent
             $private ? Giveaway::start($msg) : Giveaway::fromGroup($msg);
             return true;
         }
-        if (in_array($name, ['translate', 'rates', 'weather', 'wiki', 'search', 'love', 'roast'], true)) {
+        if (in_array($name, ['translate', 'rates', 'weather', 'wiki', 'search', 'love', 'roast', 'linkcheck'], true)) {
             $tg->action($chat, 'typing');
         }
 
@@ -157,6 +158,9 @@ final class Intent
                 }
                 $res = Calculator::evaluate($arg);
                 return ['text' => '🧮 <code>' . h(Calculator::normalize($arg)) . '</code>' . "\n= <b>" . h($res) . '</b>'];
+
+            case 'linkcheck':
+                return ['text' => LinkCheck::respond((int) ($msg['from']['id'] ?? 0), $arg, LinkCheck::replyText($msg)), 'preview' => ['is_disabled' => true]];
 
             case 'nid':
                 $code = Tools::normalizeNid($arg);
