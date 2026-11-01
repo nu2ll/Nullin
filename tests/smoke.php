@@ -261,7 +261,7 @@ check('help layout covers all guides once', $seenKeys, $allKeys);
 $p1 = $hm(1);
 $p2 = $hm(2);
 check('help whisper beside linkcheck above font', [$p1[2], $p1[3]], [['help:whisper', 'help:linkcheck'], ['help:font', 'help:download']]);
-check('help group single under love', [$p2[1], $p2[2]], [['help:qr', 'help:love'], ['help:group']]);
+check('help qr beside short, love beside group', [$p2[1], $p2[2]], [['help:qr', 'help:short'], ['help:love', 'help:group']]);
 check('help next arrow', Ui::helpMenu(true, 1)['inline_keyboard'][5][0]['text'], '➡️ صفحه‌ی بعد');
 check('help prev arrow', Ui::helpMenu(true, 2)['inline_keyboard'][5][0]['text'], 'صفحه‌ی قبل ⬅️');
 check('roast token user', Roast::token('نالینی @ali_reza رو روست کن'), '@ali_reza');
@@ -361,7 +361,7 @@ check('football goal rule', str_contains(Assistant::dataInfo(['dice' => ['emoji'
 
 Switches::setAll(true);
 check('switch all on', array_filter(array_keys(Switches::TOOLS), static fn($k) => !Switches::on($k)), []);
-check('switch tools count', count(Switches::TOOLS), 29);
+check('switch tools count', count(Switches::TOOLS), 30);
 check('switch no old games key', isset(Switches::TOOLS['games']), false);
 foreach (['chess', 'ttt', 'c4', 'rps', 'math'] as $g) {
     check("switch game key {$g}", isset(Switches::TOOLS[$g]), true);
