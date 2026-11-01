@@ -207,7 +207,7 @@ final class MessageHandler
             case 'link':
             case 'lc':
                 $tg->action($chatId, 'typing');
-                $tg->reply($msg, LinkCheck::respond((int) $from['id'], $args, LinkCheck::replyText($msg)), ['link_preview_options' => ['is_disabled' => true]]);
+                $tg->reply($msg, LinkCheck::respond($args, LinkCheck::replyText($msg)), ['link_preview_options' => ['is_disabled' => true]]);
                 return true;
 
             case 'stats':

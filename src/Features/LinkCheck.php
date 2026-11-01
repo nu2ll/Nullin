@@ -2,27 +2,6 @@
 
 final class LinkCheck
 {
-    private const WAIT = 10;
-
-    private const SHORTENERS = ['bit.ly', 't.co', 'tinyurl.com', 'cutt.ly', 'is.gd', 'rb.gy', 'ow.ly', 'buff.ly', 'shorturl.at', 'tiny.cc', 'goo.gl', 's.id', 'v.gd', 'rebrand.ly', 'lnkd.in', 't.ly', 'share.google'];
-
-    private const BAD_TLDS = ['zip', 'mov', 'tk', 'ml', 'ga', 'cf', 'gq', 'click', 'loan'];
-
-    private const BRANDS = [
-        'google'    => ['google', 'googleusercontent', 'googleapis', 'googlevideo', 'googlesource', 'googleadservices', 'googlesyndication'],
-        'microsoft' => ['microsoft', 'microsoftonline', 'microsoft365'],
-        'apple'     => ['apple', 'icloud'],
-        'paypal'    => ['paypal'],
-        'instagram' => ['instagram'],
-        'facebook'  => ['facebook'],
-        'whatsapp'  => ['whatsapp'],
-        'telegram'  => ['telegram'],
-        'binance'   => ['binance'],
-        'netflix'   => ['netflix'],
-        'amazon'    => ['amazon', 'amazonaws'],
-        'github'    => ['github', 'githubusercontent'],
-    ];
-
     private const PLATFORMS = [
         ['telegram', '~^https?://(?:www\.)?t\.me/(?:joinchat/|\+)[A-Za-z0-9_-]+~i'],
         ['telegram', '~^https?://(?:www\.)?t\.me/c/\d+(?:/\d+)?~i'],
@@ -143,14 +122,6 @@ final class LinkCheck
         'external_links'      => 'لینک‌های بیرونی',
     ];
 
-    public static function busy(int $uid): bool
-    {
-        if ($uid <= 0 || App::isAdmin($uid)) {
-            return false;
-        }
-        return Store::update('rl', 'linkcheck_' . $uid, static fn($at) => (is_int($at) && time() - $at < self::WAIT) ? null : time()) === null;
-    }
-
     public static function replyText(array $msg): string
     {
         $r = $msg['reply_to_message'] ?? null;
@@ -166,14 +137,11 @@ final class LinkCheck
         return trim(implode(' ', $urls) . ' ' . (string) ($r['text'] ?? $r['caption'] ?? ''));
     }
 
-    public static function respond(int $uid, string $arg, string $reply = ''): string
+    public static function respond(string $arg, string $reply = ''): string
     {
         $url = self::extract($arg) ?? self::extract($reply);
         if ($url === null) {
             return Ui::guide('linkcheck');
-        }
-        if (self::busy($uid)) {
-            return "⏳ چند ثانیه صبر کن و دوباره امتحان کن؛\nهر چند ثانیه فقط یه لینک چک می‌کنم.";
         }
         Users::hit('linkcheck');
         return self::report($url);
@@ -203,140 +171,6 @@ final class LinkCheck
         }
         $host = parse_url($url, PHP_URL_HOST);
         return is_string($host) && $host !== '' ? $url : null;
-    }
-
-    public static function registrable(string $host): string
-    {
-        $parts = explode('.', $host);
-        $n     = count($parts);
-        if ($n <= 2) {
-            return $host;
-        }
-        if (strlen($parts[$n - 1]) === 2 && in_array($parts[$n - 2], ['co', 'com', 'org', 'net', 'gov', 'edu', 'ac'], true)) {
-            return implode('.', array_slice($parts, -3));
-        }
-        return implode('.', array_slice($parts, -2));
-    }
-
-    public static function signals(string $url): array
-    {
-        $p    = parse_url($url) ?: [];
-        $host = strtolower(trim((string) ($p['host'] ?? ''), '[]'));
-        $out  = [];
-        if (strtolower((string) ($p['scheme'] ?? '')) !== 'https') {
-            $out[] = [1, 'اتصال امن (HTTPS) نداره'];
-        }
-        if (isset($p['user']) || isset($p['pass'])) {
-            $out[] = [3, 'تو آدرس یوزر یا «@» هست؛ ترفند رایج برای قایم‌کردن مقصد واقعی'];
-        }
-        if (isset($p['port']) && !in_array((int) $p['port'], [80, 443], true)) {
-            $out[] = [1, 'از پورت غیرمعمول استفاده می‌کنه'];
-        }
-        if ($host === '') {
-            return $out;
-        }
-        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
-            $out[] = [3, 'به‌جای دامنه، آی‌پی خام داره'];
-            return $out;
-        }
-        if (str_contains($host, 'xn--') || preg_match('/[^\x00-\x7F]/', $host)) {
-            $out[] = [2, 'دامنه حروف غیرانگلیسی یا پانی‌کد داره؛ ممکنه شبیه یه سایت معروف باشه'];
-            return $out;
-        }
-        $reg = self::registrable($host);
-        if (in_array($host, self::SHORTENERS, true) || in_array($reg, self::SHORTENERS, true)) {
-            $out[] = [1, 'لینک کوتاه‌شده‌ست و مقصدش از روی آدرس معلوم نیست'];
-        }
-        if (substr_count($host, '.') >= 4) {
-            $out[] = [1, 'تعداد زیردامنه‌ها غیرعادی زیاده'];
-        }
-        $tld = str_contains($host, '.') ? substr($host, (int) strrpos($host, '.') + 1) : '';
-        if (in_array($tld, self::BAD_TLDS, true)) {
-            $out[] = [1, 'پسوند دامنه (.' . $tld . ') بین لینک‌های کلاهبرداری زیاد دیده می‌شه'];
-        }
-        $label  = explode('.', $reg)[0];
-        $tokens = preg_split('/[.\-_]+/', $host) ?: [];
-        foreach (self::BRANDS as $brand => $allowed) {
-            if (in_array($brand, $tokens, true) && !in_array($label, $allowed, true)) {
-                $out[] = [3, 'اسم «' . $brand . '» تو آدرس هست ولی دامنه‌ی اصلی مال خودش نیست'];
-                break;
-            }
-        }
-        return $out;
-    }
-
-    public static function isPublicIp(string $ip): bool
-    {
-        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
-    }
-
-    private static function target(string $url): ?array
-    {
-        $p = parse_url($url);
-        if (!is_array($p) || empty($p['host']) || !in_array(strtolower((string) ($p['scheme'] ?? '')), ['http', 'https'], true)) {
-            return null;
-        }
-        $port = (int) ($p['port'] ?? (strtolower($p['scheme']) === 'https' ? 443 : 80));
-        if (!in_array($port, [80, 443], true)) {
-            return null;
-        }
-        $host = strtolower(trim((string) $p['host'], '[]'));
-        if (preg_match('/[^\x00-\x7F]/', $host)) {
-            $host = function_exists('idn_to_ascii') ? (string) idn_to_ascii($host) : '';
-            if ($host === '') {
-                return null;
-            }
-        }
-        $literal = filter_var($host, FILTER_VALIDATE_IP) !== false;
-        $ips     = $literal ? [$host] : (gethostbynamel($host) ?: []);
-        if (!$ips) {
-            return null;
-        }
-        foreach ($ips as $ip) {
-            if (!self::isPublicIp($ip)) {
-                return null;
-            }
-        }
-        return ['host' => $host, 'port' => $port, 'ip' => $ips[0], 'literal' => $literal];
-    }
-
-    public static function trace(string $url): array
-    {
-        $hops = [$url];
-        $cur  = $url;
-        $note = null;
-        $code = 0;
-        $done = false;
-        for ($i = 0; $i < 6; $i++) {
-            $t = self::target($cur);
-            if ($t === null) {
-                $note = $i === 0 ? 'دامنه پیدا نشد یا به شبکه‌ی داخلی اشاره می‌کنه' : 'یکی از ریدایرکت‌ها به آدرس نامعتبر یا داخلی می‌رفت و دنبالش نرفتم';
-                $done = true;
-                break;
-            }
-            $opt = ['follow' => false, 'timeout' => 8, 'connect_timeout' => 5, 'max_bytes' => 2048, 'headers' => ['Accept: text/html,*/*;q=0.8']];
-            if (!$t['literal']) {
-                $opt['resolve'] = ["{$t['host']}:{$t['port']}:{$t['ip']}"];
-            }
-            $r    = Http::request('GET', $cur, $opt);
-            $code = (int) $r['code'];
-            if ($code === 0) {
-                $note = 'سرور جواب نداد یا اتصال برقرار نشد';
-                $done = true;
-                break;
-            }
-            if ($code >= 300 && $code < 400 && ($r['redirect'] ?? '') !== '') {
-                $cur    = (string) $r['redirect'];
-                $hops[] = $cur;
-                continue;
-            }
-            $done = true;
-            break;
-        }
-        if (!$done) {
-            $note = 'تعداد ریدایرکت‌ها زیاد بود و ادامه ندادم';
-        }
-        return ['hops' => $hops, 'final' => $cur, 'code' => $code, 'note' => $note];
     }
 
     public static function detect(string $url): ?string
@@ -783,49 +617,32 @@ final class LinkCheck
         return implode("\n", $lines);
     }
 
+    public static function resolve(string $url): string
+    {
+        $cur = $url;
+        for ($i = 0; $i < 5; $i++) {
+            if (!preg_match('~^https?://(?:share\.google/|(?:www\.)?google\.com/share\.google(?:[/?]|$))~i', $cur)) {
+                return $cur;
+            }
+            $r = Http::request('GET', $cur, ['follow' => false, 'timeout' => 10, 'max_bytes' => 4096, 'impersonate' => 'chrome']);
+            if ($r['code'] < 300 || $r['code'] >= 400 || ($r['redirect'] ?? '') === '') {
+                return $cur;
+            }
+            $cur = (string) $r['redirect'];
+        }
+        return $cur;
+    }
+
     public static function report(string $url): string
     {
-        $sig   = self::signals($url);
-        $trace = self::trace($url);
-        $final = $trace['final'];
-        $hops  = count($trace['hops']) - 1;
-        if ($final !== $url) {
-            $seen = array_column($sig, 1);
-            foreach (self::signals($final) as [$w, $t]) {
-                if (!in_array($t, $seen, true)) {
-                    $sig[] = [$w, 'مقصد نهایی: ' . $t];
-                }
-            }
+        $url      = self::resolve($url);
+        $platform = self::detect($url);
+        $out      = "<b>🛡 چک لینک</b>\n\n🔗 <code>" . h(mb_substr($url, 0, 300)) . '</code>';
+        if ($platform === null) {
+            return $out . "\n\nاین لینک جزو پلتفرم‌های پشتیبانی‌شده نیست.\n\n<b>پشتیبانی‌شده‌ها:</b>\n" . implode('، ', array_values(array_unique(self::PLATFORM_NAMES)));
         }
-        if ($hops >= 3) {
-            $sig[] = [1, 'چند بار ریدایرکت می‌شه (' . fa($hops) . ' مرحله)'];
-        }
-        $score   = (int) array_sum(array_column($sig, 0));
-        [$e, $v] = $score >= 3 ? ['🚨', 'پرریسک؛ بازش نکن مگه مطمئن باشی'] : ($score >= 1 ? ['⚠️', 'کمی مشکوکه؛ با احتیاط'] : ['✅', 'نشانه‌ی مشکوکی پیدا نشد']);
-
-        $out = "<b>🛡 چک لینک</b>\n\n🔗 <code>" . h(mb_substr($url, 0, 300)) . "</code>\n\n{$e} <b>{$v}</b>";
-        foreach ($sig as [, $t]) {
-            $out .= "\n• " . h($t);
-        }
-        if ($hops > 0) {
-            $out .= "\n\n🧭 <b>مسیر لینک</b>";
-            foreach (array_slice($trace['hops'], 0, 7) as $i => $hop) {
-                $out .= "\n" . fa((string) ($i + 1)) . '. <code>' . h(mb_substr($hop, 0, 120)) . '</code>';
-            }
-        }
-        if ($trace['code'] >= 400) {
-            $out .= "\n• سرور مقصد با خطای HTTP " . fa((string) $trace['code']) . ' جواب داد';
-        }
-        if ($trace['note'] !== null) {
-            $out .= "\n• " . h($trace['note']);
-        }
-
-        $platform = self::detect($url) ?? ($final !== $url ? self::detect($final) : null);
-        if ($platform !== null) {
-            $res = self::identity($platform, self::detect($url) !== null ? $url : $final);
-            $out .= "\n\n🪪 <b>اطلاعات پشت لینک</b> · " . self::PLATFORM_NAMES[$platform];
-            $out .= isset($res['data']) ? "\n" . self::formatData($res['data']) : "\n• " . h($res['error'] ?? 'نتیجه‌ای نگرفتم');
-        }
-        return $out . "\n\n<i>⚠️ این فقط بررسی ظاهر آدرس و مسیر لینکه، نه اسکن ویروس یا بلک‌لیست؛\n«نشانه‌ی مشکوک پیدا نشد» یعنی امن‌بودن تضمین نیست.</i>";
+        $res  = self::identity($platform, $url);
+        $out .= "\n\n🪪 <b>اطلاعات پشت لینک</b> · " . self::PLATFORM_NAMES[$platform];
+        return $out . (isset($res['data']) ? "\n" . self::formatData($res['data']) : "\n• " . h($res['error'] ?? 'نتیجه‌ای نگرفتم'));
     }
 }

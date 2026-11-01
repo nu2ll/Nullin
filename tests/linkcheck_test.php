@@ -23,11 +23,6 @@ function same($actual, $expected, string $label): void
         exit(1);
     }
 }
-function weight(string $url): int
-{
-    return (int) array_sum(array_column(LinkCheck::signals($url), 0));
-}
-
 same(LinkCheck::extract('https://example.com/a?b=1'), 'https://example.com/a?b=1', 'plain url');
 same(LinkCheck::extract('check this: https://evil.com/x, ok'), 'https://evil.com/x', 'url inside text, trailing punctuation dropped');
 same(LinkCheck::extract('www.example.com/path'), 'https://www.example.com/path', 'www gets scheme');
@@ -36,28 +31,6 @@ same(LinkCheck::extract('two words example.com'), null, 'bare domain inside sent
 same(LinkCheck::extract('سلام چطوری'), null, 'no link');
 same(LinkCheck::extract('«https://t.me/+AbCdEf»'), 'https://t.me/+AbCdEf', 'guillemets stripped');
 same(LinkCheck::extract(''), null, 'empty');
-
-same(LinkCheck::registrable('a.b.example.com'), 'example.com', 'registrable plain');
-same(LinkCheck::registrable('x.amazon.co.uk'), 'amazon.co.uk', 'registrable co.uk');
-same(LinkCheck::registrable('example.com'), 'example.com', 'registrable two labels');
-
-same(weight('https://example.com'), 0, 'clean https');
-same(weight('http://example.com'), 1, 'no https');
-same(weight('https://paypal-login.xyz/a'), 3, 'brand lookalike');
-same(weight('https://accounts.google.com'), 0, 'real brand subdomain');
-same(weight('https://pineapple.com'), 0, 'brand substring is not brand');
-same(weight('https://user@evil.com'), 3, 'userinfo trick');
-same(weight('https://192.168.1.1/login'), 3, 'raw ip');
-same(weight('https://bit.ly/abc'), 1, 'shortener');
-same(weight('https://pay.example.zip'), 1, 'abused tld');
-same(weight('https://github.com/foo'), 0, 'github clean');
-
-same(LinkCheck::isPublicIp('8.8.8.8'), true, 'public ip');
-same(LinkCheck::isPublicIp('127.0.0.1'), false, 'loopback');
-same(LinkCheck::isPublicIp('10.0.0.5'), false, 'private 10');
-same(LinkCheck::isPublicIp('192.168.1.1'), false, 'private 192');
-same(LinkCheck::isPublicIp('169.254.169.254'), false, 'metadata ip');
-same(LinkCheck::isPublicIp('::1'), false, 'ipv6 loopback');
 
 same(LinkCheck::detect('https://github.com/torvalds/linux/commit/abcdef1'), 'github', 'github commit');
 same(LinkCheck::detect('https://github.com/torvalds'), 'github', 'github profile');

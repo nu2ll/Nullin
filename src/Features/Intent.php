@@ -19,7 +19,7 @@ final class Intent
             . "\n- coin: شیر یا خط."
             . "\n- giveaway: ساختن قرعه‌کشی."
             . "\n- download | <لینک کامل؛ اگه لینک تو پیامیه که روش ریپلای کرده خالی بذار>: دانلود ویدیو، عکس یا آهنگ یه لینک."
-            . "\n- linkcheck | <لینک کامل؛ اگه لینک تو پیامیه که روش ریپلای کرده خالی بذار>: بررسی امنیتی و مقصد واقعی یه لینک، نه دانلودش."
+            . "\n- linkcheck | <لینک کامل؛ اگه لینک تو پیامیه که روش ریپلای کرده خالی بذار>: پیدا کردن اطلاعات و هویت پشت یه لینک اشتراک (نه دانلودش)."
             . "\n- calc | <عبارت ریاضی با + - * / ^ و پرانتز>: حساب عددی."
             . "\n- nid | <کد ملی>: بررسی درستی کد ملی."
             . "\n- love | <نفر اول> | <نفر دوم>: درصد عشق دو نفر."
@@ -160,7 +160,7 @@ final class Intent
                 return ['text' => '🧮 <code>' . h(Calculator::normalize($arg)) . '</code>' . "\n= <b>" . h($res) . '</b>'];
 
             case 'linkcheck':
-                return ['text' => LinkCheck::respond((int) ($msg['from']['id'] ?? 0), $arg, LinkCheck::replyText($msg)), 'preview' => ['is_disabled' => true]];
+                return ['text' => LinkCheck::respond($arg, LinkCheck::replyText($msg)), 'preview' => ['is_disabled' => true]];
 
             case 'nid':
                 $code = Tools::normalizeNid($arg);

@@ -64,12 +64,6 @@ final class Http
             $set[CURLOPT_CUSTOMREQUEST] = $method;
             $set[CURLOPT_POSTFIELDS]    = $opt['body'] ?? '';
         }
-        if (!empty($opt['head'])) {
-            $set[CURLOPT_NOBODY] = true;
-        }
-        if (!empty($opt['resolve'])) {
-            $set[CURLOPT_RESOLVE] = $opt['resolve'];
-        }
         $buf = null;
         if (isset($opt['max_bytes'])) {
             $buf = '';
