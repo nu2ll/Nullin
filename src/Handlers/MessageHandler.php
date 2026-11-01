@@ -137,7 +137,7 @@ final class MessageHandler
         }
         Users::hit("cmd:{$cmd}");
 
-        $gate = ['wk' => 'wiki', 'wiki' => 'wiki', 'giveaway' => 'giveaway', 'gw' => 'giveaway', 'image' => 'image', 'img' => 'image', 'font' => 'font', 'ft' => 'font', 'tr' => 'translate', 'translate' => 'translate', 'link' => 'linkcheck', 'lc' => 'linkcheck'][$cmd] ?? null;
+        $gate = ['wk' => 'wiki', 'wiki' => 'wiki', 'giveaway' => 'giveaway', 'gw' => 'giveaway', 'image' => 'image', 'img' => 'image', 'font' => 'font', 'ft' => 'font', 'tr' => 'translate', 'translate' => 'translate', 'st' => 'linkcheck'][$cmd] ?? null;
         if ($gate !== null && !Switches::guard($gate)) {
             return true;
         }
@@ -204,10 +204,18 @@ final class MessageHandler
                 Assistant::translate($msg, $args);
                 return true;
 
-            case 'link':
-            case 'lc':
+            case 'st':
                 $tg->action($chatId, 'typing');
-                $tg->reply($msg, LinkCheck::respond($args, LinkCheck::replyText($msg)), ['link_preview_options' => ['is_disabled' => true]]);
+                $res   = LinkCheck::respondFull($args, LinkCheck::replyText($msg), (int) ($from['id'] ?? 0));
+                $photo = $res['avatar'] !== null ? LinkCheck::avatarBytes($res['avatar']) : null;
+                if ($photo !== null) {
+                    $plain = html_entity_decode(strip_tags($res['text']), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                    if (mb_strlen($plain) <= 1000 && $tg->sendPhotoBytes($chatId, $photo, $res['text'], (int) $msg['message_id'])) {
+                        return true;
+                    }
+                    $tg->sendPhotoBytes($chatId, $photo, '', (int) $msg['message_id']);
+                }
+                $tg->reply($msg, $res['text'], ['link_preview_options' => ['is_disabled' => true]]);
                 return true;
 
             case 'stats':

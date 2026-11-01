@@ -2,6 +2,8 @@
 
 final class LinkCheck
 {
+    private const WAIT = 60;
+
     private const PLATFORMS = [
         ['telegram', '~^https?://(?:www\.)?t\.me/(?:joinchat/|\+)[A-Za-z0-9_-]+~i'],
         ['telegram', '~^https?://(?:www\.)?t\.me/c/\d+(?:/\d+)?~i'],
@@ -35,7 +37,7 @@ final class LinkCheck
         'telegram'         => 'تلگرام',
         'discord'          => 'دیسکورد',
         'discord_channels' => 'دیسکورد',
-        'microsoft'        => 'مایکروسافت (SharePoint / OneDrive)',
+        'microsoft'        => 'مایکروسافت (شیرپوینت / وان‌درایو)',
         'gdoc'             => 'گوگل داکس / درایو',
         'github'           => 'گیت‌هاب',
         'gitlab'           => 'گیت‌لب',
@@ -137,14 +139,49 @@ final class LinkCheck
         return trim(implode(' ', $urls) . ' ' . (string) ($r['text'] ?? $r['caption'] ?? ''));
     }
 
-    public static function respond(string $arg, string $reply = ''): string
+    public static function busy(int $uid): bool
+    {
+        if ($uid <= 0 || App::isAdmin($uid)) {
+            return false;
+        }
+        return Store::update('rl', 'linkcheck_' . $uid, static fn($at) => (is_int($at) && time() - $at < self::WAIT) ? null : time()) === null;
+    }
+
+    public static function respond(string $arg, string $reply = '', int $uid = 0): string
+    {
+        return self::respondFull($arg, $reply, $uid)['text'];
+    }
+
+    /** @return array{text: string, avatar: ?string} */
+    public static function respondFull(string $arg, string $reply = '', int $uid = 0): array
     {
         $url = self::extract($arg) ?? self::extract($reply);
         if ($url === null) {
-            return Ui::guide('linkcheck');
+            return ['text' => Ui::guide('linkcheck'), 'avatar' => null];
+        }
+        if (self::busy($uid)) {
+            return ['text' => "یه‌کم دیگه بیا 😅\n⏳ هر دقیقه فقط یه ردیاب اشتراک!", 'avatar' => null];
         }
         Users::hit('linkcheck');
-        return self::report($url);
+        return self::build($url);
+    }
+
+    public static function avatarBytes(string $url): ?string
+    {
+        if (!preg_match('~^https://~i', $url)) {
+            return null;
+        }
+        $r = Http::request('GET', $url, [
+            'headers'         => ['User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'],
+            'timeout'         => 12,
+            'connect_timeout' => 6,
+            'max_bytes'       => 5000000,
+        ]);
+        $body = $r['body'] ?? null;
+        if (!is_string($body) || $body === '' || ($r['code'] ?? 0) >= 400 || @getimagesizefromstring($body) === false) {
+            return null;
+        }
+        return $body;
     }
 
     public static function extract(string $text): ?string
@@ -185,26 +222,18 @@ final class LinkCheck
 
     public static function identity(string $platform, string $url): array
     {
-        $err = null;
-        $res = Store::remember('cache', 'lc:' . md5($platform . '|' . $url), 900, function () use ($platform, $url, &$err) {
-            $r = match ($platform) {
-                'telegram'         => self::telegram($url),
-                'discord'          => self::discord($url),
-                'discord_channels' => self::discordChannels($url),
-                'microsoft'        => self::microsoft($url),
-                'gdoc'             => self::gdoc($url),
-                'github'           => self::github($url),
-                'gitlab'           => self::gitlab($url),
-                'huggingface'      => self::huggingface($url),
-                default            => LinkSites::run($platform, $url),
-            };
-            if (isset($r['data'])) {
-                return $r;
-            }
-            $err = $r;
-            return null;
-        });
-        return $res ?? $err ?? ['error' => 'نتیجه‌ای نگرفتم'];
+        $r = match ($platform) {
+            'telegram'         => self::telegram($url),
+            'discord'          => self::discord($url),
+            'discord_channels' => self::discordChannels($url),
+            'microsoft'        => self::microsoft($url),
+            'gdoc'             => self::gdoc($url),
+            'github'           => self::github($url),
+            'gitlab'           => self::gitlab($url),
+            'huggingface'      => self::huggingface($url),
+            default            => LinkSites::run($platform, $url),
+        };
+        return isset($r['data']) ? $r : ($r ?: ['error' => 'چیزی پیدا نکردم']);
     }
 
     private static function get(string $url, array $headers = [], int $max = 400000): array
@@ -230,13 +259,13 @@ final class LinkCheck
         $b .= str_repeat('=', (4 - strlen($b) % 4) % 4);
         $raw = base64_decode($b, true);
         if ($raw === false) {
-            return ['error' => 'هش دعوت‌نامه نامعتبره'];
+            return ['error' => 'این لینک دعوت درست نیست'];
         }
         if (strlen($raw) >= 16) {
             $u = unpack('Vid', substr($raw, 0, 4));
             return ['data' => ['user_id' => (string) $u['id']]];
         }
-        return ['error' => 'این دعوت‌نامه از نوع جدیده و آیدی سازنده‌ش توش نیست'];
+        return ['error' => 'این لینک دعوت از نوع جدیده و آیدی سازنده‌ش توش نیست'];
     }
 
     public static function parseCount(string $text): ?int
@@ -302,11 +331,11 @@ final class LinkCheck
             return self::decodeInvite($m[1]);
         }
         if (!preg_match('~t\.me/(?!joinchat/|c/|\+|s/)([A-Za-z0-9_]{5,32})~i', $url, $m)) {
-            return ['error' => 'آدرس تلگرام نامعتبره'];
+            return ['error' => 'این لینک تلگرام درست نیست'];
         }
         $r = self::get('https://t.me/s/' . $m[1]);
         if ($r['body'] === null || $r['body'] === '' || $r['code'] >= 400) {
-            return ['error' => 'تلگرام جوابی نداد (HTTP ' . $r['code'] . ')'];
+            return ['error' => 'تلگرام جواب نداد (HTTP ' . $r['code'] . ')'];
         }
         $html = $r['body'];
         $d    = ['username' => $m[1]];
@@ -325,22 +354,22 @@ final class LinkCheck
                 $d['follower_count'] = $n;
             }
         }
-        return count($d) > 1 ? ['data' => $d] : ['error' => 'اطلاعات عمومی‌ای پیدا نشد'];
+        return count($d) > 1 ? ['data' => $d] : ['error' => 'اطلاعاتی پیدا نکردم'];
     }
 
     private static function discord(string $url): array
     {
         if (!preg_match('~(?:discord\.com/invite|discord\.gg)/([A-Za-z0-9_-]+)~i', $url, $m)) {
-            return ['error' => 'آدرس دعوت‌نامه‌ی دیسکورد نامعتبره'];
+            return ['error' => 'این لینک دعوت دیسکورد درست نیست'];
         }
         $r = self::get('https://discord.com/api/v9/invites/' . $m[1], ['Accept: application/json'], 200000);
         $j = $r['body'] !== null ? json_decode($r['body'], true) : null;
         if ($r['code'] >= 400 || !is_array($j)) {
-            return ['error' => 'دیسکورد جواب نداد یا دعوت‌نامه معتبر نیست'];
+            return ['error' => 'دیسکورد جواب نداد یا این دعوت‌نامه معتبر نیست'];
         }
         $inv = $j['inviter'] ?? null;
         if (!is_array($inv) || empty($inv['id'])) {
-            return ['error' => 'تو این دعوت‌نامه اطلاعات دعوت‌کننده نیست'];
+            return ['error' => 'تو این دعوت‌نامه اطلاعاتی از دعوت‌کننده نیست'];
         }
         $avatar = null;
         if (!empty($inv['avatar'])) {
@@ -358,7 +387,7 @@ final class LinkCheck
     private static function discordChannels(string $url): array
     {
         if (!preg_match('~discord\.com/channels/(@me|\d+)/(\d+)(?:/(\d+))?~i', $url, $m)) {
-            return ['error' => 'آدرس کانال دیسکورد نامعتبره'];
+            return ['error' => 'این لینک کانال دیسکورد درست نیست'];
         }
         $d = ['channel_id' => $m[2], 'channel_created_at' => self::snowflake($m[2])];
         if (strtolower($m[1]) === '@me') {
@@ -378,7 +407,7 @@ final class LinkCheck
     private static function microsoft(string $url): array
     {
         $email = self::microsoftEmail($url);
-        return $email === null ? ['error' => 'آدرس SharePoint نامعتبره'] : ['data' => ['email' => $email]];
+        return $email === null ? ['error' => 'این لینک شیرپوینت درست نیست'] : ['data' => ['email' => $email]];
     }
 
     private static function gdoc(string $url): array
@@ -391,7 +420,7 @@ final class LinkCheck
             }
         }
         if ($id === null) {
-            return ['error' => 'آیدی سند از آدرس درنیومد'];
+            return ['error' => 'آیدی سند رو از لینک درنیاوردم'];
         }
         $fields = 'alternateLink,createdDate,modifiedDate,kind,permissions(id,name,emailAddress,domain,role,additionalRoles,photoLink,type,withLink),userPermission(id,role,additionalRoles,type)';
         $api    = 'https://clients6.google.com/drive/v2beta/files/' . $id . '?' . http_build_query([
@@ -403,14 +432,14 @@ final class LinkCheck
             $r = self::get($api, ['X-Origin: https://drive.google.com'], 200000);
         }
         if ($r['code'] === 404 || ($r['body'] !== null && str_contains($r['body'], 'File not found'))) {
-            return ['error' => 'سند پیدا نشد یا عمومی نیست'];
+            return ['error' => 'سند پیدا نشد یا دسترسی بازی نداره'];
         }
         if ($r['code'] === 401 || $r['code'] === 403) {
-            return ['error' => 'گوگل درخواست رو قبول نکرد (کلید API ممکنه باطل شده باشه)'];
+            return ['error' => 'گوگل درخواستم رو قبول نکرد؛ ممکنه کلید API باطل شده باشه'];
         }
         $j = $r['body'] !== null ? json_decode($r['body'], true) : null;
         if ($r['code'] >= 400 || !is_array($j)) {
-            return ['error' => 'جواب نامعتبر از گوگل درایو'];
+            return ['error' => 'گوگل درایو جواب درستی نداد'];
         }
         $fmt = static fn($v) => is_string($v) && ($t = strtotime($v)) ? gmdate('Y-m-d H:i:s', $t) . ' UTC' : null;
         $d   = ['doc_id' => $id, 'created_at' => $fmt($j['createdDate'] ?? null), 'modified_at' => $fmt($j['modifiedDate'] ?? null)];
@@ -436,7 +465,7 @@ final class LinkCheck
             $d['avatar_url'] = $owner['photoLink'] ?? null;
         }
         if (empty($d['name']) && empty($d['email']) && empty($d['google_id'])) {
-            return ['error' => 'سند عمومیه ولی هویت صاحبش مشخص نیست'];
+            return ['error' => 'سند بازه ولی هویت صاحبش مشخص نیست'];
         }
         return ['data' => $d];
     }
@@ -450,7 +479,7 @@ final class LinkCheck
             }
             $from = $r['body'] !== null && $r['code'] < 400 ? self::parseFrom($r['body']) : null;
             if ($from === null) {
-                return ['error' => 'ایمیل نویسنده‌ی کامیت پیدا نشد'];
+                return ['error' => 'ایمیل نویسنده‌ی کامیت رو پیدا نکردم'];
             }
             $d = ['name' => $from[0], 'email' => $from[1], 'commit_sha' => $m[3], 'repo' => "{$m[1]}/{$m[2]}"];
             if (str_ends_with($from[1], 'users.noreply.github.com')) {
@@ -459,18 +488,18 @@ final class LinkCheck
             return ['data' => $d];
         }
         if (!preg_match('~^https?://(?:www\.)?github\.com/([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?)(?:[/?]|$)~i', $url, $m)) {
-            return ['error' => 'آدرس گیت‌هاب نامعتبره'];
+            return ['error' => 'این لینک گیت‌هاب درست نیست'];
         }
         $r = self::get('https://api.github.com/users/' . $m[1] . '/events/public', ['Accept: application/vnd.github+json'], 600000);
         if ($r['code'] === 404) {
             return ['error' => 'کاربر گیت‌هاب پیدا نشد'];
         }
         if ($r['code'] === 403 || $r['code'] === 429) {
-            return ['error' => 'سقف درخواست گیت‌هاب پر شده؛ بعداً امتحان کن'];
+            return ['error' => 'گیت‌هاب گفت زیادی درخواست دادیم؛ چند دقیقه دیگه امتحان کن'];
         }
         $events = $r['body'] !== null && $r['code'] < 400 ? json_decode($r['body'], true) : null;
         if (!is_array($events)) {
-            return ['error' => 'جواب نامعتبر از گیت‌هاب'];
+            return ['error' => 'گیت‌هاب جواب درستی نداد'];
         }
         $found   = [];
         $noreply = [];
@@ -492,7 +521,7 @@ final class LinkCheck
             }
         }
         if (!$found && !$noreply) {
-            return ['error' => 'تو فعالیت‌های عمومی اخیر ایمیلی پیدا نشد'];
+            return ['error' => 'تو فعالیت‌های اخیرش ایمیلی پیدا نکردم'];
         }
         $d = ['username' => $m[1], 'emails' => array_map(static fn($e, $n) => ['name' => $n, 'email' => $e], array_keys($found), array_values($found))];
         if ($noreply) {
@@ -510,11 +539,11 @@ final class LinkCheck
                 return ['error' => 'کامیت پیدا نشد یا پروژه خصوصیه'];
             }
             if ($r['code'] === 429) {
-                return ['error' => 'سقف درخواست گیت‌لب پر شده؛ بعداً امتحان کن'];
+                return ['error' => 'گیت‌لب گفت زیادی درخواست دادیم؛ چند دقیقه دیگه امتحان کن'];
             }
             $from = $r['body'] !== null && $r['code'] < 400 ? self::parseFrom($r['body']) : null;
             if ($from === null) {
-                return ['error' => 'ایمیل نویسنده‌ی کامیت پیدا نشد'];
+                return ['error' => 'ایمیل نویسنده‌ی کامیت رو پیدا نکردم'];
             }
             $d = ['name' => $from[0], 'email' => $from[1], 'commit_sha' => $m[2], 'project' => $m[1]];
             if (str_ends_with($from[1], 'users.noreply.gitlab.com')) {
@@ -524,12 +553,12 @@ final class LinkCheck
         }
         if (!preg_match('~^https?://(?:www\.)?gitlab\.com/([A-Za-z0-9][A-Za-z0-9._-]{0,254})/?$~i', $url, $m)
             || in_array(strtolower($m[1]), ['explore', 'users', 'help', 'admin', 'api', '-', 'dashboard', 'profile', 'groups', 'projects', 'search', 'public', 'snippets', 'assets', 'uploads'], true)) {
-            return ['error' => 'آدرس گیت‌لب نامعتبره'];
+            return ['error' => 'این لینک گیت‌لب درست نیست'];
         }
         $r     = self::get('https://gitlab.com/api/v4/users?username=' . rawurlencode($m[1]), ['Accept: application/json'], 200000);
         $users = $r['body'] !== null && $r['code'] < 400 ? json_decode($r['body'], true) : null;
         if (!is_array($users) || !$users) {
-            return ['error' => $r['code'] === 429 ? 'سقف درخواست گیت‌لب پر شده؛ بعداً امتحان کن' : 'کاربر گیت‌لب پیدا نشد'];
+            return ['error' => $r['code'] === 429 ? 'گیت‌لب گفت زیادی درخواست دادیم؛ چند دقیقه دیگه امتحان کن' : 'کاربر گیت‌لب پیدا نشد'];
         }
         $u      = $users[0];
         $detail = $u;
@@ -549,10 +578,10 @@ final class LinkCheck
     private static function huggingface(string $url): array
     {
         if (!preg_match('~^https?://(?:www\.)?huggingface\.co/([A-Za-z0-9][A-Za-z0-9._-]{0,94})(?:[/?#]|$)~i', $url, $m)) {
-            return ['error' => 'آدرس هاگینگ‌فیس نامعتبره'];
+            return ['error' => 'این لینک هاگینگ‌فیس درست نیست'];
         }
         if (in_array(strtolower($m[1]), ['spaces', 'datasets', 'models', 'docs', 'blog', 'api', 'pricing', 'login', 'join', 'settings', 'new', 'tasks', 'chat'], true)) {
-            return ['error' => 'این یه صفحه‌ی عمومی سایته، نه پروفایل کاربر'];
+            return ['error' => 'این یه صفحه‌ی خود سایته، نه پروفایل کاربر'];
         }
         $r = self::get('https://huggingface.co/api/users/' . rawurlencode($m[1]) . '/overview', ['Accept: application/json'], 200000);
         if ($r['code'] === 404) {
@@ -560,7 +589,7 @@ final class LinkCheck
         }
         $j = $r['body'] !== null && $r['code'] < 400 ? json_decode($r['body'], true) : null;
         if (!is_array($j)) {
-            return ['error' => 'جواب نامعتبر از هاگینگ‌فیس'];
+            return ['error' => 'هاگینگ‌فیس جواب درستی نداد'];
         }
         $user = (string) ($j['user'] ?? $m[1]);
         $orgs = [];
@@ -595,7 +624,7 @@ final class LinkCheck
     {
         $lines = [];
         foreach ($data as $key => $v) {
-            if ($v === null || $v === '' || $v === []) {
+            if ($v === null || $v === '' || $v === [] || $key === 'avatar_url') {
                 continue;
             }
             $label = self::LABELS[$key] ?? $key;
@@ -635,14 +664,28 @@ final class LinkCheck
 
     public static function report(string $url): string
     {
+        return self::build($url)['text'];
+    }
+
+    /** @return array{text: string, avatar: ?string} */
+    public static function build(string $url): array
+    {
         $url      = self::resolve($url);
         $platform = self::detect($url);
-        $out      = "<b>🛡 چک لینک</b>\n\n🔗 <code>" . h(mb_substr($url, 0, 300)) . '</code>';
+        $label    = $platform === null ? 'لینک' : 'لینک ' . trim((string) preg_replace('~\s*\(.*\)~u', '', self::PLATFORM_NAMES[$platform]));
+        $out      = "<b>🛡 ردیاب اشتراک</b>\n\n🔗 <a href=\"" . h($url) . '">' . h($label) . '</a>';
         if ($platform === null) {
-            return $out . "\n\nاین لینک جزو پلتفرم‌های پشتیبانی‌شده نیست.\n\n<b>پشتیبانی‌شده‌ها:</b>\n" . implode('، ', array_values(array_unique(self::PLATFORM_NAMES)));
+            return ['text' => $out . "\n\n🤷 این لینک رو نمی‌شناسم؛\nفقط لینک اشتراک این سایت‌ها رو بررسی می‌کنم:\n" . implode('، ', array_values(array_unique(self::PLATFORM_NAMES))), 'avatar' => null];
         }
         $res  = self::identity($platform, $url);
-        $out .= "\n\n🪪 <b>اطلاعات پشت لینک</b> · " . self::PLATFORM_NAMES[$platform];
-        return $out . (isset($res['data']) ? "\n" . self::formatData($res['data']) : "\n• " . h($res['error'] ?? 'نتیجه‌ای نگرفتم'));
+        $out .= "\n\n🪪 <b>پشت این لینک</b> · " . self::PLATFORM_NAMES[$platform] . "\n";
+        if (isset($res['data'])) {
+            $avatar = $res['data']['avatar_url'] ?? null;
+            return [
+                'text'   => $out . self::formatData($res['data']) . "\n\n<i>💡 روی هر مقدار بزنی کپی می‌شه</i>",
+                'avatar' => is_string($avatar) && $avatar !== '' ? $avatar : null,
+            ];
+        }
+        return ['text' => $out . '😕 ' . h($res['error'] ?? 'چیزی پیدا نکردم'), 'avatar' => null];
     }
 }

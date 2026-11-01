@@ -112,9 +112,9 @@ same(LinkCheck::formatData(['other_editors' => [['name' => 'A', 'email' => 'a@b.
 same(LinkCheck::formatData(['external_links' => [['title' => 'T', 'url' => 'https://x.y']]]), "• لینک‌های بیرونی:\n<code>T: https://x.y</code>", 'format links');
 same(LinkCheck::formatData(['private_account' => false]), '• اکانت خصوصی: خیر', 'format false bool');
 
-same(in_array('linkcheck', Intent::NAMES, true), true, 'intent knows linkcheck');
-same(Intent::parse('[[linkcheck | https://x.com]]'), ['linkcheck', 'https://x.com'], 'intent parses linkcheck');
+same(in_array('linkcheck', Intent::NAMES, true), false, 'intent no longer knows linkcheck');
+same(Intent::parse('[[linkcheck | https://x.com]]'), null, 'intent ignores linkcheck');
 same(isset(Switches::TOOLS['linkcheck']), true, 'switch exists');
-same(Switches::COMMAND_SWITCH['link'] ?? null, 'linkcheck', 'command maps to switch');
+same(Switches::COMMAND_SWITCH['st'] ?? null, 'linkcheck', 'command maps to switch');
 
 echo "PASS {$count} linkcheck assertions (offline, no network).\n";

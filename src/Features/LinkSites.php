@@ -220,7 +220,7 @@ final class LinkSites
             'linkedin'   => self::linkedin($url),
             'notion'     => self::notion($url),
             'youtube'    => self::youtube($url),
-            default      => ['error' => 'این نوع لینک پشتیبانی نمی‌شه'],
+            default      => ['error' => 'این نوع لینک رو هنوز بلد نیستم'],
         };
     }
 
@@ -256,10 +256,10 @@ final class LinkSites
     {
         $code = (int) ($r['code'] ?? 0);
         if ($code === 0) {
-            return ['error' => 'اتصال به ' . $site . ' برقرار نشد'];
+            return ['error' => 'نتونستم به ' . $site . ' وصل بشم'];
         }
         if (in_array($code, [401, 403, 429, 999], true)) {
-            return ['error' => $site . ' درخواست رو بلاک کرد (HTTP ' . $code . ')؛ این سایت‌ها معمولاً جلوی درخواست از سرور رو می‌گیرن'];
+            return ['error' => $site . ' جلوی درخواستم رو گرفت (HTTP ' . $code . ')؛ این سایت‌ها معمولاً جلوی ربات‌ها رو می‌گیرن'];
         }
         return ['error' => $site . ' جواب نداد (HTTP ' . $code . ')'];
     }
@@ -332,7 +332,7 @@ final class LinkSites
                 return ['data' => self::tiktokProfile($item['author'], (array) ($item['authorStats'] ?? []))];
             }
         }
-        return ['error' => 'اطلاعات اشتراک‌گذار تو صفحه‌ی تیک‌تاک پیدا نشد'];
+        return ['error' => 'اطلاعات اشتراک‌گذار رو تو صفحه‌ی تیک‌تاک پیدا نکردم'];
     }
 
     private static function tiktokProfile(array $u, array $s): array
@@ -372,7 +372,7 @@ final class LinkSites
             }
         }
         if ($u === null) {
-            return ['error' => 'اطلاعات اشتراک‌گذار تو صفحه پیدا نشد (فقط لینک‌های تازه این اطلاعات رو دارن)'];
+            return ['error' => 'اطلاعات اشتراک‌گذار تو صفحه نبود (فقط لینک‌های تازه این اطلاعات رو دارن)'];
         }
         $uname = $u['username'] ?? null;
         return ['data' => [
@@ -392,7 +392,7 @@ final class LinkSites
             return self::fail('چت‌جی‌پی‌تی', $r);
         }
         if (!preg_match('~<meta property="og:description" content="Shared by (.+?) via ChatGPT"~', $html, $m)) {
-            return ['error' => 'اسم اشتراک‌گذار تو صفحه پیدا نشد'];
+            return ['error' => 'اسم اشتراک‌گذار تو صفحه نبود'];
         }
         return ['data' => ['name' => self::dec($m[1])]];
     }
@@ -400,7 +400,7 @@ final class LinkSites
     public static function claude(string $url): array
     {
         if (!preg_match('~claude\.ai/share/([a-f0-9-]+)~i', $url, $m)) {
-            return ['error' => 'آدرس اشتراک کلود نامعتبره'];
+            return ['error' => 'این لینک اشتراک کلود درست نیست'];
         }
         $r = self::req('GET', 'https://claude.ai/api/chat_snapshots/' . $m[1], ['Accept: application/json'], null, 1500000);
         $j = self::json($r);
@@ -408,7 +408,7 @@ final class LinkSites
             return self::fail('کلود', $r);
         }
         if (empty($j['creator']['full_name'])) {
-            return ['error' => 'اطلاعات سازنده تو جواب نبود'];
+            return ['error' => 'کلود اطلاعات سازنده‌ی چت رو نداد'];
         }
         return ['data' => ['name' => $j['creator']['full_name'], 'user_id' => $j['creator']['uuid'] ?? null]];
     }
@@ -416,11 +416,11 @@ final class LinkSites
     public static function perplexity(string $url): array
     {
         if (!preg_match('~perplexity\.ai/search/([A-Za-z0-9._-]+)~i', $url, $m)) {
-            return ['error' => 'آدرس اشتراک پرپلکسیتی نامعتبره'];
+            return ['error' => 'این لینک اشتراک پرپلکسیتی درست نیست'];
         }
         $r = self::req('GET', 'https://www.perplexity.ai/rest/thread/' . $m[1], ['Accept: application/json'], null, 1500000);
         if ($r['code'] === 403) {
-            return ['error' => 'پرپلکسیتی درخواست رو بلاک کرد؛ سایت محافظت‌شده‌ست'];
+            return ['error' => 'پرپلکسیتی جلوی درخواستم رو گرفت؛ سایتش محافظت‌شده‌ست'];
         }
         $j = self::json($r);
         if ($j === null || ($j['status'] ?? '') !== 'success') {
@@ -428,7 +428,7 @@ final class LinkSites
         }
         $e = $j['entries'][0] ?? null;
         if (!is_array($e)) {
-            return ['error' => 'موردی تو جواب نبود'];
+            return ['error' => 'اطلاعاتی تو جواب پرپلکسیتی نبود'];
         }
         return ['data' => ['username' => $e['author_username'] ?? null, 'avatar_url' => $e['author_image'] ?? null, 'user_id' => $e['author_id'] ?? null]];
     }
@@ -436,12 +436,12 @@ final class LinkSites
     public static function pinterest(string $url): array
     {
         if (!preg_match('~pin\.it/([A-Za-z0-9]+)~i', $url, $m)) {
-            return ['error' => 'آدرس کوتاه پینترست نامعتبره'];
+            return ['error' => 'این لینک کوتاه پینترست درست نیست'];
         }
         $r   = self::req('GET', 'https://api.pinterest.com/url_shortener/' . $m[1] . '/redirect/', [self::HTML_ACCEPT], null, 20000, false);
         $loc = (string) ($r['redirect'] ?? '');
         if (!preg_match('~invite_code=([a-f0-9]+)~', $loc, $x)) {
-            return ['error' => 'کد دعوت تو لینک پینترست پیدا نشد'];
+            return ['error' => 'کد دعوت تو لینک پینترست نبود'];
         }
         $invite = $x[1];
         $pin    = preg_match('~/pin/(\d+)/~', $loc, $y) ? $y[1] : '0';
@@ -458,7 +458,7 @@ final class LinkSites
         $j      = self::json($r2);
         $sender = $j['resource_response']['data']['sender'] ?? null;
         if (!is_array($sender) || !$sender) {
-            return $j === null ? self::fail('پینترست', $r2) : ['error' => 'اطلاعات فرستنده پیدا نشد'];
+            return $j === null ? self::fail('پینترست', $r2) : ['error' => 'اطلاعات فرستنده رو پیدا نکردم'];
         }
         $uname = $sender['username'] ?? null;
         return ['data' => [
@@ -492,7 +492,7 @@ final class LinkSites
             }
         }
         if ($post === null) {
-            return ['error' => 'لینک اشتراک به یه پست ردیت ریدایرکت نشد'];
+            return ['error' => 'این لینک اشتراک به پست ردیت نرسید'];
         }
         $r = self::req('GET', $post . '.json', ['Accept: application/json'], null, 1500000);
         $j = self::json($r);
@@ -501,7 +501,7 @@ final class LinkSites
         }
         $d = $j[0]['data']['children'][0]['data'] ?? null;
         if (!is_array($d)) {
-            return ['error' => 'ساختار جواب ردیت غیرمنتظره بود'];
+            return ['error' => 'جواب ردیت یه چیز عجیب بود و نتونستم بخونمش'];
         }
         $author = (string) ($d['author'] ?? '');
         if ($author === '' || $author === '[deleted]') {
@@ -524,12 +524,12 @@ final class LinkSites
             return self::fail('سابستک', $r);
         }
         if (!preg_match('~window\._preloads\s*=\s*JSON\.parse\("(.+?)"\)~s', $html, $m)) {
-            return ['error' => 'داده‌ی preload تو صفحه پیدا نشد'];
+            return ['error' => 'اطلاعات صفحه‌ی سابستک رو پیدا نکردم'];
         }
         $str = json_decode('"' . $m[1] . '"');
         $j   = is_string($str) ? json_decode($str, true) : null;
         if (!is_array($j)) {
-            return ['error' => 'خوندن داده‌ی preload نشد'];
+            return ['error' => 'نتونستم اطلاعات صفحه‌ی سابستک رو بخونم'];
         }
         $u = $j['referringUser'] ?? null;
         if (!is_array($u) || !$u) {
@@ -552,7 +552,7 @@ final class LinkSites
     public static function suno(string $url): array
     {
         if (!preg_match('~suno\.com/s/([A-Za-z0-9]+)~i', $url, $m)) {
-            return ['error' => 'آدرس اشتراک سونو نامعتبره'];
+            return ['error' => 'این لینک اشتراک سونو درست نیست'];
         }
         $tok = json_encode(['token' => base64_encode(json_encode(['timestamp' => (int) (microtime(true) * 1000)]))]);
         $r   = self::req('GET', 'https://studio-api.prod.suno.com/api/share/code/' . $m[1], [
@@ -560,7 +560,7 @@ final class LinkSites
         ], null, 500000);
         $j = self::json($r);
         if ($j === null || empty($j['success'])) {
-            return $j === null ? self::fail('سونو', $r) : ['error' => 'اطلاعات اشتراک سونو گرفته نشد'];
+            return $j === null ? self::fail('سونو', $r) : ['error' => 'نتونستم اطلاعات اشتراک سونو رو بگیرم'];
         }
         $handle = $j['sharer_handle'] ?? null;
         return ['data' => [
@@ -574,7 +574,7 @@ final class LinkSites
     public static function linkedin(string $url): array
     {
         if (!preg_match('~linkedin\.com/(in|posts|pulse)/([A-Za-z0-9_%-]+)~i', $url, $m)) {
-            return ['error' => 'آدرس لینکدین نامعتبره'];
+            return ['error' => 'این لینک لینکدین درست نیست'];
         }
         $type      = ['in' => 'پروفایل', 'posts' => 'پست', 'pulse' => 'مقاله'][strtolower($m[1])] ?? $m[1];
         $canonical = 'https://www.linkedin.com/' . strtolower($m[1]) . '/' . $m[2];
@@ -582,7 +582,7 @@ final class LinkSites
             'User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
             self::HTML_ACCEPT, 'Sec-Fetch-Dest: document', 'Sec-Fetch-Mode: navigate', 'Sec-Fetch-Site: none', 'Upgrade-Insecure-Requests: 1',
         ], null, 1500000);
-        $blocked = ['error' => 'لینکدین درخواست رو بلاک کرد (محافظ ربات)'];
+        $blocked = ['error' => 'لینکدین جلوی درخواستم رو گرفت (محافظ ربات)'];
         if (in_array((int) $r['code'], [999, 403, 429], true)) {
             return $blocked;
         }
@@ -617,7 +617,7 @@ final class LinkSites
             return $blocked;
         }
         if (!$hasTitle) {
-            return ['error' => 'og:title تو جواب لینکدین نبود'];
+            return ['error' => 'اسم صاحب پروفایل تو صفحه‌ی لینکدین نبود'];
         }
         $title = trim(preg_replace('~\s*\|\s*LinkedIn\s*$~i', '', trim(self::dec($t[1]))) ?? '');
         $name  = $title;
@@ -663,7 +663,7 @@ final class LinkSites
             }
         }
         if ($id === null) {
-            return ['error' => 'آیدی صفحه از آدرس درنیومد'];
+            return ['error' => 'آیدی صفحه رو از لینک درنیاوردم'];
         }
         $pd = self::json(self::notionPost('getPublicPageData', ['blockId' => $id]));
         if ($pd === null || !empty($pd['errorId']) || empty($pd['spaceId'])) {
@@ -828,7 +828,7 @@ final class LinkSites
             }
             $player = self::extractBlob((string) $r['body'], 'ytInitialPlayerResponse');
             if ($player === null) {
-                return ['error' => 'ytInitialPlayerResponse خونده نشد'];
+                return ['error' => 'نتونستم اطلاعات ویدیو رو از یوتیوب بخونم'];
             }
             $det   = (array) ($player['videoDetails'] ?? []);
             $micro = (array) ($player['microformat']['playerMicroformatRenderer'] ?? []);
@@ -850,7 +850,7 @@ final class LinkSites
             ])];
         }
         if (!preg_match('~^https?://(?:www\.|m\.)?youtube\.com/(?:@([A-Za-z0-9._-]+)|channel/(UC[A-Za-z0-9_-]{22}))~i', $url, $m)) {
-            return ['error' => 'آدرس یوتیوب نامعتبره'];
+            return ['error' => 'این لینک یوتیوب درست نیست'];
         }
         $about = !empty($m[1]) ? 'https://www.youtube.com/@' . $m[1] . '/about' : 'https://www.youtube.com/channel/' . $m[2] . '/about';
         $r     = self::req('GET', $about, $h, null, 4000000);
@@ -860,14 +860,14 @@ final class LinkSites
         $html    = (string) $r['body'];
         $initial = self::extractBlob($html, 'ytInitialData');
         if ($initial === null) {
-            return ['error' => 'ytInitialData خونده نشد'];
+            return ['error' => 'نتونستم اطلاعات کانال رو از یوتیوب بخونم'];
         }
         $header = (array) (self::findKey($initial, 'pageHeaderRenderer') ?? []);
         $meta   = (array) (self::findKey($initial, 'channelMetadataRenderer') ?? []);
         $ab     = (array) (self::findKey($initial, 'aboutChannelViewModel') ?? []);
         $cid    = $meta['externalId'] ?? self::firstUcid($initial);
         if ($cid === null) {
-            return ['error' => 'آیدی کانال پیدا نشد'];
+            return ['error' => 'آیدی کانال رو پیدا نکردم'];
         }
         $handle = null;
         foreach (array_merge([(string) ($meta['vanityChannelUrl'] ?? '')], array_map('strval', (array) ($meta['ownerUrls'] ?? []))) as $u) {
