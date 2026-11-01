@@ -16,6 +16,7 @@ final class InlineHandler
         'font'    => ['ft', 'font', 'fonts', 'فونت'],
         'wiki'    => ['wk', 'wiki', 'ویکی‌پدیا', 'ویکیپدیا', 'ویکی'],
         'gw'      => ['gw', 'giveaway', 'قرعه‌کشی', 'قرعه کشی', 'قرعه'],
+        'linkcheck' => ['st'],
     ];
 
     private static array $iq = [];
@@ -47,7 +48,7 @@ final class InlineHandler
             foreach ($words as $w) {
                 if (preg_match('/^' . preg_quote($w, '/') . '(?:\s+|$)(.*)$/isu', $query, $m)) {
                     $rest = trim($m[1]);
-                    $sw   = ['tr' => 'translate', 'funstat' => 'userinfo', 'gw' => 'giveaway'][$route] ?? $route;
+                    $sw   = ['tr' => 'translate', 'gw' => 'giveaway'][$route] ?? $route;
                     if (!Switches::on($sw)) {
                         self::answer([], 0);
                         return;
@@ -66,6 +67,7 @@ final class InlineHandler
                         'font'    => self::font($rest),
                         'gw'      => self::giveaway($rest),
                         'wiki'    => self::wiki($rest),
+                        'linkcheck' => self::linkcheck($rest),
                     };
                     return;
                 }
@@ -380,6 +382,17 @@ final class InlineHandler
         self::answer([Ui::article("nid_{$code}", $ok ? 'ok' : 'fail', $ok ? '✅ کد ملی سالمه' : '❌ کد ملی نامعتبره', Tools::nidDisplay($code), Tools::nidText($code))], 300, false);
     }
 
+    private static function linkcheck(string $rest): void
+    {
+        $url = LinkCheck::extract($rest);
+        if ($url === null) {
+            self::guide('linkcheck', 'linkcheck', '🛡 ردیاب اشتراک', 'بعد از st لینک اشتراک رو بنویس');
+            return;
+        }
+        $p = LinkCheck::pending(self::$iq['from'], $url);
+        self::answer([Ui::article('st_' . $p['token'], 'linkcheck', '🛡 ردیابی این لینک', mb_substr($url, 0, 80), $p['text'], $p['kb'])]);
+    }
+
     private static function funstat(string $raw): void
     {
         $raw = en($raw);
@@ -551,12 +564,13 @@ final class InlineHandler
             Ui::article('help_roast', 'roast', '🔥 روست', 'roast [@یوزرنیم] [آیدی]', Ui::guide('roast'), Ui::tryKeyboard('roast')),
             Ui::article('help_love', 'love', '💘 تطابق عشقی', 'love [یوزرنیم/آیدی] [یوزرنیم/آیدی۲]', Ui::guide('love'), Ui::tryKeyboard('love')),
             Ui::article('help_nid', 'nid', '🪪 کد ملی', 'meli [کد ملی]', Ui::guide('nid'), Ui::tryKeyboard('nid')),
+            Ui::article('help_linkcheck', 'linkcheck', '🛡 ردیاب اشتراک', 'st [لینک اشتراک]', Ui::guide('linkcheck'), Ui::tryKeyboard('linkcheck')),
             Ui::article('help_funstat', 'funstat', '🔍 استعلام کاربر', 'id [آیدی عددی]', Ui::guide('funstat'), Ui::tryKeyboard('funstat')),
         ];
 
         $swMap = ['info' => 'userinfo', 'chess' => 'chess', 'ttt' => 'ttt', 'c4' => 'c4', 'rps' => 'rps', 'math' => 'math', 'calc' => 'calc', 'rates' => 'rates', 'date' => 'date', 'pass' => 'password', 'coin' => 'coin', 'fal' => 'fal',
             'help_image' => 'image', 'help_whisper' => 'whisper', 'help_giveaway' => 'giveaway', 'help_wiki' => 'wiki', 'help_ai' => 'ai', 'help_translate' => 'translate', 'help_search' => 'search',
-            'help_font' => 'font', 'help_weather' => 'weather', 'help_qr' => 'qr', 'help_roast' => 'roast', 'help_love' => 'love', 'help_nid' => 'nid', 'help_funstat' => 'userinfo'];
+            'help_font' => 'font', 'help_weather' => 'weather', 'help_qr' => 'qr', 'help_roast' => 'roast', 'help_love' => 'love', 'help_nid' => 'nid', 'help_funstat' => 'funstat', 'help_linkcheck' => 'linkcheck'];
         $items = array_values(array_filter($items, static fn($r) => !isset($swMap[$r['id']]) || Switches::on($swMap[$r['id']])));
 
         if ($filter !== '') {

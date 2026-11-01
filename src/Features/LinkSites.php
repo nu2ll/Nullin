@@ -259,7 +259,7 @@ final class LinkSites
             return ['error' => 'نتونستم به ' . $site . ' وصل بشم'];
         }
         if (in_array($code, [401, 403, 429, 999], true)) {
-            return ['error' => $site . ' جلوی درخواستم رو گرفت (HTTP ' . $code . ')؛ این سایت‌ها معمولاً جلوی ربات‌ها رو می‌گیرن'];
+            return ['error' => $site . ' جلوی درخواستم رو گرفت (HTTP ' . $code . ")؛\nاین سایت‌ها معمولاً جلوی ربات‌ها رو می‌گیرن"];
         }
         return ['error' => $site . ' جواب نداد (HTTP ' . $code . ')'];
     }
@@ -372,7 +372,7 @@ final class LinkSites
             }
         }
         if ($u === null) {
-            return ['error' => 'اطلاعات اشتراک‌گذار تو صفحه نبود (فقط لینک‌های تازه این اطلاعات رو دارن)'];
+            return ['error' => "اطلاعات اشتراک‌گذار تو صفحه نبود\n(فقط لینک‌های تازه این اطلاعات رو دارن)"];
         }
         $uname = $u['username'] ?? null;
         return ['data' => [
@@ -420,7 +420,7 @@ final class LinkSites
         }
         $r = self::req('GET', 'https://www.perplexity.ai/rest/thread/' . $m[1], ['Accept: application/json'], null, 1500000);
         if ($r['code'] === 403) {
-            return ['error' => 'پرپلکسیتی جلوی درخواستم رو گرفت؛ سایتش محافظت‌شده‌ست'];
+            return ['error' => "پرپلکسیتی جلوی درخواستم رو گرفت؛\nسایتش محافظت‌شده‌ست"];
         }
         $j = self::json($r);
         if ($j === null || ($j['status'] ?? '') !== 'success') {
@@ -533,7 +533,7 @@ final class LinkSites
         }
         $u = $j['referringUser'] ?? null;
         if (!is_array($u) || !$u) {
-            return ['error' => 'تو این لینک کاربر ارجاع‌دهنده نیست (باید لینک اشتراک با ?r= باشه)'];
+            return ['error' => "تو این لینک کاربر ارجاع‌دهنده نیست\n(باید لینک اشتراک با ?r= باشه)"];
         }
         $handle = $u['handle'] ?? null;
         return ['data' => [
@@ -667,7 +667,7 @@ final class LinkSites
         }
         $pd = self::json(self::notionPost('getPublicPageData', ['blockId' => $id]));
         if ($pd === null || !empty($pd['errorId']) || empty($pd['spaceId'])) {
-            return ['error' => 'صفحه عمومی نیست یا وجود نداره'];
+            return ['error' => 'این صفحه دسترسی باز نداره یا وجود نداره'];
         }
         $space = self::prune(['space_name' => $pd['spaceName'] ?? null, 'space_domain' => $pd['spaceDomain'] ?? null]);
         $chunk = (string) (self::notionPost('loadPageChunk', ['pageId' => $id, 'limit' => 100, 'cursor' => ['stack' => []], 'chunkNumber' => 0, 'verticalColumns' => false])['body'] ?? '');

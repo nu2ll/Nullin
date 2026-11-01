@@ -32,6 +32,9 @@ final class ChosenHandler
         if (str_starts_with($id, 'rs_')) {
             Roast::resolve(substr($id, 3), $imid);
         }
+        if (str_starts_with($id, 'st_')) {
+            LinkCheck::resolveInline(substr($id, 3), $imid);
+        }
         if (str_starts_with($id, 'lv_')) {
             Love::resolve(substr($id, 3), $imid);
         }

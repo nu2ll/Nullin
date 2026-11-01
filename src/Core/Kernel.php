@@ -23,6 +23,10 @@ final class Kernel
         'roast'           => 3600,
         'uname'           => 30 * 86400,
         'gw'              => 120 * 86400,
+        'biz_msgs'        => 3 * 86400,
+        'biz_hist'        => 2 * 86400,
+        'biz_pause'       => 30 * 86400,
+        'biz_wait'        => 86400,
     ];
 
     public static function handle(array $update): void
@@ -44,6 +48,14 @@ final class Kernel
                 GuestHandler::handle($update['guest_message']);
             } elseif (isset($update['my_chat_member'])) {
                 MessageHandler::onMyChatMember($update['my_chat_member']);
+            } elseif (isset($update['business_connection'])) {
+                Business::onConnection($update['business_connection']);
+            } elseif (isset($update['business_message'])) {
+                Business::onMessage($update['business_message']);
+            } elseif (isset($update['edited_business_message'])) {
+                Business::onEdited($update['edited_business_message']);
+            } elseif (isset($update['deleted_business_messages'])) {
+                Business::onDeleted($update['deleted_business_messages']);
             }
         } catch (\Throwable $e) {
             logError('update', '#' . ($update['update_id'] ?? '?') . ' ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());

@@ -37,6 +37,9 @@ final class MessageHandler
         if ($private && Giveaway::input($msg)) {
             return;
         }
+        if ($private && Business::input($msg)) {
+            return;
+        }
 
         $hasMedia = Assistant::hasMedia($msg);
         if ($text === '' && !$hasMedia) {
@@ -137,7 +140,7 @@ final class MessageHandler
         }
         Users::hit("cmd:{$cmd}");
 
-        $gate = ['wk' => 'wiki', 'wiki' => 'wiki', 'giveaway' => 'giveaway', 'gw' => 'giveaway', 'image' => 'image', 'img' => 'image', 'font' => 'font', 'ft' => 'font', 'tr' => 'translate', 'translate' => 'translate', 'st' => 'linkcheck'][$cmd] ?? null;
+        $gate = ['wk' => 'wiki', 'wiki' => 'wiki', 'giveaway' => 'giveaway', 'gw' => 'giveaway', 'image' => 'image', 'img' => 'image', 'font' => 'font', 'ft' => 'font', 'tr' => 'translate', 'translate' => 'translate', 'st' => 'linkcheck', 'monshi' => 'business'][$cmd] ?? null;
         if ($gate !== null && !Switches::guard($gate)) {
             return true;
         }
@@ -159,6 +162,7 @@ final class MessageHandler
                 }
                 if ($private) {
                     Giveaway::clear((int) $from['id']);
+                    Business::clear((int) $from['id']);
                 }
                 if ($args === 'help') {
                     $tg->send($chatId, Ui::helpText(), ['reply_markup' => Ui::helpMenu($private)]);
@@ -169,6 +173,13 @@ final class MessageHandler
                     return true;
                 }
                 $tg->send($chatId, Ui::startText($from), ['reply_markup' => Ui::startKeyboard()]);
+                return true;
+
+            case 'monshi':
+                if ($private) {
+                    [$bt, $bk] = Business::panel((int) $from['id']);
+                    $tg->send($chatId, $bt, ['reply_markup' => $bk]);
+                }
                 return true;
 
             case 'help':

@@ -30,6 +30,10 @@ final class CallbackHandler
             Giveaway::onCallback($cq, $data);
             return;
         }
+        if (str_starts_with($data, 'bz:')) {
+            Business::onCallback($cq, $data);
+            return;
+        }
         if (str_starts_with($data, 'ai:')) {
             AiPanel::onCallback($cq, $data);
             return;

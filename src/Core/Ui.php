@@ -41,6 +41,7 @@ final class Ui
         'gift'     => ['Wrapped gift', 'wrapped_gift'],
         'wiki'     => ['Books', 'books'],
         'group'    => ['Busts in silhouette', 'busts_in_silhouette'],
+        'linkcheck' => ['Shield', 'shield'],
     ];
 
     public static function icon(string $key): string
@@ -349,6 +350,9 @@ final class Ui
                 $base[] = $c($cmd, $desc);
             }
         }
+        if ($scope !== 'group' && Switches::on(Switches::COMMAND_SWITCH['monshi'])) {
+            $base[] = $c('monshi', '🤝 منشی هوشمند');
+        }
         if ($scope === 'admin') {
             return array_merge($base, [
                 $c('stats', '📊 آمار ربات'),
@@ -520,7 +524,6 @@ final class Ui
                 . "• " . $c('nj متن پیام @username') . "\n"
                 . "• " . $c('nj متن پیام 12345678') . "\n\n"
                 . "حداکثر " . fa(Whisper::MAX_LEN) . " کاراکتر؛\n"
-                . "💡 گیرنده تگ می‌شه تا بفهمه نجوا براش اومده.\n"
                 . "فرستنده می‌تونه پاکش کنه و ببینه کیا فضولی کردن 🕵️\n"
                 . "برای چند نفر هم می‌شه فرستاد؛\n"
                 . "یوزرنیم یا آیدی‌ها رو پشت هم بنویس.",
@@ -570,10 +573,10 @@ final class Ui
                 . "• " . $c('id 12345678'),
 
             'linkcheck' => "<b>🛡 ردیاب اشتراک</b>\n"
-                . "اطلاعات پشت یه لینک اشتراک رو ردیابی میکنه:\n"
-                . "تلگرام، دیسکورد، گیت‌هاب، گیت‌لب، هاگینگ‌فیس، گوگل داکس، تیک‌تاک، اینستاگرام، یوتیوب، ردیت، نوشن، لینکدین،\n"
+                . "اطلاعات پشت یه لینک اشتراک رو ردیابی می‌کنه:\n"
+                . "تلگرام، دیسکورد، گیت‌هاب، گیت‌لب، هاگینگ‌فیس، تیک‌تاک، اینستاگرام، یوتیوب، ردیت، نوشن، لینکدین،\n"
                 . "چت‌جی‌پی‌تی، کلود، پرپلکسیتی، پینترست، سابستک،\n"
-                . "سونو و شیرپوینت\n\n"
+                . "سونو، گوگل داکس و شیرپوینت\n\n"
                 . "• دستور: <code>/st https://example.com</code>\n"
                 . "• یا روی پیامی که لینک داره ریپلای کن و <code>/st</code> بزن",
 
@@ -598,8 +601,8 @@ final class Ui
     }
 
     private const HELP_LAYOUT = [
-        1 => [['ai', 'image'], ['translate', 'search'], ['whisper'], ['font', 'download'], ['giveaway', 'wiki']],
-        2 => [['weather', 'calc'], ['qr', 'love'], ['group'], ['roast', 'nid'], ['funstat', 'games'], ['linkcheck']],
+        1 => [['ai', 'image'], ['translate', 'search'], ['whisper', 'linkcheck'], ['font', 'download'], ['giveaway', 'wiki']],
+        2 => [['weather', 'calc'], ['qr', 'love'], ['group'], ['roast', 'nid'], ['funstat', 'games']],
     ];
 
     public static function helpPage(string $key): int
@@ -636,7 +639,7 @@ final class Ui
     }
 
     private const TRY_PREFIX = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'love' => 'love ', 'roast' => 'roast ',
-        'nid' => 'meli ', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'calc' => '2+2'];
+        'nid' => 'meli ', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'calc' => '2+2', 'linkcheck' => 'st '];
 
     private static function tryButton(string $key): array
     {
@@ -655,7 +658,7 @@ final class Ui
             $try = btn('🎁 بساز', 'gw:new', 'primary');
         }
         return ikb([
-            $key === 'linkcheck' ? [] : [$try],
+            [$try],
             [btn('🔙 راهنما', self::helpPage($key) === 2 ? 'help:p2' : 'help:menu', null)],
         ]);
     }

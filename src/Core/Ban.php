@@ -42,7 +42,7 @@ final class Ban
 
     public static function senderId(array $update): int
     {
-        foreach (['message', 'inline_query', 'chosen_inline_result', 'callback_query'] as $k) {
+        foreach (['message', 'inline_query', 'chosen_inline_result', 'callback_query', 'business_message', 'edited_business_message'] as $k) {
             if (isset($update[$k])) {
                 return (int) ($update[$k]['from']['id'] ?? 0);
             }

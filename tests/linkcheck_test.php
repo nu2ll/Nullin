@@ -111,6 +111,9 @@ same(LinkSites::findKey(['x' => 1], 'k'), null, 'findKey missing');
 same(LinkCheck::formatData(['other_editors' => [['name' => 'A', 'email' => 'a@b.c']]]), "• ویرایشگرهای دیگه:\n<code>A &lt;a@b.c&gt;</code>", 'format editors');
 same(LinkCheck::formatData(['external_links' => [['title' => 'T', 'url' => 'https://x.y']]]), "• لینک‌های بیرونی:\n<code>T: https://x.y</code>", 'format links');
 same(LinkCheck::formatData(['private_account' => false]), '• اکانت خصوصی: خیر', 'format false bool');
+same(LinkCheck::formatData(['profile_url' => 'https://www.instagram.com/miladdr001/']), '• پروفایل: <a href="https://www.instagram.com/miladdr001/">miladdr001</a>', 'profile url shows handle as link');
+same(LinkCheck::formatData(['profile_url' => 'https://www.tiktok.com/@abc']), '• پروفایل: <a href="https://www.tiktok.com/@abc">abc</a>', 'profile url strips at sign');
+same(LinkCheck::formatData(['avatar_url' => 'https://x.y/a.jpg', 'name' => 'A']), '• نام: <code>A</code>', 'format hides avatar url');
 
 same(in_array('linkcheck', Intent::NAMES, true), false, 'intent no longer knows linkcheck');
 same(Intent::parse('[[linkcheck | https://x.com]]'), null, 'intent ignores linkcheck');

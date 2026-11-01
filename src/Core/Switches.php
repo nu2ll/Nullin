@@ -12,6 +12,7 @@ final class Switches
         'rates'    => '💱 نرخ ارز و طلا',
         'download' => '⬇️ دانلودر',
         'linkcheck' => '🛡 ردیاب اشتراک',
+        'business' => '🤝 منشی هوشمند',
         'whisper'  => '🤫 نجوا',
         'giveaway' => '🎁 قرعه‌کشی',
         'font'     => '✨ فونت‌ساز',
@@ -20,7 +21,8 @@ final class Switches
         'love'     => '💘 تطابق عشقی',
         'roast'    => '🔥 روست',
         'nid'      => '🪪 کد ملی',
-        'userinfo' => '👤 اطلاعات و استعلام کاربر',
+        'userinfo' => '👤 اطلاعات کاربر',
+        'funstat'  => '🔍 استعلام کاربر',
         'fal'      => '🔮 فال حافظ',
         'password' => '🔑 پسورد ساز',
         'date'     => '📅 تاریخ و ساعت',
@@ -39,6 +41,7 @@ final class Switches
         'gw'  => 'giveaway', 'giveaway' => 'giveaway',
         'wk'  => 'wiki', 'wiki' => 'wiki',
         'st' => 'linkcheck',
+        'monshi' => 'business',
     ];
 
     private const GAME_KEYS = ['chess', 'ttt', 'c4', 'rps', 'math'];

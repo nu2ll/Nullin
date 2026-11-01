@@ -37,23 +37,23 @@ final class LinkCheck
         'telegram'         => 'تلگرام',
         'discord'          => 'دیسکورد',
         'discord_channels' => 'دیسکورد',
-        'microsoft'        => 'مایکروسافت (شیرپوینت / وان‌درایو)',
-        'gdoc'             => 'گوگل داکس / درایو',
         'github'           => 'گیت‌هاب',
         'gitlab'           => 'گیت‌لب',
         'huggingface'      => 'هاگینگ‌فیس',
         'tiktok'           => 'تیک‌تاک',
-        'chatgpt'          => 'چت‌جی‌پی‌تی',
-        'claude'           => 'کلود',
         'instagram'        => 'اینستاگرام',
-        'perplexity'       => 'پرپلکسیتی',
-        'pinterest'        => 'پینترست',
+        'youtube'          => 'یوتیوب',
         'reddit'           => 'ردیت',
-        'substack'         => 'سابستک',
-        'suno'             => 'سونو',
         'notion'           => 'نوشن',
         'linkedin'         => 'لینکدین',
-        'youtube'          => 'یوتیوب',
+        'chatgpt'          => 'چت‌جی‌پی‌تی',
+        'claude'           => 'کلود',
+        'perplexity'       => 'پرپلکسیتی',
+        'pinterest'        => 'پینترست',
+        'substack'         => 'سابستک',
+        'suno'             => 'سونو',
+        'gdoc'             => 'گوگل داکس',
+        'microsoft'        => 'شیرپوینت',
     ];
 
     private const LABELS = [
@@ -96,16 +96,16 @@ final class LinkCheck
         'device'              => 'دستگاه',
         'share_method'        => 'روش اشتراک‌گذاری',
         'shared_at'           => 'زمان اشتراک‌گذاری',
-        'following_count'     => 'تعداد فالو',
+        'following_count'     => 'تعداد فالوینگ',
         'video_count'         => 'تعداد ویدیو',
         'heart_count'         => 'تعداد لایک',
         'private_account'     => 'اکانت خصوصی',
-        'dm_available'        => 'دایرکت باز',
-        'handle'              => 'هندل',
+        'dm_available'        => 'امکان پیام خصوصی',
+        'handle'              => 'آیدی',
         'previous_name'       => 'نام قبلی',
         'photo_url'           => 'عکس پروفایل',
         'profile_set_up_at'   => 'ساخت پروفایل',
-        'reader_installed_at' => 'نصب اپ',
+        'reader_installed_at' => 'تاریخ نصب اپ',
         'subreddit'           => 'ساب‌ردیت',
         'post_url'            => 'آدرس پست',
         'post_title'          => 'عنوان پست',
@@ -164,6 +164,36 @@ final class LinkCheck
         }
         Users::hit('linkcheck');
         return self::build($url);
+    }
+
+    public static function pending(array $from, string $url): array
+    {
+        $token = bin2hex(random_bytes(6));
+        Store::set('linkcheck_inline', $token, ['from' => $from, 'url' => $url]);
+        return [
+            'token' => $token,
+            'text'  => "<b>🛡 ردیاب اشتراک</b>\n\n🔗 <a href=\"" . h($url) . '">لینک</a>' . "\n\n⏳ دارم ردیابی می‌کنم...",
+            'kb'    => ikb([[btn('⏳ صبر کن...', 'noop', null)]]),
+        ];
+    }
+
+    public static function resolveInline(string $token, string $imid): void
+    {
+        $p = Store::get('linkcheck_inline', $token);
+        if (!is_array($p)) {
+            return;
+        }
+        Store::delete('linkcheck_inline', $token);
+        $tg = App::tg();
+        if (self::busy((int) ($p['from']['id'] ?? 0))) {
+            $tg->editInline($imid, "یه‌کم دیگه بیا 😅\n⏳ هر دقیقه فقط یه ردیاب اشتراک!", null, false);
+            return;
+        }
+        Users::hit('linkcheck');
+        $text = self::build((string) $p['url'])['text'];
+        if (empty($tg->editInline($imid, $text)['ok'])) {
+            $tg->editInline($imid, strip_tags($text), null, false);
+        }
     }
 
     public static function avatarBytes(string $url): ?string
@@ -265,7 +295,7 @@ final class LinkCheck
             $u = unpack('Vid', substr($raw, 0, 4));
             return ['data' => ['user_id' => (string) $u['id']]];
         }
-        return ['error' => 'این لینک دعوت از نوع جدیده و آیدی سازنده‌ش توش نیست'];
+        return ['error' => "این لینک دعوت از نوع جدیده\nو آیدی سازنده‌ش توش نیست"];
     }
 
     public static function parseCount(string $text): ?int
@@ -335,7 +365,7 @@ final class LinkCheck
         }
         $r = self::get('https://t.me/s/' . $m[1]);
         if ($r['body'] === null || $r['body'] === '' || $r['code'] >= 400) {
-            return ['error' => 'تلگرام جواب نداد (HTTP ' . $r['code'] . ')'];
+            return ['error' => (int) $r['code'] === 0 ? 'نتونستم به تلگرام وصل بشم' : 'تلگرام جواب نداد (HTTP ' . $r['code'] . ')'];
         }
         $html = $r['body'];
         $d    = ['username' => $m[1]];
@@ -354,7 +384,7 @@ final class LinkCheck
                 $d['follower_count'] = $n;
             }
         }
-        return count($d) > 1 ? ['data' => $d] : ['error' => 'اطلاعاتی پیدا نکردم'];
+        return count($d) > 1 ? ['data' => $d] : ['error' => 'چیزی پیدا نکردم'];
     }
 
     private static function discord(string $url): array
@@ -435,11 +465,11 @@ final class LinkCheck
             return ['error' => 'سند پیدا نشد یا دسترسی بازی نداره'];
         }
         if ($r['code'] === 401 || $r['code'] === 403) {
-            return ['error' => 'گوگل درخواستم رو قبول نکرد؛ ممکنه کلید API باطل شده باشه'];
+            return ['error' => 'گوگل داکس جواب درستی نداد'];
         }
         $j = $r['body'] !== null ? json_decode($r['body'], true) : null;
         if ($r['code'] >= 400 || !is_array($j)) {
-            return ['error' => 'گوگل درایو جواب درستی نداد'];
+            return ['error' => 'گوگل داکس جواب درستی نداد'];
         }
         $fmt = static fn($v) => is_string($v) && ($t = strtotime($v)) ? gmdate('Y-m-d H:i:s', $t) . ' UTC' : null;
         $d   = ['doc_id' => $id, 'created_at' => $fmt($j['createdDate'] ?? null), 'modified_at' => $fmt($j['modifiedDate'] ?? null)];
@@ -495,7 +525,7 @@ final class LinkCheck
             return ['error' => 'کاربر گیت‌هاب پیدا نشد'];
         }
         if ($r['code'] === 403 || $r['code'] === 429) {
-            return ['error' => 'گیت‌هاب گفت زیادی درخواست دادیم؛ چند دقیقه دیگه امتحان کن'];
+            return ['error' => "چند دقیقه دیگه امتحان کن؛\nگیت‌هاب موقتاً درخواست‌های ربات رو محدود کرده"];
         }
         $events = $r['body'] !== null && $r['code'] < 400 ? json_decode($r['body'], true) : null;
         if (!is_array($events)) {
@@ -539,7 +569,7 @@ final class LinkCheck
                 return ['error' => 'کامیت پیدا نشد یا پروژه خصوصیه'];
             }
             if ($r['code'] === 429) {
-                return ['error' => 'گیت‌لب گفت زیادی درخواست دادیم؛ چند دقیقه دیگه امتحان کن'];
+                return ['error' => "چند دقیقه دیگه امتحان کن؛\nگیت‌لب موقتاً درخواست‌های ربات رو محدود کرده"];
             }
             $from = $r['body'] !== null && $r['code'] < 400 ? self::parseFrom($r['body']) : null;
             if ($from === null) {
@@ -558,7 +588,7 @@ final class LinkCheck
         $r     = self::get('https://gitlab.com/api/v4/users?username=' . rawurlencode($m[1]), ['Accept: application/json'], 200000);
         $users = $r['body'] !== null && $r['code'] < 400 ? json_decode($r['body'], true) : null;
         if (!is_array($users) || !$users) {
-            return ['error' => $r['code'] === 429 ? 'گیت‌لب گفت زیادی درخواست دادیم؛ چند دقیقه دیگه امتحان کن' : 'کاربر گیت‌لب پیدا نشد'];
+            return ['error' => $r['code'] === 429 ? "چند دقیقه دیگه امتحان کن؛\nگیت‌لب موقتاً درخواست‌های ربات رو محدود کرده" : 'کاربر گیت‌لب پیدا نشد'];
         }
         $u      = $users[0];
         $detail = $u;
@@ -620,11 +650,24 @@ final class LinkCheck
         return (string) json_encode($e, JSON_UNESCAPED_UNICODE);
     }
 
+    private static function urlText(string $key, string $url): string
+    {
+        if ($key !== 'profile_url' && $key !== 'channel_url') {
+            return 'باز کردن';
+        }
+        $parts = array_values(array_filter(explode('/', (string) parse_url($url, PHP_URL_PATH)), static fn($p) => $p !== ''));
+        $last  = $parts ? ltrim(rawurldecode((string) end($parts)), '@') : '';
+        if ($last === '') {
+            return (string) preg_replace('~^www\.~i', '', (string) parse_url($url, PHP_URL_HOST));
+        }
+        return mb_substr($last, 0, 64);
+    }
+
     public static function formatData(array $data): string
     {
         $lines = [];
         foreach ($data as $key => $v) {
-            if ($v === null || $v === '' || $v === [] || $key === 'avatar_url') {
+            if ($v === null || $v === '' || $v === [] || $key === 'avatar_url' || $key === 'photo_url') {
                 continue;
             }
             $label = self::LABELS[$key] ?? $key;
@@ -636,6 +679,8 @@ final class LinkCheck
                 continue;
             } elseif (is_array($v)) {
                 $val = '<code>' . h(implode(', ', array_slice(array_map('strval', $v), 0, 8))) . '</code>';
+            } elseif (is_string($v) && str_ends_with($key, '_url') && preg_match('~^https?://~i', $v)) {
+                $val = '<a href="' . h($v) . '">' . h(self::urlText($key, $v)) . '</a>';
             } elseif (is_int($v) && str_contains($key, 'count') || $key === 'num_followers') {
                 $val = fa(number_format((int) $v));
             } else {
@@ -678,11 +723,11 @@ final class LinkCheck
             return ['text' => $out . "\n\n🤷 این لینک رو نمی‌شناسم؛\nفقط لینک اشتراک این سایت‌ها رو بررسی می‌کنم:\n" . implode('، ', array_values(array_unique(self::PLATFORM_NAMES))), 'avatar' => null];
         }
         $res  = self::identity($platform, $url);
-        $out .= "\n\n🪪 <b>پشت این لینک</b> · " . self::PLATFORM_NAMES[$platform] . "\n";
+        $out .= "\n\n🪪 <b>اطلاعات پشت این لینک</b> · " . self::PLATFORM_NAMES[$platform] . "\n";
         if (isset($res['data'])) {
-            $avatar = $res['data']['avatar_url'] ?? null;
+            $avatar = $res['data']['avatar_url'] ?? $res['data']['photo_url'] ?? null;
             return [
-                'text'   => $out . self::formatData($res['data']) . "\n\n<i>💡 روی هر مقدار بزنی کپی می‌شه</i>",
+                'text'   => $out . self::formatData($res['data']),
                 'avatar' => is_string($avatar) && $avatar !== '' ? $avatar : null,
             ];
         }

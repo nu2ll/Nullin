@@ -15,6 +15,11 @@ final class FreeAI
     ];
     private const VISION = '/scout|maverick|vision|llava|\bvl\b|qwen3\.\d/i';
 
+    public static function sees(string $model): bool
+    {
+        return preg_match(self::VISION, $model) === 1;
+    }
+
     public static function keys(string $prov): array
     {
         $keys = array_map('trim', (array) (App::cfg('ai', [])['free_keys'][$prov] ?? []));
