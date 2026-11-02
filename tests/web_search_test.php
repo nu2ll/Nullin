@@ -1,5 +1,4 @@
 <?php
-// Offline fixtures only. No keys, network calls or real-world news assumptions.
 declare(strict_types=1);
 date_default_timezone_set('Asia/Tehran');
 final class AI {

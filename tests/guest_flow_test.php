@@ -1,5 +1,4 @@
 <?php
-// Real guest/inline handlers, real Intent and AI; all external boundaries stubbed.
 declare(strict_types=1);
 
 final class FakeTelegram

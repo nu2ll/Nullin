@@ -435,7 +435,6 @@ if (Downloader::bin() !== null && env('DL_UPDATE', '1') !== '0' && !disabled('ex
     logWarn('dl', 'yt-dlp not found, downloader disabled');
 }
 
-// ---- ngrok helpers ----
 function ngrokCurrent(): string
 {
     $ctx = stream_context_create(['http' => ['timeout' => 2]]);

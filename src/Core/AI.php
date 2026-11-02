@@ -14,6 +14,8 @@ final class AI
 
     public static array $sources = [];
 
+    public static bool $searched = false;
+
     public const FAIL_TEXT = '😕 الان مغزم هنگ کرده، یه‌کم دیگه دوباره بپرس.';
 
     public const WAIT = 20;
@@ -257,7 +259,8 @@ final class AI
 
     public static function chat(array $messages, array $opt = []): ?string
     {
-        self::$sources = [];
+        self::$sources  = [];
+        self::$searched = false;
         $route = self::route();
         if ($route !== 'gemini' && !str_starts_with($route, 'gemini:')) {
             $messages = self::audioToText($messages, explode(':', $route, 2)[0], $opt['deadline'] ?? null);
@@ -328,7 +331,7 @@ final class AI
         $chain = $only !== null ? [$only] : self::models($opt['tier'] ?? 'smart');
         foreach ($chain as $model) {
             $thinking = array_key_exists('thinking', $opt) ? $opt['thinking'] : null;
-            $search   = !empty($opt['search']) && self::searchOn() && !str_starts_with($model, 'gemma');
+            $search   = !empty($opt['search']) && (self::searchOn() || !empty($opt['force_search'])) && !str_starts_with($model, 'gemma');
             $extra    = [];
             $rounds   = 0;
             $tav      = $search && WebSearch::available();
@@ -358,6 +361,8 @@ final class AI
                     $payload['tools'] = [['functionDeclarations' => [WebSearch::declaration()]]];
                     if ($rounds >= WebSearch::MAX_ROUNDS) {
                         $payload['toolConfig'] = ['functionCallingConfig' => ['mode' => 'NONE']];
+                    } elseif (!empty($opt['force_search']) && $rounds === 0) {
+                        $payload['toolConfig'] = ['functionCallingConfig' => ['mode' => 'ANY', 'allowedFunctionNames' => ['web_search']]];
                     }
                 }
                 $r = is_callable($opt['stream'] ?? null)
@@ -373,6 +378,7 @@ final class AI
                             $rounds++;
                             $extra[] = ['role' => 'model', 'parts' => array_values(array_filter($mparts, static fn($p) => is_array($p) && empty($p['thought'])))];
                             $resp    = [];
+                            self::$searched = true;
                             foreach ($calls as $ci => $c) {
                                 $q      = (string) ($c['functionCall']['args']['query'] ?? '');
                                 $resp[] = ['functionResponse' => [
@@ -568,7 +574,7 @@ final class AI
             $host  = (string) (parse_url($url, PHP_URL_HOST) ?: $url);
             $title = $host;
             $row   = '[' . $title . '](' . str_replace([')', ' '], ['%29', '%20'], $url) . ')';
-            if (count($rows) >= 3 || $len + mb_strlen($title) > 1200) {
+            if (count($rows) >= 5 || $len + mb_strlen($title) > 1200) {
                 break;
             }
             $seenU[$url] = true;
@@ -754,12 +760,13 @@ final class AI
             'deadline'    => $deadline,
             'thinking'    => self::geminiThinking(),
             'search'      => true,
+            'force_search' => !empty($opt['force_search']),
             'section'     => 'chat',
             'stream'      => $opt['on_text'] ?? null,
         ]);
         if ($text === null && ($opt['tier'] ?? 'smart') === 'smart' && self::hasTiers() && $deadline - microtime(true) > 5) {
             logWarn('ai', 'smart chain failed, retrying on lite');
-            $text = self::chat($messages, ['tier' => 'lite', 'temperature' => 0.7, 'deadline' => $deadline, 'thinking' => null, 'search' => true, 'section' => 'chat', 'stream' => $opt['on_text'] ?? null]);
+            $text = self::chat($messages, ['tier' => 'lite', 'temperature' => 0.7, 'deadline' => $deadline, 'thinking' => null, 'search' => true, 'force_search' => !empty($opt['force_search']), 'section' => 'chat', 'stream' => $opt['on_text'] ?? null]);
         }
 
         $out = ['answer' => null, 'reaction' => null, 'image' => null, 'action' => null];

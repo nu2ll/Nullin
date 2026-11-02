@@ -205,8 +205,12 @@ final class InlineHandler
             return false;
         }
         $text = self::aiHead($q) . AI::toHtml(AI::fit($res['answer'], self::aiHead($q)));
-        if (empty(App::tg()->editInline($imid, $text)['ok'])) {
-            App::tg()->editInline($imid, strip_tags($text), null, false);
+        $kb   = AI::$searched ? null : AnswerButtons::searchOnly();
+        if (empty(App::tg()->editInline($imid, $text, $kb)['ok'])) {
+            App::tg()->editInline($imid, strip_tags($text), $kb, false);
+        }
+        if ($kb !== null) {
+            AnswerButtons::attachInline($imid, ['u' => (int) ($from['id'] ?? 0), 'q' => $q, 'a' => $res['answer'], 'h' => self::aiHead($q)]);
         }
         return true;
     }

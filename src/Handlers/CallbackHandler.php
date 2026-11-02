@@ -38,6 +38,10 @@ final class CallbackHandler
             AiPanel::onCallback($cq, $data);
             return;
         }
+        if (str_starts_with($data, 'ab:')) {
+            AnswerButtons::onCallback($cq);
+            return;
+        }
         if (str_starts_with($data, 'tl:')) {
             Switches::onCallback($cq, $data);
             return;

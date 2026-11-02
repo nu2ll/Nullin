@@ -377,9 +377,10 @@ final class Assistant
         @unlink($file);
     }
 
-    private static function send(array $msg, string $answer): void
+    private static function send(array $msg, string $answer): int
     {
-        $tg = App::tg();
+        $tg     = App::tg();
+        $lastId = 0;
         foreach (AI::chunks($answer) as $part) {
             $r = $tg->reply($msg, AI::toHtml($part));
             if (empty($r['ok'])) {
@@ -389,8 +390,10 @@ final class Assistant
                     'reply_parameters' => ['message_id' => $msg['message_id'], 'allow_sending_without_reply' => true],
                 ]);
             }
-            AI::markMsg($msg['chat']['id'], $r['result']['message_id'] ?? 0);
+            $lastId = (int) ($r['result']['message_id'] ?? 0);
+            AI::markMsg($msg['chat']['id'], $lastId);
         }
+        return $lastId;
     }
 
     public static function handle(array $msg, string $question): void
@@ -509,6 +512,7 @@ final class Assistant
             }
             $res = AI::reply($content, ['no_action' => true] + $ctx, $history, $opt);
         }
+        $searched = AI::$searched;
 
         if (!empty($res['image']) || !empty($res['image_partial'])) {
             if (!Switches::on('image')) {
@@ -533,18 +537,168 @@ final class Assistant
             self::voiceReply($msg, $res['answer']);
         }
 
+        $lastId = 0;
+        $chunks = 1;
         if (!$live || !$live->finish($answer)) {
             self::typing($chatId, $answer);
-            self::send($msg, $answer);
+            $chunks = count(AI::chunks($answer));
+            $lastId = self::send($msg, $answer);
         } else {
-            foreach ($live->ids() as $mid) {
+            $ids    = $live->ids();
+            $chunks = max(1, count($ids));
+            foreach ($ids as $mid) {
                 AI::markMsg($chatId, $mid);
             }
+            $lastId = (int) end($ids);
+        }
+
+        if ($res['answer'] !== null && $lastId > 0) {
+            AnswerButtons::attach($chatId, $lastId, [
+                'u'  => $service ? 0 : $userId,
+                'q'  => $text,
+                'a'  => $answer,
+                'mc' => count($parts),
+                'n'  => $chunks,
+                'o'  => (int) $msg['message_id'],
+                'sr' => $searched ? 1 : 0,
+            ]);
         }
 
         if ($res['answer'] !== null && !$service) {
             self::remember($chatId, $userId, $log, preg_replace('/\n\n🔗 منابع:.*$/su', '', $res['answer']) ?? $res['answer']);
         }
+    }
+
+    public static function searchAgain(array $cq, array $rec): void
+    {
+        $tg       = App::tg();
+        $m        = $cq['message'];
+        $chatId   = (int) $m['chat']['id'];
+        $mid      = (int) $m['message_id'];
+        $uid      = (int) ($cq['from']['id'] ?? 0);
+        $chatType = (string) ($m['chat']['type'] ?? 'private');
+        $service  = (int) ($rec['u'] ?? 0) === 0;
+        $old      = (string) $rec['a'];
+        $origId   = (int) ($rec['o'] ?? 0) ?: $mid;
+
+        $media = [];
+        if ((int) ($rec['mc'] ?? 0) > 0) {
+            $orig = $m['reply_to_message'] ?? null;
+            if (is_array($orig) && self::hasMedia($orig) && ($p = self::mediaPart($orig))) {
+                $media[] = $p;
+            }
+            if (count($media) < (int) $rec['mc']) {
+                $tg->answer($cq);
+                return;
+            }
+        }
+
+        $voiceLeft = empty($rec['vo']);
+        $restore   = AnswerButtons::keyboard(!empty($rec['sr']), $voiceLeft);
+        $tg->call('editMessageReplyMarkup', [
+            'chat_id'      => $chatId,
+            'message_id'   => $mid,
+            'reply_markup' => AnswerButtons::keyboard(true, $voiceLeft),
+        ], 8);
+        $tg->action($chatId, 'typing');
+
+        $done = false;
+        try {
+            $plainOld = (string) preg_replace('/\n\n🔗 منابع:.*$/su', '', $old);
+            $note     = "\n\n[دستور سیستم: این بار حتماً قبل از جواب دادن با ابزار web_search توی وب سرچ کن و جوابت رو بر اساس نتایج به‌روز بنویس.]";
+            $text    = (string) $rec['q'] . $note;
+            $content = $media ? array_merge($media, [['type' => 'text', 'text' => $text]]) : $text;
+
+            $ctx = ['user_name' => $service ? '' : userName($cq['from'] ?? []), 'service' => $service, 'chat_type' => $chatType];
+            if (in_array($chatType, ['group', 'supergroup'], true)) {
+                $info              = self::chatInfo($chatId);
+                $ctx['chat_title'] = $info['title'];
+                $ctx['chat_bio']   = mb_substr((string) $info['bio'], 0, 300);
+                if (!$service && $uid) {
+                    $ctx['user_role'] = self::role($chatId, $uid);
+                }
+            }
+
+            $history = $service ? [] : self::historyWithout($chatId, $uid, $plainOld);
+            $opt     = ['max_len' => PHP_INT_MAX, 'reaction' => false, 'force_search' => true];
+            $res     = AI::reply($content, $ctx, $history, $opt);
+            if (!empty($res['action'])) {
+                $res = AI::reply($content, ['no_action' => true] + $ctx, $history, $opt);
+            }
+            $searched = AI::$searched;
+            $answer = !empty($res['image']) || !empty($res['image_partial']) ? null : ($res['answer'] ?? null);
+            if ($answer === null) {
+                $tg->reply(['chat' => ['id' => $chatId], 'message_id' => $mid], AI::FAIL_TEXT);
+                return;
+            }
+
+            $chunks = AI::chunks($answer);
+            $kb     = AnswerButtons::keyboard($searched, $voiceLeft);
+            $newMid = $mid;
+            $edited = false;
+            if (count($chunks) === 1 && (int) ($rec['n'] ?? 1) === 1) {
+                $r = $tg->editMessage($chatId, $mid, AI::toHtml($chunks[0]), $kb);
+                if (empty($r['ok']) && stripos((string) ($r['description'] ?? ''), 'not modified') === false) {
+                    $r = $tg->call('editMessageText', [
+                        'chat_id'      => $chatId,
+                        'message_id'   => $mid,
+                        'text'         => mb_substr($chunks[0], 0, 4096),
+                        'reply_markup' => $kb,
+                    ]);
+                }
+                $edited = !empty($r['ok']) || stripos((string) ($r['description'] ?? ''), 'not modified') !== false;
+            }
+            if (!$edited) {
+                $tg->call('editMessageReplyMarkup', ['chat_id' => $chatId, 'message_id' => $mid, 'reply_markup' => ['inline_keyboard' => []]], 8);
+                $newMid = self::send(['chat' => ['id' => $chatId], 'message_id' => $origId], $answer);
+            }
+            $done = true;
+
+            AnswerButtons::attach($chatId, $newMid, [
+                'u'  => (int) ($rec['u'] ?? 0),
+                'q'  => (string) $rec['q'],
+                'a'  => $answer,
+                'mc' => (int) ($rec['mc'] ?? 0),
+                'n'  => count($chunks),
+                'o'  => $origId,
+                'sr' => $searched ? 1 : 0,
+                'vo' => $voiceLeft ? 0 : 1,
+            ], !$edited);
+
+            if (!$service) {
+                self::replaceLastAnswer($chatId, $uid, $plainOld, preg_replace('/\n\n🔗 منابع:.*$/su', '', $answer) ?? $answer);
+            }
+        } finally {
+            if (!$done) {
+                $tg->call('editMessageReplyMarkup', ['chat_id' => $chatId, 'message_id' => $mid, 'reply_markup' => $restore], 8);
+            }
+        }
+    }
+
+    private static function historyWithout(int $chatId, int $userId, string $lastAnswer): array
+    {
+        $h = self::history($chatId, $userId);
+        $n = count($h);
+        if ($n >= 2 && ($h[$n - 1]['role'] ?? '') === 'assistant' && ($h[$n - 1]['content'] ?? '') === mb_substr($lastAnswer, 0, 3000)) {
+            return array_slice($h, 0, $n - 2);
+        }
+        return $h;
+    }
+
+    private static function replaceLastAnswer(int $chatId, int $userId, string $oldAnswer, string $newAnswer): void
+    {
+        Store::update('ai_memory', self::memKey($chatId, $userId), static function ($m) use ($oldAnswer, $newAnswer) {
+            if (!is_array($m) || empty($m['messages'])) {
+                return null;
+            }
+            $i = count($m['messages']) - 1;
+            if (($m['messages'][$i]['role'] ?? '') !== 'assistant' || ($m['messages'][$i]['content'] ?? '') !== mb_substr($oldAnswer, 0, 3000)) {
+                return null;
+            }
+            $m['messages'][$i]['content'] = mb_substr($newAnswer, 0, 3000);
+            $m['at'] = time();
+            return $m;
+        });
     }
 
     public static function translate(array $msg, string $text, string $target = 'auto'): void

@@ -1,5 +1,4 @@
 <?php
-// Integration-level offline tests of real AI::reply + Intent protocol.
 declare(strict_types=1);
 
 final class App

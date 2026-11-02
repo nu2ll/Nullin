@@ -79,7 +79,6 @@ final class Downloader
             if ($b > $max) {
                 continue;
             }
-            // a lower quality can never be bigger than a higher one: clamp so the list never looks wrong
             if ($b > 0 && $prev > 0 && $b > $prev) {
                 $b = $prev;
             }
@@ -589,11 +588,10 @@ final class Downloader
     private static function mp3Hint(array $info): string
     {
         $dur = (int) ($info['duration'] ?? 0);
-        $b   = $dur * 16500; // MP3 VBR q5 ≈ 130kbps
+        $b   = $dur * 16500;
         return $b >= 1048576 ? ' (~' . self::mb((float) $b) . ')' : '';
     }
 
-    /** true when the media is portrait (reels, shorts, tiktok...) */
     private static function isVertical(array $a): bool
     {
         $w = (int) ($a['width'] ?? 0);
@@ -601,7 +599,6 @@ final class Downloader
         return $w > 0 && $h > $w;
     }
 
-    /** 'v' = has video, 'a' = audio only, '' = ignore (storyboards etc.) */
     private static function kind(array $f): string
     {
         $vc = $f['vcodec'] ?? null;
@@ -612,7 +609,6 @@ final class Downloader
         return 'v';
     }
 
-    /** the real "p" of a format = its SHORT side (1080x1920 portrait is 1080p, not 4K) */
     private static function shortSide(array $f, array $info): int
     {
         $h = (int) ($f['height'] ?? 0);
@@ -642,7 +638,6 @@ final class Downloader
         return 0;
     }
 
-    /** size of one format in bytes: exact -> approx -> bitrate x duration */
     private static function fmtSize(array $f, int $dur): int
     {
         $s = (int) ($f['filesize'] ?? 0);
@@ -672,7 +667,6 @@ final class Downloader
         return abs($idx - 4);
     }
 
-    /** estimated download size (bytes) for quality bucket $std, mimicking the yt-dlp selector */
     private static function estimate(array $info, int $std): int
     {
         $dur    = (int) ($info['duration'] ?? 0);
@@ -690,8 +684,6 @@ final class Downloader
         if (!$videos) {
             return 0;
         }
-        // the downloader never picks YouTube "Premium" or HLS (m3u8) variants when a normal one exists;
-        // counting them is what inflated the estimate (e.g. 1052 MB shown vs ~386 MB real)
         $isOdd = static fn(array $f): bool => stripos((string) ($f['format_note'] ?? ''), 'premium') !== false
             || str_starts_with((string) ($f['protocol'] ?? ''), 'm3u8');
         $plain = array_values(array_filter($videos, static fn($f) => !$isOdd($f)));
@@ -702,7 +694,6 @@ final class Downloader
         if ($plainA) {
             $audios = $plainA;
         }
-        // best = highest resolution, then h264, then mp4, then video-only; ties keep yt-dlp's order
         usort($videos, static function (array $a, array $b) use ($info, $dur): int {
             $ra = self::shortSide($a, $info);
             $rb = self::shortSide($b, $info);
@@ -734,7 +725,6 @@ final class Downloader
             if ($sa !== $sb) {
                 return $sb <=> $sa;
             }
-            // video-only first (then best audio is added), otherwise keep yt-dlp's own order
             $va = (($a['acodec'] ?? 'none') === 'none' || ($a['acodec'] ?? null) === null) ? 1 : 0;
             $vb = (($b['acodec'] ?? 'none') === 'none' || ($b['acodec'] ?? null) === null) ? 1 : 0;
             return $vb <=> $va;
@@ -759,7 +749,6 @@ final class Downloader
         if ($muxed || !$audios) {
             return $vsize;
         }
-        // best audio = AAC/m4a first, then highest bitrate (same order as -S ext:m4a)
         usort($audios, static function (array $a, array $b): int {
             $ma = str_starts_with((string) ($a['acodec'] ?? ''), 'mp4a') ? 1 : 0;
             $mb = str_starts_with((string) ($b['acodec'] ?? ''), 'mp4a') ? 1 : 0;

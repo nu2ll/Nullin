@@ -78,7 +78,7 @@ final class Kernel
     public static function dailyCleanup(): void
     {
         try {
-            $removed = Store::cleanupDaily(self::DAILY);
+            $removed = Store::cleanupDaily(self::DAILY) + AnswerButtons::sweep(120);
         } catch (\Throwable $e) {
             logError('daily', $e->getMessage());
             return;
@@ -94,6 +94,7 @@ final class Kernel
             $removed = Store::cleanup(self::TTL) + Store::cleanupDaily(self::DAILY);
             Users::cleanupStats();
             Giveaway::janitor();
+            $removed += AnswerButtons::sweep(600);
         } catch (\Throwable $e) {
             logError('janitor', $e->getMessage());
             return;

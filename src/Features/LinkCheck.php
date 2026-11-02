@@ -152,7 +152,6 @@ final class LinkCheck
         return self::respondFull($arg, $reply, $uid)['text'];
     }
 
-    /** @return array{text: string, avatar: ?string} */
     public static function respondFull(string $arg, string $reply = '', int $uid = 0): array
     {
         $url = self::extract($arg) ?? self::extract($reply);
@@ -712,7 +711,6 @@ final class LinkCheck
         return self::build($url)['text'];
     }
 
-    /** @return array{text: string, avatar: ?string} */
     public static function build(string $url): array
     {
         $url      = self::resolve($url);

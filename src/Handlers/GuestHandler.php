@@ -119,7 +119,11 @@ final class GuestHandler
 
         $answer = $res['answer'] ?? AI::FAIL_TEXT;
         $html   = AI::toHtml(AI::fit($answer));
-        self::edit($imid, $qid, $html, $answer);
+        $kb     = null;
+        if ($res['answer'] !== null && $imid !== null && !$parts && !AI::$searched && trim($body) !== '' && ($kb = AnswerButtons::searchOnly()) !== null) {
+            AnswerButtons::attachInline($imid, ['u' => (int) ($from['id'] ?? 0), 'q' => $body, 'a' => $answer, 'h' => '']);
+        }
+        self::edit($imid, $qid, $html, $answer, $kb);
     }
 
     private static function voice(string $qid, string $answer): bool
@@ -224,7 +228,7 @@ final class GuestHandler
         return !empty($r['ok']) ? ($r['result']['inline_message_id'] ?? null) : null;
     }
 
-    private static function edit(?string $imid, ?string $qid, string $html, ?string $plain = null): void
+    private static function edit(?string $imid, ?string $qid, string $html, ?string $plain = null, ?array $kb = null): void
     {
         $tg = App::tg();
         if ($imid === null) {
@@ -233,8 +237,8 @@ final class GuestHandler
             }
             return;
         }
-        if (empty($tg->editInline($imid, $html)['ok']) && $plain !== null) {
-            $tg->editInline($imid, mb_substr($plain, 0, 4096), null, false);
+        if (empty($tg->editInline($imid, $html, $kb)['ok']) && $plain !== null) {
+            $tg->editInline($imid, mb_substr($plain, 0, 4096), $kb, false);
         }
     }
 }

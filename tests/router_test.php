@@ -1,5 +1,4 @@
 <?php
-// Offline regression suite: php tests/router_test.php (PHP 8+, ext-mbstring).
 declare(strict_types=1);
 
 if (!extension_loaded('mbstring')) {
