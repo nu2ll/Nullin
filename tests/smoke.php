@@ -373,7 +373,7 @@ check('switch unknown toggle ignored', Switches::on('no_such_tool'), true);
 Switches::setAll(false);
 check('switch all off', array_filter(array_keys(Switches::TOOLS), static fn($k) => Switches::on($k)), []);
 check('switch guard off', Switches::guard('ai'), false);
-check('commands all off private', array_column(Ui::commands('private'), 'command'), ['start', 'help', 'voice', 'ping', 'music']);
+check('commands all off private', array_column(Ui::commands('private'), 'command'), ['start', 'help', 'voice', 'ping']);
 Switches::setAll(true);
 check('switch guard on', Switches::guard('ai'), true);
 check('switch text no off line', str_contains(Switches::text(), 'خاموش:'), false);

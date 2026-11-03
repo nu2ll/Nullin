@@ -183,10 +183,6 @@ final class MessageHandler
                 }
                 return true;
 
-            case 'music':
-                MusicId::start($msg, $args);
-                return true;
-
             case 'ping':
                 $t0 = microtime(true);
                 $tg->call('getMe', [], 10);
