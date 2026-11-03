@@ -4,7 +4,6 @@ final class MusicId
 {
     private const WAIT   = 20;
     private const TMP    = '/tmp/nullini-music';
-    private const SLOTS  = 2;
     private const MAX_IN = 20 * 1024 * 1024;
     private const PAGE = 10;
 
@@ -85,31 +84,21 @@ final class MusicId
         }
         $tg  = App::tg();
         $dir = self::TMP . '/' . $token;
-        $slot = null;
         try {
-            $slot = self::acquireSlot();
-            if ($slot === null) {
-                self::card($job, "😮‍💨 سرور الان خیلی شلوغه؛\nچند دقیقه دیگه دوباره امتحان کن.");
-                return;
-            }
             self::rmrf($dir);
             @mkdir($dir, 0775, true);
 
             $bytes = $tg->download((string) $job['file_id']);
             if ($bytes === null || $bytes === '') {
-                self::card($job, "😕 نتونستم فایل رو بگیرم؛\nمطمئن شو بیشتر از ۲۰ مگابایت نیست.");
+                self::card($job, '😕 نتونستم موزیک رو بگیرم؛ یه بار دیگه امتحان کن.');
                 return;
             }
             file_put_contents($dir . '/in.bin', $bytes);
             unset($bytes);
 
             $song = self::identify($dir);
-            if ($song === null) {
-                self::card($job, "🔇 صدایی توی این فایل پیدا نکردم.");
-                return;
-            }
-            if (empty($song['ok'])) {
-                self::card($job, "آهنگ شناسایی نشد.\nبخش دیگری بفرست که موسیقی در آن واضح شنیده شود، بدون صحبت یا سروصدای زیاد.");
+            if ($song === null || empty($song['ok'])) {
+                self::card($job, '😕 نتونستم موزیک رو بگیرم؛ یه بار دیگه امتحان کن.');
                 return;
             }
 
@@ -140,12 +129,8 @@ final class MusicId
             Users::hit('music');
         } catch (\Throwable $e) {
             logError('music', $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
-            self::card($job, '😕 یه مشکلی پیش اومد، دوباره امتحان کن.');
+            self::card($job, '😕 نتونستم موزیک رو بگیرم؛ یه بار دیگه امتحان کن.');
         } finally {
-            if (is_resource($slot)) {
-                flock($slot, LOCK_UN);
-                fclose($slot);
-            }
             self::rmrf($dir);
             Store::delete('music', $token);
         }
@@ -157,8 +142,10 @@ final class MusicId
         $in  = $dir . '/in.bin';
         $dur = (float) trim((string) Downloader::exec(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', $in], 20)['out']);
         $starts = [0];
-        if ($dur > 75) {
-            $starts[] = (int) ($dur / 3);
+        if ($dur > 40) {
+            $starts = [0, (int) (($dur - 20) / 2), (int) ($dur - 20)];
+        } elseif ($dur > 20) {
+            $starts[] = (int) ($dur - 20);
         }
         $heard = false;
         foreach ($starts as $i => $st) {
@@ -366,7 +353,6 @@ final class MusicId
         $song['dur'] = $dur;
         $head = '🎵 <b>' . h(mb_substr($song['title'], 0, 200)) . '</b>' . ($song['artist'] !== '' ? "\n👤 " . h(mb_substr($song['artist'], 0, 100)) : '');
         $dir  = self::TMP . '/' . $token;
-        $slot = null;
         $fail = static function (string $text) use ($tg, $imid, $job, $head): void {
             if ($imid !== '') {
                 $tg->editInline($imid, $head . "\n\n" . $text);
@@ -375,11 +361,6 @@ final class MusicId
             }
         };
         try {
-            $slot = self::acquireSlot();
-            if ($slot === null) {
-                $fail('😮‍💨 سرور الان خیلی شلوغه؛ چند دقیقه دیگه دوباره امتحان کن.');
-                return;
-            }
             self::rmrf($dir);
             @mkdir($dir, 0775, true);
             $yt   = !empty($t['yt']) ? 'https://www.youtube.com/watch?v=' . $t['yt'] : Downloader::musicMatch($song['title'], $song['artist'], $dur);
@@ -410,7 +391,7 @@ final class MusicId
             $fid = $r['result']['audio']['file_id'] ?? null;
             if (!$fid) {
                 logWarn('music', 'sendAudio failed: ' . (string) ($r['description'] ?? ''));
-                $fail('😕 فرستادن موزیک نشد؛ یه بار دیگه امتحان کن.');
+                $fail('😕 نتونستم موزیک رو بگیرم؛ یه بار دیگه امتحان کن.');
                 return;
             }
             if ($imid !== '') {
@@ -426,7 +407,7 @@ final class MusicId
                 }
                 if (empty($e['ok'])) {
                     logWarn('music', 'inline editMessageMedia failed: ' . (string) ($e['description'] ?? ''));
-                    $fail('😕 فرستادن موزیک نشد؛ یه بار دیگه امتحان کن.');
+                    $fail('😕 نتونستم موزیک رو بگیرم؛ یه بار دیگه امتحان کن.');
                     return;
                 }
             } elseif (!empty($job['pick'])) {
@@ -435,12 +416,8 @@ final class MusicId
             Users::hit($imid !== '' ? 'music:inline' : 'music');
         } catch (\Throwable $e) {
             logError('music', $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
-            $fail('😕 یه مشکلی پیش اومد، دوباره امتحان کن.');
+            $fail('😕 نتونستم موزیک رو بگیرم؛ یه بار دیگه امتحان کن.');
         } finally {
-            if (is_resource($slot)) {
-                flock($slot, LOCK_UN);
-                fclose($slot);
-            }
             self::rmrf($dir);
             Store::delete('music', $token);
         }
@@ -500,11 +477,11 @@ final class MusicId
         $tg->answer($cq);
         $qt    = bin2hex(random_bytes(6));
         $reply = (int) ($res['reply'] ?? 0);
-        Store::set('imusic', $qt, ['list' => $list, 'uid' => (int) $res['uid'], 'chat' => $res['chat'], 'reply' => $reply]);
-        self::listPage($m['chat']['id'], $reply ?: (int) $m['message_id'], $qt, $list, 0);
+        Store::set('imusic', $qt, ['list' => $list, 'uid' => (int) $res['uid'], 'chat' => $res['chat'], 'reply' => $reply, 'alt' => 1]);
+        self::listPage($m['chat']['id'], $reply ?: (int) $m['message_id'], $qt, $list, 0, true);
     }
 
-    private static function listPage($chat, int $reply, string $qt, array $list, int $off): void
+    private static function listPage($chat, int $reply, string $qt, array $list, int $off, bool $alt): void
     {
         $total = count($list);
         $songs = [];
@@ -523,7 +500,7 @@ final class MusicId
             $rows[] = [btn('آهنگ‌های بیشتر ➕', "mu:m:{$qt}:{$next}", null)];
         }
         $rows[] = [self::searchBtn()];
-        App::tg()->send($chat, 'این تمام چیزهایی است که پیدا کردیم', ['reply_markup' => ikb($rows)] + ($reply ? ['reply_parameters' => ['message_id' => $reply, 'allow_sending_without_reply' => true]] : []));
+        App::tg()->send($chat, $alt ? 'این تمام چیزهایی است که پیدا کردیم' : '🔍', ['reply_markup' => ikb($rows)] + ($reply ? ['reply_parameters' => ['message_id' => $reply, 'allow_sending_without_reply' => true]] : []));
     }
 
     private static function more(array $cq, array $m, int $uid, string $qt, int $off): void
@@ -548,7 +525,7 @@ final class MusicId
             }
         }
         $tg->call('editMessageReplyMarkup', ['chat_id' => $m['chat']['id'], 'message_id' => (int) $m['message_id'], 'reply_markup' => ikb($rows)]);
-        self::listPage($m['chat']['id'], (int) ($set['reply'] ?? 0) ?: (int) $m['message_id'], $qt, $list, $off);
+        self::listPage($m['chat']['id'], (int) ($set['reply'] ?? 0) ?: (int) $m['message_id'], $qt, $list, $off, !empty($set['alt']));
     }
 
     private static function searchText(array $msg, string $q): void
@@ -567,7 +544,7 @@ final class MusicId
         $qt    = bin2hex(random_bytes(6));
         $reply = (int) ($msg['message_id'] ?? 0);
         Store::set('imusic', $qt, ['list' => $list, 'uid' => $uid, 'chat' => $msg['chat']['id'], 'reply' => $reply]);
-        self::listPage($msg['chat']['id'], $reply, $qt, $list, 0);
+        self::listPage($msg['chat']['id'], $reply, $qt, $list, 0, false);
     }
 
     private static function pick(array $cq, array $m, int $uid, string $qt, int $i): void
@@ -608,24 +585,6 @@ final class MusicId
         } else {
             $tg->send($job['chat'], $text, !empty($job['reply']) ? ['reply_parameters' => ['message_id' => (int) $job['reply'], 'allow_sending_without_reply' => true]] : []);
         }
-    }
-
-    private static function acquireSlot()
-    {
-        @mkdir(self::TMP, 0775, true);
-        for ($wait = 0; $wait < 90; $wait += 2) {
-            for ($i = 0; $i < self::SLOTS; $i++) {
-                $fh = @fopen(self::TMP . "/slot{$i}.lock", 'c');
-                if ($fh && flock($fh, LOCK_EX | LOCK_NB)) {
-                    return $fh;
-                }
-                if ($fh) {
-                    fclose($fh);
-                }
-            }
-            sleep(2);
-        }
-        return null;
     }
 
     private static function rmrf(string $dir): void
