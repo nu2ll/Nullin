@@ -113,7 +113,7 @@ final class GuestHandler
             return;
         }
 
-        if ($res['answer'] !== null && $voiceIn && self::voice($qid, $res['answer'])) {
+        if ($res['answer'] !== null && $voiceIn && self::voice($qid, $res['answer'], (int) ($from['id'] ?? 0))) {
             return;
         }
 
@@ -126,7 +126,7 @@ final class GuestHandler
         self::edit($imid, $qid, $html, $answer, $kb);
     }
 
-    private static function voice(string $qid, string $answer): bool
+    private static function voice(string $qid, string $answer, int $uid = 0): bool
     {
         $html = AI::toHtml($answer);
         if (AI::visible($html) > 1024) {
@@ -137,7 +137,7 @@ final class GuestHandler
         if ($chat === '') {
             return false;
         }
-        $file = AI::speak($answer);
+        $file = AI::speak($answer, null, 'ogg', VoicePick::get($uid));
         if ($file === null) {
             return false;
         }

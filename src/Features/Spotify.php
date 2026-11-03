@@ -44,7 +44,7 @@ final class Spotify
     public static function collection(string $type, string $id): array
     {
         $hit = Store::get('cache', "spc:{$type}:{$id}");
-        if (is_array($hit)) {
+        if (is_array($hit) && array_key_exists('cover', $hit)) {
             return $hit;
         }
         $r = Http::request('GET', "https://open.spotify.com/embed/{$type}/{$id}", ['timeout' => 15]);
@@ -75,7 +75,10 @@ final class Spotify
         if (!$tracks) {
             return ['error' => "🤷 آهنگی توی این لیست پیدا نکردم 😕"];
         }
-        $c = ['type' => $type, 'id' => $id, 'title' => (string) ($e['name'] ?? $e['title'] ?? ''), 'owner' => (string) ($e['subtitle'] ?? ''), 'tracks' => $tracks];
+        $imgs = (array) ($e['coverArt']['sources'] ?? $e['visualIdentity']['image'] ?? $e['images'] ?? []);
+        usort($imgs, static fn($a, $b) => ((int) ($b['maxWidth'] ?? $b['width'] ?? 0)) <=> ((int) ($a['maxWidth'] ?? $a['width'] ?? 0)));
+        $cover = (string) ($imgs[0]['url'] ?? '');
+        $c = ['type' => $type, 'id' => $id, 'title' => (string) ($e['name'] ?? $e['title'] ?? ''), 'owner' => (string) ($e['subtitle'] ?? ''), 'cover' => preg_match('#^https://#', $cover) ? self::hires($cover) : '', 'tracks' => $tracks];
         Store::set('cache', "spc:{$type}:{$id}", $c);
         return $c;
     }
@@ -116,7 +119,7 @@ final class Spotify
             'title'    => (string) $e['name'],
             'artist'   => implode(', ', $artists) ?: (string) ($e['subtitle'] ?? ''),
             'duration' => (int) round(((int) ($e['duration'] ?? 0)) / 1000),
-            'cover'    => (string) ($imgs[0]['url'] ?? ''),
+            'cover'    => self::hires((string) ($imgs[0]['url'] ?? '')),
         ];
     }
 
@@ -132,7 +135,13 @@ final class Spotify
                 [$title, $artist] = [$tm[1], $tm[2]];
             }
         }
-        return $title === '' ? null : ['title' => $title, 'artist' => $artist, 'duration' => 0, 'cover' => (string) ($j['thumbnail_url'] ?? '')];
+        return $title === '' ? null : ['title' => $title, 'artist' => $artist, 'duration' => 0, 'cover' => self::hires((string) ($j['thumbnail_url'] ?? ''))];
+    }
+
+    // لینک عکس اسپاتیفای رو به بزرگ‌ترین سایز (۶۴۰×۶۴۰) می‌رسونه
+    public static function hires(string $url): string
+    {
+        return preg_replace('#/image/ab67616d0000(?:1e02|4851)#', '/image/ab67616d0000b273', $url) ?? $url;
     }
 
     public static function remember(array $t, string $yt): void

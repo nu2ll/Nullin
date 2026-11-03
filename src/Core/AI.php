@@ -492,7 +492,7 @@ final class AI
 
     private const TTS_MODELS = ['gemini-2.5-flash-preview-tts', 'gemini-3.1-flash-tts-preview'];
 
-    public static function speak(string $text, ?float $deadline = null, string $ext = 'ogg'): ?string
+    public static function speak(string $text, ?float $deadline = null, string $ext = 'ogg', ?string $voice = null): ?string
     {
         $keys = self::keys();
         $text = trim((string) preg_replace(['/\n\n🔗 منابع:.*$/su', '#https?://\S+#u', '/[`*_#>]+/u', '/\s+/u'], ['', '', '', ' '], $text));
@@ -502,6 +502,7 @@ final class AI
         $deadline ??= microtime(true) + 90;
         $n         = count($keys);
         $start     = self::startIndex($n);
+        $voiceName = VoicePick::valid($voice) ?? VoicePick::DEFAULT;
 
         foreach (self::TTS_MODELS as $model) {
             for ($i = 0; $i < $n; $i++) {
@@ -514,10 +515,10 @@ final class AI
                     continue;
                 }
                 $r = Http::postJson(sprintf(self::API, rawurlencode($model)), [
-                    'contents'         => [['parts' => [['text' => "Read this aloud in the voice of a cute, sweet, playful young boy, in the same language as the text:\n\n" . $text]]]],
+                    'contents'         => [['parts' => [['text' => "Read the reply below aloud as a natural voice message, in the same language as the reply.\nMatch your tone, emotion and pace to the mood of that person and the context of the conversation, the way a real person would when talking to them.\n\nReply to read aloud:\n" . $text]]]],
                     'generationConfig' => [
                         'responseModalities' => ['AUDIO'],
-                        'speechConfig'       => ['voiceConfig' => ['prebuiltVoiceConfig' => ['voiceName' => 'Puck']]],
+                        'speechConfig'       => ['voiceConfig' => ['prebuiltVoiceConfig' => ['voiceName' => $voiceName]]],
                     ],
                 ], ['x-goog-api-key: ' . $key], (int) max(16, min($left, 80)));
 

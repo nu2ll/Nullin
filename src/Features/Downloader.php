@@ -295,7 +295,9 @@ final class Downloader
             }
             logInfo('dl', 'pinterest video: kinds=' . implode('', $ks) . ' mp4=' . count($u) . ' direct=' . ($vurls !== [] ? '1' : '0'));
         }
-        $p     = self::probe($link['url'], $multi);
+        $p     = $sp !== null
+            ? ['info' => ['title' => $sp['title'], 'uploader' => $sp['artist'], 'channel' => $sp['artist'], 'duration' => (int) $sp['duration'], 'thumbnail' => $sp['cover'], 'webpage_url' => $link['url'], 'formats' => []]]
+            : self::probe($link['url'], $multi);
         if (isset($p['error']) && count($ks) > 1 && in_array('v', $ks, true)) {
             $p = ['info' => ['count' => count($ks), 'kinds' => $ks, 'title' => '', 'webpage_url' => $link['url']]];
         }
@@ -390,11 +392,16 @@ final class Downloader
         }
         $text = '🎶 <b>' . h(mb_substr($title, 0, 200)) . "</b>\n"
             . ($c['owner'] !== '' ? '👤 ' . h(mb_substr($c['owner'], 0, 60)) . ' · ' : '') . '📍 ' . $link['name'] . "\n\n"
-            . '🎵 ' . fa((string) $total) . ' آهنگ' . ($n < $total ? ' (فقط ' . fa((string) $n) . ' تای اول رو می‌فرستم)' : '') . "؛\nهمه‌شون رو به‌صورت آلبوم (MP3، هر ۱۰ تا توی یه آلبوم) بفرستم؟ 👇";
+            . '🎵 ' . fa((string) $total) . ' آهنگ' . "؛\nهمه‌شون رو به‌صورت آلبوم،\nهر ۱۰ تا توی یه آلبوم بفرستم؟ 👇";
+        $cover = (string) ($c['cover'] ?? '');
+        if ($cover === '') {
+            $f     = Spotify::track('https://open.spotify.com/track/' . $c['tracks'][0]['id']);
+            $cover = (string) ($f['cover'] ?? '');
+        }
         self::show($t, $text, ikb([
             [btn('📥 دانلود همه (' . fa((string) $n) . ' آهنگ)', "dl:{$token}:all", 'success')],
             [btn('✖️ بیخیال', "dl:{$token}:x", null)],
-        ]));
+        ]), self::preview(['thumbnail' => Spotify::hires($cover)]));
     }
 
     private static function workSet(array $job, string $token): void
@@ -407,22 +414,20 @@ final class Downloader
         $dir    = self::TMP . "/{$token}-set";
         $slot   = null;
         $batch  = [];
-        $first  = true;
         $ok     = 0;
         $failed = [];
         $stop   = '';
-        $flush  = static function () use (&$batch, &$first, &$ok, &$failed, $job, $dir): void {
+        $flush  = static function () use (&$batch, &$ok, &$failed, $job, $dir): void {
             if (!$batch) {
                 return;
             }
-            if (self::flushSet($job, $batch, $first)) {
+            if (self::flushSet($job, $batch)) {
                 $ok += count($batch);
             } else {
                 foreach ($batch as $b) {
                     $failed[] = $b['name'];
                 }
             }
-            $first = false;
             $batch = [];
             self::rmrf($dir);
             @mkdir($dir, 0775, true);
@@ -472,6 +477,16 @@ final class Downloader
                 fclose($slot);
             }
         }
+        if ($ok > 0) {
+            // پیام «دانلود با نالینی» همیشه ته آلبوم‌ها میاد؛ چه کامل فرستاده شده باشن چه ناقص
+            $bot = App::botUsername();
+            App::tg()->call('sendMessage', [
+                'chat_id'              => $job['chat'],
+                'text'                 => '🎶 <b>' . h(mb_substr($job['title'], 0, 300)) . "</b>\n" . ($job['uploader'] !== '' ? '👤 ' . h($job['uploader']) . "\n" : '') . "\n📥 <a href=\"https://t.me/{$bot}\">@{$bot}</a>",
+                'parse_mode'           => 'HTML',
+                'link_preview_options' => ['is_disabled' => true],
+            ], 20);
+        }
         $text = '✅ ' . fa((string) $ok) . ' از ' . fa((string) $total) . ' آهنگ فرستاده شد';
         if ($stop === 'quota') {
             $text .= "\n✋ سهمیه‌ی امروزت تموم شد؛ بقیه رو فردا بفرست.";
@@ -481,7 +496,12 @@ final class Downloader
         if ($failed) {
             $text .= "\n\n😕 اینا رو نتونستم پیدا یا دانلود کنم:\n" . implode("\n", array_map(static fn($n) => '• ' . h($n), array_slice($failed, 0, 10)));
         }
-        self::show($job, '🎶 <b>' . h(mb_substr($job['title'], 0, 200)) . "</b>\n\n" . $text);
+        if ($stop === '' && !$failed && $ok >= $total) {
+            // همه‌ی آهنگ‌ها رسیدن؛ پیام کارت دیگه لازم نیست
+            App::tg()->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => (int) $job['card']], 8);
+        } else {
+            self::show($job, '🎶 <b>' . h(mb_substr($job['title'], 0, 200)) . "</b>\n\n" . $text);
+        }
         Store::delete('dl', $token);
     }
 
@@ -495,13 +515,15 @@ final class Downloader
             }
             Store::set('cache', 'spyt:' . $tr['id'], $yt);
         }
-        $key  = self::cacheKey($yt, 'mp3');
-        $item = ['key' => $key, 'name' => $name, 'title' => mb_substr($tr['title'], 0, 64), 'performer' => mb_substr($tr['artist'], 0, 64), 'duration' => (int) $tr['duration'], 'file' => null, 'id' => null];
+        $key  = self::cacheKey($yt, 'mp3cv');
+        $item = ['key' => $key, 'thumb' => null, 'name' => $name, 'title' => mb_substr($tr['title'], 0, 64), 'performer' => mb_substr($tr['artist'], 0, 64), 'duration' => (int) $tr['duration'], 'file' => null, 'id' => null];
         $c    = Store::get('dl_files', $key);
         if (is_array($c) && ($c['type'] ?? '') === 'audio' && !empty($c['file_id'])) {
             $item['id'] = (string) $c['file_id'];
             return $item;
         }
+        $sp    = Spotify::track('https://open.spotify.com/track/' . $tr['id']);
+        $cover = !isset($sp['error']) && !empty($sp['cover']) ? self::setCover(Spotify::hires((string) $sp['cover']), $dir . "/c{$i}") : null;
         $out = $dir . '/t' . $i;
         @mkdir($out, 0775, true);
         self::run(array_merge([self::bin()], self::commonArgs(), self::formatArgs('mp3', true), [
@@ -514,16 +536,58 @@ final class Downloader
             self::rmrf($out);
             return null;
         }
-        $item['file'] = $file;
+        if ($cover !== null) {
+            $tmp = $out . '/withcover.mp3';
+            self::run(['ffmpeg', '-y', '-v', 'error', '-i', $file, '-i', $cover['full'], '-map', '0:a', '-map', '1:v', '-c', 'copy', '-id3v2_version', '3',
+                '-metadata:s:v', 'title=Cover', '-metadata:s:v', 'comment=Cover (front)', $tmp], 60);
+            if (is_file($tmp) && filesize($tmp) > 0 && filesize($tmp) <= self::BOT_API_BYTES) {
+                @rename($tmp, $file);
+            } else {
+                @unlink($tmp);
+            }
+        }
+        $item['file']  = $file;
+        $item['thumb'] = $cover['thumb'] ?? null;
         return $item;
     }
 
-    private static function flushSet(array $job, array $batch, bool $first): bool
+    // کاور اسپاتیفای با بالاترین کیفیت: نسخه‌ی کامل برای داخل MP3 و نسخه‌ی ۳۲۰ (حد تلگرام) برای بندانگشتی
+    private static function setCover(string $url, string $base): ?array
+    {
+        if ($url === '' || !preg_match('#^https://#', $url)) {
+            return null;
+        }
+        @mkdir(dirname($base), 0775, true);
+        $r = Http::request('GET', $url, ['timeout' => 15, 'max_bytes' => 8 * 1048576]);
+        if ($r['body'] === null || $r['body'] === '') {
+            return null;
+        }
+        $full  = $base . '-full.jpg';
+        $thumb = $base . '-thumb.jpg';
+        $raw   = $base . '.src';
+        file_put_contents($raw, $r['body']);
+        if (str_starts_with($r['body'], "\xFF\xD8")) {
+            @rename($raw, $full);
+        } else {
+            self::run(['ffmpeg', '-y', '-v', 'error', '-i', $raw, '-frames:v', '1', '-q:v', '1', $full], 30);
+            @unlink($raw);
+        }
+        if (!is_file($full) || filesize($full) < 1) {
+            return null;
+        }
+        foreach ([4, 8, 14] as $q) {
+            self::run(['ffmpeg', '-y', '-v', 'error', '-i', $full, '-frames:v', '1', '-vf', 'scale=320:320:force_original_aspect_ratio=increase,crop=320:320', '-q:v', (string) $q, $thumb], 30);
+            if (is_file($thumb) && filesize($thumb) > 0 && filesize($thumb) < 200 * 1024) {
+                return ['full' => $full, 'thumb' => $thumb];
+            }
+        }
+        return ['full' => $full, 'thumb' => null];
+    }
+
+    private static function flushSet(array $job, array $batch): bool
     {
         $tg      = App::tg();
         $reply   = $job['reply_to'] ? ['message_id' => (int) $job['reply_to'], 'allow_sending_without_reply' => true] : null;
-        $bot     = App::botUsername();
-        $caption = '🎶 <b>' . h(mb_substr($job['title'], 0, 300)) . "</b>\n" . ($job['uploader'] !== '' ? '👤 ' . h($job['uploader']) . "\n" : '') . "\n📥 <a href=\"https://t.me/{$bot}\">@{$bot}</a>";
         $media   = [];
         $params  = ['chat_id' => $job['chat'], 'reply_parameters' => $reply];
         foreach ($batch as $k => $b) {
@@ -533,17 +597,20 @@ final class Downloader
                 $m['performer'] = $b['performer'] !== '' ? $b['performer'] : null;
                 $m['duration']  = $b['duration'] ?: null;
                 $params["f{$k}"] = new CURLFile($b['file'], 'audio/mpeg', preg_replace('/[^\w\- ]+/u', '', $b['name']) . '.mp3');
-            }
-            if ($first && $k === 0) {
-                $m['caption']    = $caption;
-                $m['parse_mode'] = 'HTML';
+                if (!empty($b['thumb']) && is_file($b['thumb'])) {
+                    $m['thumbnail']  = "attach://c{$k}";
+                    $params["c{$k}"] = new CURLFile($b['thumb'], 'image/jpeg', 'cover.jpg');
+                }
             }
             $media[] = array_filter($m, static fn($v) => $v !== null);
         }
         if (count($media) === 1) {
             $m = $media[0];
-            unset($params['f0']);
-            $p = ['chat_id' => $job['chat'], 'audio' => $batch[0]['file'] !== null ? new CURLFile($batch[0]['file'], 'audio/mpeg', 'track.mp3') : $batch[0]['id'], 'title' => $m['title'] ?? null, 'performer' => $m['performer'] ?? null, 'duration' => $m['duration'] ?? null, 'caption' => $first ? $caption : null, 'parse_mode' => 'HTML', 'reply_parameters' => $reply];
+            unset($params['f0'], $params['c0']);
+            $p = ['chat_id' => $job['chat'], 'audio' => $batch[0]['file'] !== null ? new CURLFile($batch[0]['file'], 'audio/mpeg', 'track.mp3') : $batch[0]['id'], 'title' => $m['title'] ?? null, 'performer' => $m['performer'] ?? null, 'duration' => $m['duration'] ?? null, 'reply_parameters' => $reply];
+            if ($batch[0]['file'] !== null && !empty($batch[0]['thumb']) && is_file($batch[0]['thumb'])) {
+                $p['thumbnail'] = new CURLFile($batch[0]['thumb'], 'image/jpeg', 'cover.jpg');
+            }
             $r    = $tg->call('sendAudio', $p, 300);
             $msgs = !empty($r['ok']) ? [$r['result']] : [];
         } else {
@@ -642,6 +709,12 @@ final class Downloader
             }
         }
         $best = null;
+        if ($dur > 0 && $list) {
+            $near = array_values(array_filter($list, static fn($e) => $e['d'] > 0 && abs($e['d'] - $dur) <= 2));
+            if ($near && $near[0]['id'] === $list[0]['id']) {
+                return 'https://www.youtube.com/watch?v=' . $list[0]['id'];
+            }
+        }
         if ($list) {
             $lines = [];
             foreach ($list as $n => $e) {

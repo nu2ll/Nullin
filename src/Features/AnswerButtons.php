@@ -127,7 +127,7 @@ final class AnswerButtons
                 $rec['vo'] = 1;
                 Store::set(self::NS, $key, $rec);
                 self::setKeyboard($chatId, $mid, self::keyboard(!empty($rec['sr']), false));
-                if (!self::voice($chatId, $mid, (string) $rec['a'])) {
+                if (!self::voice($chatId, $mid, (string) $rec['a'], $uid)) {
                     $rec['vo'] = 0;
                     Store::set(self::NS, $key, $rec);
                     self::setKeyboard($chatId, $mid, self::keyboard(!empty($rec['sr']), true));
@@ -218,11 +218,11 @@ final class AnswerButtons
         App::tg()->call('editMessageReplyMarkup', ['chat_id' => $chatId, 'message_id' => $mid, 'reply_markup' => $kb], 8);
     }
 
-    private static function voice(int $chatId, int $mid, string $answer): bool
+    private static function voice(int $chatId, int $mid, string $answer, int $uid = 0): bool
     {
         $tg = App::tg();
         $tg->action($chatId, 'record_voice');
-        $file = AI::speak(mb_substr(self::plain($answer), 0, self::VOICE_MAX));
+        $file = AI::speak(mb_substr(self::plain($answer), 0, self::VOICE_MAX), null, 'ogg', VoicePick::get($uid));
         if ($file === null) {
             $tg->send($chatId, '😕 نتونستم ویس بسازم، یه‌کم دیگه دوباره امتحان کن.', [
                 'reply_parameters' => ['message_id' => $mid, 'allow_sending_without_reply' => true],

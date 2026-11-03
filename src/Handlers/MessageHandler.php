@@ -187,6 +187,11 @@ final class MessageHandler
                 $tg->send($chatId, Ui::helpText(), ['reply_markup' => Ui::helpMenu($private)]);
                 return true;
 
+            case 'voice':
+                [$vt, $vk] = VoicePick::panel((int) $from['id']);
+                $tg->reply($msg, $vt, ['reply_markup' => $vk]);
+                return true;
+
             case 'wk':
             case 'wiki':
                 $args === '' ? $tg->reply($msg, Ui::guide('wiki')) : Wiki::reply($msg, $args);
@@ -277,33 +282,24 @@ final class MessageHandler
                 if (!$private || !App::isAdmin((int) $from['id'])) {
                     return false;
                 }
-                if (in_array(mb_strtolower($args), ['delete', 'del', 'حذف'], true)) {
-                    $f = NULLINI_DATA . '/cookies.txt';
-                    $tg->reply($msg, is_file($f) && @unlink($f) ? '🗑 فایل کوکی پاک شد.' : 'فایل کوکی‌ای که از تلگرام فرستاده باشی نیست.');
-                    return true;
+                // بی‌صدا: هیچ متنی نمی‌فرسته؛ فقط با ریپلای روی فایل کوکی کار می‌کنه
+                // و همیشه هم دستور و هم فایل کوکی پاک می‌شن.
+                $rm = static function (?int $id) use ($tg, $chatId): void {
+                    if ($id) {
+                        $tg->call('deleteMessage', ['chat_id' => $chatId, 'message_id' => $id], 8);
+                    }
+                };
+                $cmdId  = !empty($msg['message_id']) ? (int) $msg['message_id'] : null;
+                $fileId = !empty($msg['reply_to_message']['message_id']) ? (int) $msg['reply_to_message']['message_id'] : null;
+                $doc    = $msg['reply_to_message']['document'] ?? null;
+                if (is_array($doc) && !empty($doc['file_id']) && (int) ($doc['file_size'] ?? 0) <= 2 * 1048576) {
+                    $raw = $tg->download((string) $doc['file_id']);
+                    if ($raw !== null) {
+                        Downloader::saveCookies($raw);
+                    }
                 }
-                $doc = $msg['document'] ?? $msg['reply_to_message']['document'] ?? null;
-                if (!is_array($doc) || empty($doc['file_id'])) {
-                    $i = Downloader::cookiesInfo();
-                    $tg->reply($msg, '🍪 <b>کوکی دانلودر</b>' . "\n\n"
-                        . ($i ? '✅ فعاله: ' . fa((string) $i['count']) . ' کوکی · آخرین تغییر ' . Jalali::numericDate($i['at']) . ' ' . Jalali::time($i['at']) . ($i['saved'] ? '' : ' (از فایل cookies.txt روی سرور)') : '❌ فایلی نیست.')
-                        . "\n\nفایل <code>cookies.txt</code> رو (فرمت Netscape) بفرست و توی کپشنش <code>/cookies</code> بنویس،\nیا روی فایل ریپلای کن و <code>/cookies</code> بزن.\nبرای پاک کردن: <code>/cookies delete</code>");
-                    return true;
-                }
-                if ((int) ($doc['file_size'] ?? 0) > 2 * 1048576) {
-                    $tg->reply($msg, '📦 فایل خیلی بزرگه؛ کوکی باید زیر ۲ مگ باشه.');
-                    return true;
-                }
-                $raw = $tg->download((string) $doc['file_id']);
-                if ($raw === null) {
-                    $tg->reply($msg, '❌ نتونستم فایل رو از تلگرام بگیرم؛ دوباره بفرست.');
-                    return true;
-                }
-                $r = Downloader::saveCookies($raw);
-                $tg->reply($msg, isset($r['error']) ? '❌ ' . $r['error'] : '✅ کوکی‌ها ذخیره شد (' . fa((string) $r['count']) . ' کوکی) و از دانلود بعدی استفاده می‌شه.');
-                if (!isset($r['error']) && !empty($msg['message_id'])) {
-                    $tg->call('deleteMessage', ['chat_id' => $chatId, 'message_id' => (int) $msg['message_id']], 8);
-                }
+                $rm($fileId);
+                $rm($cmdId);
                 return true;
 
             case 'tools':

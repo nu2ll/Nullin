@@ -46,6 +46,10 @@ final class CallbackHandler
             Switches::onCallback($cq, $data);
             return;
         }
+        if (str_starts_with($data, 'vc:')) {
+            VoicePick::onCallback($cq, $data);
+            return;
+        }
 
         if (!$imid) {
             self::privateButtons($cq, $data);

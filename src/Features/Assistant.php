@@ -364,7 +364,7 @@ final class Assistant
     {
         $tg = App::tg();
         $tg->action($msg['chat']['id'], 'record_voice');
-        $file = AI::speak($answer);
+        $file = AI::speak($answer, null, 'ogg', VoicePick::get((int) ($msg['from']['id'] ?? 0)));
         if ($file === null) {
             return;
         }

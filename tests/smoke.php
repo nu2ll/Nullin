@@ -184,13 +184,13 @@ check('start text', str_contains(Ui::startText(['id' => 1, 'first_name' => '<b>x
 check('icon url', str_starts_with(Ui::icon('chess'), 'https://raw.githubusercontent.com/'), true);
 check('calc done', Calculator::render('8', true), "<b>🧮 ماشین‌حساب نالینی</b>\n\n= <b>8</b>");
 check('calc typing no preview', str_contains(Calculator::render('2+3'), '='), false);
-check('commands admin', count(Ui::commands('admin')), 19);
-check('commands private', count(Ui::commands('private')), 9);
+check('commands admin', count(Ui::commands('admin')), 20);
+check('commands private', count(Ui::commands('private')), 10);
 check('switch default on', Switches::on('chess'), true);
 Switches::toggle('image');
 check('switch off', Switches::on('image'), false);
 check('commands hide img', in_array('img', array_column(Ui::commands('private'), 'command'), true), false);
-check('commands private off', count(Ui::commands('private')), 8);
+check('commands private off', count(Ui::commands('private')), 9);
 Switches::toggle('image');
 check('switch back on', Switches::on('image'), true);
 check('commands show img', in_array('img', array_column(Ui::commands('private'), 'command'), true), true);
