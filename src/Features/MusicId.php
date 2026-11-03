@@ -6,6 +6,7 @@ final class MusicId
     private const TMP    = '/tmp/nullini-music';
     private const SLOTS  = 2;
     private const MAX_IN = 20 * 1024 * 1024;
+    private const PAGE = 10;
 
     public static function media(array $msg): ?array
     {
@@ -26,13 +27,17 @@ final class MusicId
         return null;
     }
 
-    public static function start(array $msg): void
+    public static function start(array $msg, string $query = ''): void
     {
         $tg  = App::tg();
         $uid = (int) ($msg['from']['id'] ?? 0);
+        if (trim($query) !== '') {
+            self::searchText($msg, trim($query));
+            return;
+        }
         $m   = self::media($msg);
         if ($m === null) {
-            $tg->reply($msg, "🎧 <b>موزیک‌یاب نالینی</b>\n\nیه ویس، آهنگ یا ویدیوی صدادار بفرست و زیرش /music بزن؛\nیا روی همون پیام ریپلای کن و /music رو بنویس 😉");
+            $tg->reply($msg, "🎧 <b>موزیک‌یاب نالینی</b>\n\nیه ویس، آهنگ یا ویدیوی صدادار بفرست و زیرش /music بزن؛\nیا روی همون پیام ریپلای کن و /music رو بنویس 😉\n\nیا اسم آهنگ رو بنویس:\n<code>/music geek</code>");
             return;
         }
         if ($m['size'] > self::MAX_IN) {
@@ -198,7 +203,7 @@ final class MusicId
                 urlBtn('اسپاتیفای', 'https://open.spotify.com/search/' . rawurlencode($q), null),
             ],
             [['text' => '🔍 جستجوی آهنگ‌های خواننده', 'switch_inline_query_current_chat' => 'mu ' . mb_substr($by, 0, 100), 'style' => 'primary']],
-            [btn('❌ آهنگ اشتباهه ❌', 'mu:x:' . $token, 'danger')],
+            [btn("\u{200F}❌ آهنگ اشتباهه ❌\u{200F}", 'mu:x:' . $token, 'danger')],
         ]);
     }
 
@@ -454,6 +459,10 @@ final class MusicId
             $tg->answer($cq);
             return;
         }
+        if (preg_match('/^mu:m:([a-f0-9]{12}):(\d{1,3})$/', $data, $x) === 1) {
+            self::more($cq, $m, $uid, $x[1], (int) $x[2]);
+            return;
+        }
         if (preg_match('/^mu:x:([a-f0-9]{12})$/', $data, $x) === 1) {
             self::alternatives($cq, $m, $uid, $x[1]);
             return;
@@ -484,24 +493,81 @@ final class MusicId
             MusicSearch::find(trim($s['artist'] . ' ' . $s['title'])),
             static fn($t) => !(mb_strtolower($t['title']) === $lt && str_contains(mb_strtolower($t['artist']), $la))
         ));
-        $list = array_slice($list, 0, 100);
         if (!$list) {
             $tg->answer($cq, '😔 چیزی پیدا نشد');
             return;
         }
         $tg->answer($cq);
-        $qt = bin2hex(random_bytes(6));
-        Store::set('imusic', $qt, ['list' => $list, 'uid' => (int) $res['uid'], 'chat' => $res['chat'], 'reply' => (int) ($res['reply'] ?? 0)]);
-        $rows = [];
-        foreach ($list as $i => $t) {
-            $d      = (int) $t['dur'];
-            $label  = ($d > 0 ? intdiv($d, 60) . ':' . sprintf('%02d', $d % 60) . ' • ' : '') . $t['title'] . ($t['artist'] !== '' ? ' — ' . $t['artist'] : '');
-            $rows[] = [btn(mb_substr($label, 0, 60), "mu:p:{$qt}:{$i}", null)];
+        $qt    = bin2hex(random_bytes(6));
+        $reply = (int) ($res['reply'] ?? 0);
+        Store::set('imusic', $qt, ['list' => $list, 'uid' => (int) $res['uid'], 'chat' => $res['chat'], 'reply' => $reply]);
+        self::listPage($m['chat']['id'], $reply ?: (int) $m['message_id'], $qt, $list, 0);
+    }
+
+    private static function listPage($chat, int $reply, string $qt, array $list, int $off): void
+    {
+        $total = count($list);
+        $songs = [];
+        for ($i = $off; $i < $total && count($songs) < self::PAGE; $i++) {
+            $t       = $list[$i];
+            $d       = (int) $t['dur'];
+            $label   = ($d > 0 ? intdiv($d, 60) . ':' . sprintf('%02d', $d % 60) . ' • ' : '') . $t['title'] . ($t['artist'] !== '' ? ' — ' . $t['artist'] : '');
+            $songs[] = [btn(mb_substr($label, 0, 60), "mu:p:{$qt}:{$i}", null)];
         }
-        $tg->send($m['chat']['id'], "🎧 همه‌ی چیزهایی که پیدا کردم؛\nآهنگ درست رو انتخاب کن 👇", [
-            'reply_markup'     => ikb($rows),
-            'reply_parameters' => ['message_id' => (int) $m['message_id'], 'allow_sending_without_reply' => true],
-        ]);
+        if (!$songs) {
+            return;
+        }
+        $rows = $songs;
+        $next = $off + count($songs);
+        if ($next < $total) {
+            $rows[] = [btn('آهنگ‌های بیشتر ➕', "mu:m:{$qt}:{$next}", null)];
+        }
+        $rows[] = [self::searchBtn()];
+        App::tg()->send($chat, 'این تمام چیزهایی است که پیدا کردیم', ['reply_markup' => ikb($rows)] + ($reply ? ['reply_parameters' => ['message_id' => $reply, 'allow_sending_without_reply' => true]] : []));
+    }
+
+    private static function more(array $cq, array $m, int $uid, string $qt, int $off): void
+    {
+        $tg  = App::tg();
+        $set = Store::getToday('imusic', $qt);
+        if (!is_array($set)) {
+            self::dropButtons($cq);
+            return;
+        }
+        $list = (array) ($set['list'] ?? []);
+        if (($uid !== (int) ($set['uid'] ?? 0) && !App::isAdmin($uid)) || $off < 1 || $off >= count($list)) {
+            $tg->answer($cq);
+            return;
+        }
+        $tg->answer($cq);
+        $rows = [];
+        foreach ((array) ($m['reply_markup']['inline_keyboard'] ?? []) as $row) {
+            $keep = array_values(array_filter((array) $row, static fn($b) => is_array($b) && ($b['callback_data'] ?? '') !== ($cq['data'] ?? '')));
+            if ($keep) {
+                $rows[] = $keep;
+            }
+        }
+        $tg->call('editMessageReplyMarkup', ['chat_id' => $m['chat']['id'], 'message_id' => (int) $m['message_id'], 'reply_markup' => ikb($rows)]);
+        self::listPage($m['chat']['id'], (int) ($set['reply'] ?? 0) ?: (int) $m['message_id'], $qt, $list, $off);
+    }
+
+    private static function searchText(array $msg, string $q): void
+    {
+        $tg  = App::tg();
+        $uid = (int) ($msg['from']['id'] ?? 0);
+        if (!App::isAdmin($uid) && Store::update('rl', 'musics_' . $uid, static fn($at) => (is_int($at) && time() - $at < self::WAIT) ? null : time()) === null) {
+            $tg->reply($msg, "یه‌کم دیگه بیا 😅\n⏳ هر ۲۰ ثانیه فقط یه موزیک‌یاب!");
+            return;
+        }
+        $list = MusicSearch::find(mb_substr($q, 0, 100));
+        if (!$list) {
+            $tg->reply($msg, '😔 چیزی پیدا نشد');
+            return;
+        }
+        $qt    = bin2hex(random_bytes(6));
+        $reply = (int) ($msg['message_id'] ?? 0);
+        Store::set('imusic', $qt, ['list' => $list, 'uid' => $uid, 'chat' => $msg['chat']['id'], 'reply' => $reply]);
+        self::listPage($msg['chat']['id'], $reply, $qt, $list, 0);
     }
 
     private static function pick(array $cq, array $m, int $uid, string $qt, int $i): void

@@ -184,7 +184,7 @@ final class MessageHandler
                 return true;
 
             case 'music':
-                MusicId::start($msg);
+                MusicId::start($msg, $args);
                 return true;
 
             case 'ping':
