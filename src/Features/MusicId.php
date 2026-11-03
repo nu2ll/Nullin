@@ -111,9 +111,11 @@ final class MusicId
             }
 
             self::card($job, '✅ ' . h($song['title']) . ' — ' . h($song['artist']) . "\n⏳ دارم موزیک رو می‌گیرم...");
-            self::sendInfo($job, $song);
+            $yt     = Downloader::musicMatch((string) $song['title'], (string) $song['artist']);
+            $infoId = self::sendInfo($job, $song, $yt, $token);
+            Store::set('mures', $token, ['uid' => (int) $job['uid'], 'chat' => $job['chat'], 'info' => (int) $infoId, 'audio' => 0, 'dead' => false]);
 
-            $file = Downloader::musicFile((string) $song['title'], (string) $song['artist'], (string) $song['cover'], $dir);
+            $file = $yt === null ? null : Downloader::musicFile((string) $song['title'], (string) $song['artist'], (string) $song['cover'], $dir, $yt);
             if ($file === null) {
                 self::card($job, '✅ ' . h($song['title']) . ' — ' . h($song['artist']) . "\n😕 اسمش رو پیدا کردم ولی نتونستم خود موزیک رو بگیرم.");
                 self::charge((int) $job['uid']);
@@ -124,6 +126,7 @@ final class MusicId
                 'audio'            => new CURLFile($file['file'], 'audio/mpeg', 'track.mp3'),
                 'title'            => mb_substr((string) $song['title'], 0, 64),
                 'performer'        => mb_substr((string) $song['artist'], 0, 64) ?: null,
+                'reply_markup'     => self::audioKeyboard($song),
                 'reply_parameters' => $job['reply'] ? ['message_id' => (int) $job['reply'], 'allow_sending_without_reply' => true] : null,
             ];
             if (!empty($file['thumb']) && is_file($file['thumb'])) {
@@ -134,6 +137,16 @@ final class MusicId
                 logWarn('music', 'sendAudio failed: ' . (string) ($r['description'] ?? ''));
                 self::card($job, '✅ ' . h($song['title']) . ' — ' . h($song['artist']) . "\n😕 فرستادن موزیک نشد، یه‌کم دیگه دوباره امتحان کن.");
                 return;
+            }
+            $audioId = (int) ($r['result']['message_id'] ?? 0);
+            $res     = Store::get('mures', $token);
+            if (is_array($res) && $audioId > 0) {
+                if (!empty($res['dead'])) {
+                    $tg->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => $audioId]);
+                } else {
+                    $res['audio'] = $audioId;
+                    Store::set('mures', $token, $res);
+                }
             }
             self::charge((int) $job['uid']);
             Users::hit('music');
@@ -183,7 +196,53 @@ final class MusicId
         return $heard ? ['ok' => false] : null;
     }
 
-    private static function sendInfo(array $job, array $s): void
+    private static function query(array $s): string
+    {
+        return trim(($s['artist'] !== '' ? $s['artist'] . ' - ' : '') . $s['title']);
+    }
+
+    private static function infoKeyboard(array $s, string $token): array
+    {
+        $q  = self::query($s);
+        $by = $s['artist'] !== '' ? (string) $s['artist'] : (string) $s['title'];
+        return ikb([
+            [
+                urlBtn('گوگل', Search::googleUrl($q), null),
+                urlBtn('یوتیوب موزیک', 'https://music.youtube.com/search?q=' . rawurlencode($q), null),
+                urlBtn('اسپاتیفای', 'https://open.spotify.com/search/' . rawurlencode($q), null),
+            ],
+            [urlBtn('🔍 جستجوی آهنگ‌های خواننده', 'https://music.youtube.com/search?q=' . rawurlencode($by), 'primary')],
+            [btn('❌ آهنگ اشتباهه ❌', 'mu:x:' . $token, 'danger')],
+        ]);
+    }
+
+    private static function audioKeyboard(array $s): array
+    {
+        return ikb([[
+            urlBtn('📝 متن آهنگ', Search::googleUrl(self::query($s) . ' lyrics'), 'primary'),
+            urlBtn('🔍 جستجو', 'https://music.youtube.com/search?q=' . rawurlencode((string) $s['title']), null),
+        ]]);
+    }
+
+    private static function infoCover(?string $yt, string $fallback): string
+    {
+        if ($yt !== null && preg_match('/v=([\w-]{11})/', $yt, $m) === 1) {
+            $r = Http::request('GET', 'https://i.ytimg.com/vi/' . $m[1] . '/maxresdefault.jpg', ['timeout' => 15, 'max_bytes' => 8 * 1048576]);
+            $i = $r['code'] === 200 && (string) $r['body'] !== '' ? @getimagesizefromstring((string) $r['body']) : false;
+            if ($i !== false && $i[0] >= 640) {
+                return (string) $r['body'];
+            }
+        }
+        if (preg_match('#^https://#', $fallback) === 1) {
+            $r = Http::request('GET', $fallback, ['timeout' => 15, 'max_bytes' => 8 * 1048576]);
+            if ((string) $r['body'] !== '' && @getimagesizefromstring((string) $r['body']) !== false) {
+                return (string) $r['body'];
+            }
+        }
+        return '';
+    }
+
+    private static function sendInfo(array $job, array $s, ?string $yt, string $token): ?int
     {
         $tg   = App::tg();
         $text = '🎵 <b>' . h(mb_substr((string) $s['title'], 0, 200)) . '</b>';
@@ -202,16 +261,46 @@ final class MusicId
         if ($s['label'] !== '') {
             $text .= "\n🏷 لیبل: " . h(mb_substr((string) $s['label'], 0, 100));
         }
-        $img = '';
-        if (preg_match('#^https://#', (string) $s['cover']) === 1) {
-            $r   = Http::request('GET', (string) $s['cover'], ['timeout' => 15, 'max_bytes' => 8 * 1048576]);
-            $img = (string) ($r['body'] ?? '');
-        }
+        $kb    = self::infoKeyboard($s, $token);
         $reply = $job['reply'] ? (int) $job['reply'] : null;
-        if ($img !== '' && @getimagesizefromstring($img) !== false && $tg->sendPhotoBytes($job['chat'], $img, $text, $reply)) {
+        $img   = self::infoCover($yt, (string) $s['cover']);
+        if ($img !== '') {
+            $id = $tg->sendPhotoCard($job['chat'], $img, $text, $reply, $kb);
+            if ($id !== null) {
+                return $id;
+            }
+        }
+        $r = $tg->send($job['chat'], $text, ['reply_markup' => $kb] + ($reply ? ['reply_parameters' => ['message_id' => $reply, 'allow_sending_without_reply' => true]] : []));
+        return !empty($r['ok']) ? (int) ($r['result']['message_id'] ?? 0) : null;
+    }
+
+    public static function onCallback(array $cq, string $data): void
+    {
+        $tg  = App::tg();
+        $m   = $cq['message'] ?? null;
+        $uid = (int) ($cq['from']['id'] ?? 0);
+        if (!is_array($m) || !isset($m['message_id']) || preg_match('/^mu:x:([a-f0-9]{12})$/', $data, $x) !== 1) {
+            $tg->answer($cq);
             return;
         }
-        $tg->send($job['chat'], $text, $reply ? ['reply_parameters' => ['message_id' => $reply, 'allow_sending_without_reply' => true]] : []);
+        $res = Store::get('mures', $x[1]);
+        if (!is_array($res)) {
+            $tg->answer($cq, '⌛️ منقضی شده');
+            return;
+        }
+        if ($uid !== (int) $res['uid'] && !App::isAdmin($uid)) {
+            $tg->answer($cq, '🙅 این دکمه مال کسیه که آهنگ رو فرستاده');
+            return;
+        }
+        foreach (array_unique(array_filter([(int) $m['message_id'], (int) ($res['info'] ?? 0), (int) ($res['audio'] ?? 0)])) as $id) {
+            $tg->call('deleteMessage', ['chat_id' => $res['chat'], 'message_id' => $id], 8);
+        }
+        if ((int) ($res['audio'] ?? 0) > 0) {
+            Store::delete('mures', $x[1]);
+        } else {
+            Store::set('mures', $x[1], ['dead' => true, 'info' => 0, 'audio' => 0] + $res);
+        }
+        $tg->answer($cq, '🗑 آهنگ اشتباه حذف شد؛ یه تیکه‌ی واضح‌تر بفرست');
     }
 
     private static function card(array $job, string $text): void

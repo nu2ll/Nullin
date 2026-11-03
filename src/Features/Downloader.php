@@ -552,26 +552,37 @@ final class Downloader
     }
 
     // موزیک‌یاب: با اسم و خواننده، خود آهنگ رو از یوتیوب می‌گیره و کاور رو توش می‌چسبونه
-    public static function musicFile(string $title, string $artist, string $coverUrl, string $dir): ?array
+    public static function musicMatch(string $title, string $artist): ?string
     {
         $q = trim(($artist !== '' ? $artist . ' - ' : '') . $title);
         if ($q === '' || self::bin() === null) {
             return null;
         }
-        $yt = self::ytMatch($q, 0);
+        return self::ytMatch($q, 0);
+    }
+
+    public static function musicFile(string $title, string $artist, string $coverUrl, string $dir, ?string $yt = null): ?array
+    {
+        $q = trim(($artist !== '' ? $artist . ' - ' : '') . $title);
+        if ($q === '' || self::bin() === null) {
+            logWarn('dl', 'music: yt-dlp binary missing or empty query');
+            return null;
+        }
+        $yt ??= self::ytMatch($q, 0);
         if ($yt === null) {
             return null;
         }
         $cover = $coverUrl !== '' ? self::setCover($coverUrl, $dir . '/mc') : null;
         $out   = $dir . '/mt';
         @mkdir($out, 0775, true);
-        self::run(array_merge([self::bin()], self::commonArgs(), self::formatArgs('mp3', true), [
+        $res = self::run(array_merge([self::bin()], self::commonArgs(), self::formatArgs('mp3', true), [
             '--no-playlist', '--no-warnings', '--no-mtime', '--restrict-filenames',
             '--socket-timeout', '20', '--retries', '3', '--fragment-retries', '3', '--max-filesize', '49M',
             '-o', $out . '/%(id).40s.%(ext)s',
         ], [$yt]), 240);
         $file = self::pickFile($out);
         if ($file === null || filesize($file) > self::BOT_API_BYTES) {
+            logWarn('dl', 'music download failed code=' . (int) ($res['code'] ?? 0) . ' url=' . $yt . ' file=' . ($file === null ? 'none' : (string) filesize($file)) . ' err=' . self::lastLine((string) ($res['err'] ?? '')));
             return null;
         }
         if ($cover !== null) {

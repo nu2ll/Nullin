@@ -283,6 +283,30 @@ final class Telegram
         return !empty($r['ok']);
     }
 
+    public function sendPhotoCard(int|string $chatId, string $bytes, string $caption, ?int $replyTo = null, ?array $markup = null): ?int
+    {
+        $info = @getimagesizefromstring($bytes);
+        $mime = $info['mime'] ?? 'image/jpeg';
+        $ext  = $mime === 'image/png' ? 'png' : ($mime === 'image/webp' ? 'webp' : 'jpg');
+        $tmp  = tempnam(sys_get_temp_dir(), 'nl_img_');
+        if ($tmp === false || file_put_contents($tmp, $bytes) === false) {
+            return null;
+        }
+        try {
+            $r = $this->call('sendPhoto', [
+                'chat_id'          => $chatId,
+                'photo'            => new CURLFile($tmp, $mime, "nullini.{$ext}"),
+                'caption'          => $caption !== '' ? $caption : null,
+                'parse_mode'       => 'HTML',
+                'reply_markup'     => $markup,
+                'reply_parameters' => $replyTo ? ['message_id' => $replyTo, 'allow_sending_without_reply' => true] : null,
+            ], 90);
+        } finally {
+            @unlink($tmp);
+        }
+        return !empty($r['ok']) ? (int) ($r['result']['message_id'] ?? 0) : null;
+    }
+
     public function sendAnimationBytes(int|string $chatId, string $bytes, string $caption = '', ?int $replyTo = null): bool
     {
         $tmp = tempnam(sys_get_temp_dir(), 'nl_gif_');
