@@ -34,6 +34,9 @@ final class MessageHandler
             return;
         }
 
+        if ($private && Cookies::input($msg)) {
+            return;
+        }
         if ($private && Giveaway::input($msg)) {
             return;
         }
@@ -288,26 +291,7 @@ final class MessageHandler
                 if (!$private || !App::isAdmin((int) $from['id'])) {
                     return false;
                 }
-                // بی‌صدا: هیچ متنی نمی‌فرسته. یا فایل کوکی رو با کپشن /cookies بفرست،
-                // یا روی فایل کوکی ریپلای کن؛ همیشه هم دستور و هم فایل پاک می‌شن.
-                $rm = static function (?int $id) use ($tg, $chatId): void {
-                    if ($id) {
-                        $tg->call('deleteMessage', ['chat_id' => $chatId, 'message_id' => $id], 8);
-                    }
-                };
-                $cmdId  = !empty($msg['message_id']) ? (int) $msg['message_id'] : null;
-                $inline = !empty($msg['document']);
-                $fileId = !$inline && !empty($msg['reply_to_message']['message_id']) ? (int) $msg['reply_to_message']['message_id'] : null;
-                $doc    = $inline ? $msg['document'] : ($msg['reply_to_message']['document'] ?? null);
-                if (is_array($doc) && !empty($doc['file_id']) && (int) ($doc['file_size'] ?? 0) <= 2 * 1048576) {
-                    $raw = $tg->download((string) $doc['file_id']);
-                    if ($raw !== null) {
-                        Downloader::saveCookies($raw);
-                        Backup::push('cookies');
-                    }
-                }
-                $rm($fileId);
-                $rm($cmdId);
+                Cookies::command($msg);
                 return true;
 
             case 'tools':

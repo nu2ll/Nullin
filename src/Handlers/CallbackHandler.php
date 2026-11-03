@@ -26,6 +26,10 @@ final class CallbackHandler
             Downloader::onCallback($cq, $data);
             return;
         }
+        if (str_starts_with($data, 'ck:')) {
+            Cookies::onCallback($cq, $data);
+            return;
+        }
         if (str_starts_with($data, 'gw:')) {
             Giveaway::onCallback($cq, $data);
             return;

@@ -1458,33 +1458,65 @@ final class Downloader
         return is_file($saved) && filesize($saved) > 0 ? $saved : NULLINI_ROOT . '/cookies.txt';
     }
 
+    /**
+     * فایل کوکی رو به فرمت استاندارد Netscape درمیاره (yt-dlp و gallery-dl فقط همین رو قبول می‌کنن):
+     * BOM پاک می‌شه، خط هدر اضافه می‌شه، جداکننده‌ی فاصله به تب تبدیل می‌شه و خط‌های خراب دور ریخته می‌شن.
+     */
+    public static function normalizeCookies(string $raw): array
+    {
+        $raw   = preg_replace('/^\xEF\xBB\xBF/', '', $raw) ?? $raw;
+        $raw   = str_replace(["\r\n", "\r"], "\n", $raw);
+        $lines = ['# Netscape HTTP Cookie File'];
+        $n     = 0;
+        $insta = false;
+        foreach (explode("\n", $raw) as $line) {
+            $t = ltrim($line);
+            if ($t === '' || ($t[0] === '#' && !str_starts_with($t, '#HttpOnly_'))) {
+                continue;
+            }
+            $p = explode("\t", $t);
+            if (count($p) < 7) {
+                $p = preg_split('/\s+/', trim($t), 7) ?: [];
+            }
+            if (count($p) < 7) {
+                continue;
+            }
+            if (count($p) > 7) {
+                $p = [$p[0], $p[1], $p[2], $p[3], $p[4], $p[5], implode("\t", array_slice($p, 6))];
+            }
+            $p[1] = strtoupper(trim($p[1]));
+            $p[3] = strtoupper(trim($p[3]));
+            if (!in_array($p[1], ['TRUE', 'FALSE'], true) || !in_array($p[3], ['TRUE', 'FALSE'], true)
+                || preg_match('/^-?\d+(\.\d+)?$/', trim($p[4])) !== 1) {
+                continue;
+            }
+            $p[4]    = (string) max(0, (int) trim($p[4]));
+            $lines[] = implode("\t", $p);
+            $n++;
+            if ($p[5] === 'sessionid' && trim($p[6]) !== '' && str_contains(strtolower($p[0]), 'instagram.com')) {
+                $insta = true;
+            }
+        }
+        return ['text' => implode("\n", $lines) . "\n", 'count' => $n, 'insta' => $insta];
+    }
+
     public static function saveCookies(string $raw): array
     {
-        $raw = str_replace(["\r\n", "\r"], "\n", $raw);
         if (str_contains($raw, "\0") || strlen($raw) > 2 * 1048576) {
             return ['error' => 'این فایل کوکی نیست یا خیلی بزرگه.'];
         }
-        $n = 0;
-        foreach (explode("\n", $raw) as $line) {
-            $line = trim($line);
-            if ($line === '' || ($line[0] === '#' && !str_starts_with($line, '#HttpOnly_'))) {
-                continue;
-            }
-            if (count(explode("\t", $line)) >= 7) {
-                $n++;
-            }
-        }
-        if ($n === 0) {
+        $c = self::normalizeCookies($raw);
+        if ($c['count'] === 0) {
             return ['error' => "فرمت فایل درست نیست؛\nباید کوکی‌ها با فرمت Netscape (cookies.txt) باشن."];
         }
         $path = NULLINI_DATA . '/cookies.txt';
         @mkdir(NULLINI_DATA, 0775, true);
-        if (@file_put_contents($path, rtrim($raw) . "\n", LOCK_EX) === false) {
+        if (@file_put_contents($path, $c['text'], LOCK_EX) === false) {
             return ['error' => 'نتونستم فایل رو ذخیره کنم.'];
         }
         @chmod($path, 0600);
-        Store::set('cfg', 'cookies_txt', rtrim($raw) . "\n");
-        return ['count' => $n];
+        Store::set('cfg', 'cookies_txt', $c['text']);
+        return ['count' => $c['count'], 'insta' => $c['insta']];
     }
 
     public static function cookiesInfo(): array
@@ -1509,6 +1541,9 @@ final class Downloader
         $jar = is_file($src) && filesize($src) > 0 ? rtrim((string) file_get_contents($src)) . "\n" : '';
         if ($jar === '') {
             return null;
+        }
+        if (preg_match('/^#( Netscape)? HTTP Cookie File/', $jar) !== 1) {
+            $jar = "# Netscape HTTP Cookie File\n" . $jar;
         }
         $tmp = self::TMP . '/cookies-' . getmypid() . '.txt';
         @mkdir(self::TMP, 0775, true);
