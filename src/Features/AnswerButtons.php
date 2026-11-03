@@ -232,7 +232,7 @@ final class AnswerButtons
         $r = $tg->call('sendVoice', [
             'chat_id'          => $chatId,
             'voice'            => new CURLFile($file, 'audio/ogg', 'voice.ogg'),
-            'reply_markup'     => ikb([[btn('Nullini', 'noop', 'danger')]]),
+            'reply_markup'     => ikb([[btn('Nullini', 'noop', null)]]),
             'reply_parameters' => ['message_id' => $mid, 'allow_sending_without_reply' => true],
         ], 120);
         AI::markMsg($chatId, $r['result']['message_id'] ?? 0);

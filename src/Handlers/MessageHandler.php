@@ -273,6 +273,39 @@ final class MessageHandler
                 $tg->reply($msg, str_starts_with($r, 'ok') ? '✅ بکاپ تو گیت‌هاب ذخیره شد.' : "❌ بکاپ نشد.\n<code>" . h($r) . '</code>');
                 return true;
 
+            case 'cookies':
+                if (!$private || !App::isAdmin((int) $from['id'])) {
+                    return false;
+                }
+                if (in_array(mb_strtolower($args), ['delete', 'del', 'حذف'], true)) {
+                    $f = NULLINI_DATA . '/cookies.txt';
+                    $tg->reply($msg, is_file($f) && @unlink($f) ? '🗑 فایل کوکی پاک شد.' : 'فایل کوکی‌ای که از تلگرام فرستاده باشی نیست.');
+                    return true;
+                }
+                $doc = $msg['document'] ?? $msg['reply_to_message']['document'] ?? null;
+                if (!is_array($doc) || empty($doc['file_id'])) {
+                    $i = Downloader::cookiesInfo();
+                    $tg->reply($msg, '🍪 <b>کوکی دانلودر</b>' . "\n\n"
+                        . ($i ? '✅ فعاله: ' . fa((string) $i['count']) . ' کوکی · آخرین تغییر ' . Jalali::numericDate($i['at']) . ' ' . Jalali::time($i['at']) . ($i['saved'] ? '' : ' (از فایل cookies.txt روی سرور)') : '❌ فایلی نیست.')
+                        . "\n\nفایل <code>cookies.txt</code> رو (فرمت Netscape) بفرست و توی کپشنش <code>/cookies</code> بنویس،\nیا روی فایل ریپلای کن و <code>/cookies</code> بزن.\nبرای پاک کردن: <code>/cookies delete</code>");
+                    return true;
+                }
+                if ((int) ($doc['file_size'] ?? 0) > 2 * 1048576) {
+                    $tg->reply($msg, '📦 فایل خیلی بزرگه؛ کوکی باید زیر ۲ مگ باشه.');
+                    return true;
+                }
+                $raw = $tg->download((string) $doc['file_id']);
+                if ($raw === null) {
+                    $tg->reply($msg, '❌ نتونستم فایل رو از تلگرام بگیرم؛ دوباره بفرست.');
+                    return true;
+                }
+                $r = Downloader::saveCookies($raw);
+                $tg->reply($msg, isset($r['error']) ? '❌ ' . $r['error'] : '✅ کوکی‌ها ذخیره شد (' . fa((string) $r['count']) . ' کوکی) و از دانلود بعدی استفاده می‌شه.');
+                if (!isset($r['error']) && !empty($msg['message_id'])) {
+                    $tg->call('deleteMessage', ['chat_id' => $chatId, 'message_id' => (int) $msg['message_id']], 8);
+                }
+                return true;
+
             case 'tools':
                 if (!App::isAdmin((int) $from['id'])) {
                     return false;

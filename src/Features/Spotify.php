@@ -6,8 +6,8 @@ final class Spotify
     {
         $id = self::id($url);
         if ($id === null) {
-            return ['error' => preg_match('#/(album|playlist|artist|show|episode)/#', $url)
-                ? "🎵 فعلاً فقط لینک تک‌آهنگ اسپاتیفای رو می‌گیرم؛\nآلبوم و پلی‌لیست نه."
+            return ['error' => preg_match('#/(artist|show|episode)/#', $url)
+                ? "🎵 فعلاً فقط لینک آهنگ، آلبوم و پلی‌لیست اسپاتیفای رو می‌گیرم."
                 : '🤷 این لینک اسپاتیفای رو نشناختم.'];
         }
         $hit = Store::get('cache', 'sp:' . $id);
@@ -22,6 +22,62 @@ final class Spotify
         $t['id'] = $id;
         Store::set('cache', 'sp:' . $id, $t);
         return $t;
+    }
+
+    public static function setRef(string $url): ?array
+    {
+        $text = $url;
+        if (preg_match('#(spotify\.link|spotify\.app\.link)/#i', $url)) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 6, CURLOPT_TIMEOUT => 12,
+                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36']);
+            $body = (string) curl_exec($ch);
+            $text = (string) curl_getinfo($ch, CURLINFO_EFFECTIVE_URL) . ' ' . $body;
+            curl_close($ch);
+        }
+        if (preg_match('#open\.spotify\.com/(?:intl-[\w-]+/)?(?:embed/)?(playlist|album)/([A-Za-z0-9]{22})#', $text, $m)) {
+            return [$m[1], $m[2]];
+        }
+        return null;
+    }
+
+    public static function collection(string $type, string $id): array
+    {
+        $hit = Store::get('cache', "spc:{$type}:{$id}");
+        if (is_array($hit)) {
+            return $hit;
+        }
+        $r = Http::request('GET', "https://open.spotify.com/embed/{$type}/{$id}", ['timeout' => 15]);
+        if ($r['body'] === null || !preg_match('#<script id="__NEXT_DATA__"[^>]*>(.+?)</script>#s', $r['body'], $m)) {
+            logWarn('spotify', "set meta failed {$type} {$id}");
+            return ['error' => "❌ نتونستم لیست آهنگ‌ها رو از اسپاتیفای بگیرم 😕\nیه‌کم دیگه امتحان کن."];
+        }
+        $e = json_decode($m[1], true)['props']['pageProps']['state']['data']['entity'] ?? null;
+        if (!is_array($e)) {
+            return ['error' => "❌ نتونستم لیست آهنگ‌ها رو از اسپاتیفای بگیرم 😕\nشاید پلی‌لیست خصوصیه."];
+        }
+        $tracks = [];
+        foreach ((array) ($e['trackList'] ?? $e['tracks'] ?? []) as $x) {
+            if (!is_array($x) || ($x['isPlayable'] ?? true) === false) {
+                continue;
+            }
+            $tid = preg_match('/track:([A-Za-z0-9]{22})/', (string) ($x['uri'] ?? ''), $um) ? $um[1] : (string) ($x['id'] ?? '');
+            $title = (string) ($x['title'] ?? $x['name'] ?? '');
+            if (!preg_match('/^[A-Za-z0-9]{22}$/', $tid) || $title === '') {
+                continue;
+            }
+            $artist = (string) ($x['subtitle'] ?? '');
+            if ($artist === '' && !empty($x['artists'])) {
+                $artist = implode(', ', array_filter(array_map(static fn($a) => (string) ($a['name'] ?? ''), (array) $x['artists'])));
+            }
+            $tracks[] = ['id' => $tid, 'title' => $title, 'artist' => $artist, 'duration' => (int) round(((int) ($x['duration'] ?? 0)) / 1000)];
+        }
+        if (!$tracks) {
+            return ['error' => "🤷 آهنگی توی این لیست پیدا نکردم 😕"];
+        }
+        $c = ['type' => $type, 'id' => $id, 'title' => (string) ($e['name'] ?? $e['title'] ?? ''), 'owner' => (string) ($e['subtitle'] ?? ''), 'tracks' => $tracks];
+        Store::set('cache', "spc:{$type}:{$id}", $c);
+        return $c;
     }
 
     private static function id(string $url): ?string

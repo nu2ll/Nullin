@@ -574,7 +574,7 @@ final class AI
             $host  = (string) (parse_url($url, PHP_URL_HOST) ?: $url);
             $title = $host;
             $row   = '[' . $title . '](' . str_replace([')', ' '], ['%29', '%20'], $url) . ')';
-            if (count($rows) >= 5 || $len + mb_strlen($title) > 1200) {
+            if (count($rows) >= 4 || $len + mb_strlen($title) > 1200) {
                 break;
             }
             $seenU[$url] = true;

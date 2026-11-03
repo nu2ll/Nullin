@@ -7,6 +7,7 @@ final class Downloader
     private const SLOTS    = 2;
     private const TMP      = '/tmp/nullini-dl';
     private const ALBUM_MAX = 20;
+    private const SET_MAX  = 100;
     private const GROUP_MAX = 10;
     private const AUTO_DELAY = 30;
     private const MULTI    = ['instagram', 'pinterest', 'twitter', 'tiktok', 'reddit', 'facebook', 'snapchat'];
@@ -53,7 +54,7 @@ final class Downloader
 
     private static function jobTime(): int
     {
-        return self::mtproto() ? 3600 : 900;
+        return self::mtproto() ? 5100 : 1500;
     }
 
     private static function options(string $site, array $info, bool $hasVideo, int $max): array
@@ -255,6 +256,10 @@ final class Downloader
 
     private static function prepare(array $t, array $link, int $uid, int $replyTo, ?array $msg): void
     {
+        if ($link['site'] === 'spotify' && ($set = Spotify::setRef($link['url'])) !== null) {
+            self::prepareSet($t, $link, $uid, $replyTo, $set);
+            return;
+        }
         $sp = null;
         if ($link['site'] === 'spotify') {
             $sp = Spotify::track($link['url']);
@@ -353,6 +358,214 @@ final class Downloader
             ? self::armAuto($token, self::options($link['site'], $info, true, self::limit($t))[0][0] ?? 'hd')
             : false;
         self::show($t, self::cardText($info, $link, $hasVideo) . ($auto ? "\n\n⏱ اگه تا " . fa((string) self::AUTO_DELAY) . " ثانیه‌ی دیگه چیزی انتخاب نکنی،\nخودکار با بالاترین کیفیت دانلود می‌شه." : ''), self::cardKeyboard($token, $link['site'], $info, $hasVideo, self::limit($t)), self::preview($info));
+    }
+
+    private static function prepareSet(array $t, array $link, int $uid, int $replyTo, array $ref): void
+    {
+        if (!empty($t['imid'])) {
+            self::show($t, '🎶 پلی‌لیست و آلبوم رو توی پیوی ربات بفرست 🙂');
+            return;
+        }
+        $c = Spotify::collection($ref[0], $ref[1]);
+        if (isset($c['error'])) {
+            self::show($t, $c['error']);
+            return;
+        }
+        $total = count($c['tracks']);
+        $n     = min($total, self::SET_MAX);
+        if (!App::isAdmin($uid)) {
+            $n = min($n, max(0, self::DAILY - self::usedToday($uid)) * 10);
+        }
+        if ($n < 1) {
+            self::show($t, 'فردا دوباره بیا 🙂' . "\n" . '✋ امروز سهمیه‌ی دانلودت تموم شده؛');
+            return;
+        }
+        $link['url'] = 'https://open.spotify.com/' . $ref[0] . '/' . $ref[1];
+        $title       = $c['title'] !== '' ? $c['title'] : 'بدون عنوان';
+        $token       = self::newJob($link, ['title' => $title, 'uploader' => $c['owner'], 'webpage_url' => $link['url']], $uid, $t['chat'], (int) $t['card'], $replyTo, null, $n);
+        $job         = Store::get('dl', $token);
+        if (is_array($job)) {
+            $job['sp_tracks'] = array_slice($c['tracks'], 0, $n);
+            Store::set('dl', $token, $job);
+        }
+        $text = '🎶 <b>' . h(mb_substr($title, 0, 200)) . "</b>\n"
+            . ($c['owner'] !== '' ? '👤 ' . h(mb_substr($c['owner'], 0, 60)) . ' · ' : '') . '📍 ' . $link['name'] . "\n\n"
+            . '🎵 ' . fa((string) $total) . ' آهنگ' . ($n < $total ? ' (فقط ' . fa((string) $n) . ' تای اول رو می‌فرستم)' : '') . "؛\nهمه‌شون رو به‌صورت آلبوم (MP3، هر ۱۰ تا توی یه آلبوم) بفرستم؟ 👇";
+        self::show($t, $text, ikb([
+            [btn('📥 دانلود همه (' . fa((string) $n) . ' آهنگ)', "dl:{$token}:all", 'success')],
+            [btn('✖️ بیخیال', "dl:{$token}:x", null)],
+        ]));
+    }
+
+    private static function workSet(array $job, string $token): void
+    {
+        $uid    = (int) $job['owner'];
+        $tracks = array_values((array) $job['sp_tracks']);
+        $total  = count($tracks);
+        $start  = time();
+        $left   = App::isAdmin($uid) ? PHP_INT_MAX : max(0, self::DAILY - self::usedToday($uid)) * 10;
+        $dir    = self::TMP . "/{$token}-set";
+        $slot   = null;
+        $batch  = [];
+        $first  = true;
+        $ok     = 0;
+        $failed = [];
+        $stop   = '';
+        $flush  = static function () use (&$batch, &$first, &$ok, &$failed, $job, $dir): void {
+            if (!$batch) {
+                return;
+            }
+            if (self::flushSet($job, $batch, $first)) {
+                $ok += count($batch);
+            } else {
+                foreach ($batch as $b) {
+                    $failed[] = $b['name'];
+                }
+            }
+            $first = false;
+            $batch = [];
+            self::rmrf($dir);
+            @mkdir($dir, 0775, true);
+        };
+        try {
+            $slot = self::acquireSlot($job);
+            if ($slot === null) {
+                self::show($job, '😮‍💨 سرور الان خیلی شلوغه؛' . "\n" . 'چند دقیقه دیگه لینک رو دوباره بفرست.');
+                return;
+            }
+            self::rmrf($dir);
+            @mkdir($dir, 0775, true);
+            foreach ($tracks as $i => $tr) {
+                if (time() - $start > self::jobTime()) {
+                    $stop = 'time';
+                    break;
+                }
+                if ($ok + count($batch) >= $left) {
+                    $stop = 'quota';
+                    break;
+                }
+                $name = mb_substr(Spotify::query($tr), 0, 120);
+                self::show($job, self::stageText($job, self::bar((int) floor($i / $total * 100)) . ' ' . fa((string) ($i + 1)) . ' از ' . fa((string) $total) . "\n🔎 " . h($name)));
+                Store::set('dl_busy', (string) $uid, time());
+                $item = self::setFetch($job, $tr, $dir, $i, $name);
+                if ($item === null) {
+                    $failed[] = $name;
+                    continue;
+                }
+                $batch[] = $item;
+                if (count($batch) >= 10) {
+                    $flush();
+                }
+            }
+            self::show($job, self::stageText($job, '📤 دارم آلبوم رو می‌فرستم...'));
+            $flush();
+        } catch (\Throwable $e) {
+            logError('dl', 'set: ' . $e->getMessage());
+            foreach ($batch as $b) {
+                $failed[] = $b['name'];
+            }
+        } finally {
+            self::rmrf($dir);
+            Store::delete('dl_busy', (string) $uid);
+            if ($slot) {
+                flock($slot, LOCK_UN);
+                fclose($slot);
+            }
+        }
+        $text = '✅ ' . fa((string) $ok) . ' از ' . fa((string) $total) . ' آهنگ فرستاده شد';
+        if ($stop === 'quota') {
+            $text .= "\n✋ سهمیه‌ی امروزت تموم شد؛ بقیه رو فردا بفرست.";
+        } elseif ($stop === 'time') {
+            $text .= "\n⏱ وقتم تموم شد؛ بقیه‌ی آهنگ‌ها نرسید.";
+        }
+        if ($failed) {
+            $text .= "\n\n😕 اینا رو نتونستم پیدا یا دانلود کنم:\n" . implode("\n", array_map(static fn($n) => '• ' . h($n), array_slice($failed, 0, 10)));
+        }
+        self::show($job, '🎶 <b>' . h(mb_substr($job['title'], 0, 200)) . "</b>\n\n" . $text);
+        Store::delete('dl', $token);
+    }
+
+    private static function setFetch(array $job, array $tr, string $dir, int $i, string $name): ?array
+    {
+        $yt = Store::get('cache', 'spyt:' . $tr['id']);
+        if (!is_string($yt) || $yt === '') {
+            $yt = self::ytMatch(Spotify::query($tr), (int) $tr['duration']);
+            if ($yt === null) {
+                return null;
+            }
+            Store::set('cache', 'spyt:' . $tr['id'], $yt);
+        }
+        $key  = self::cacheKey($yt, 'mp3');
+        $item = ['key' => $key, 'name' => $name, 'title' => mb_substr($tr['title'], 0, 64), 'performer' => mb_substr($tr['artist'], 0, 64), 'duration' => (int) $tr['duration'], 'file' => null, 'id' => null];
+        $c    = Store::get('dl_files', $key);
+        if (is_array($c) && ($c['type'] ?? '') === 'audio' && !empty($c['file_id'])) {
+            $item['id'] = (string) $c['file_id'];
+            return $item;
+        }
+        $out = $dir . '/t' . $i;
+        @mkdir($out, 0775, true);
+        self::run(array_merge([self::bin()], self::commonArgs(), self::formatArgs('mp3', true), [
+            '--no-playlist', '--no-warnings', '--no-mtime', '--restrict-filenames',
+            '--socket-timeout', '20', '--retries', '3', '--fragment-retries', '3', '--max-filesize', '49M',
+            '-o', $out . '/%(id).40s.%(ext)s',
+        ], [], [$yt]), 240);
+        $file = self::pickFile($out);
+        if ($file === null || filesize($file) > self::BOT_API_BYTES) {
+            self::rmrf($out);
+            return null;
+        }
+        $item['file'] = $file;
+        return $item;
+    }
+
+    private static function flushSet(array $job, array $batch, bool $first): bool
+    {
+        $tg      = App::tg();
+        $reply   = $job['reply_to'] ? ['message_id' => (int) $job['reply_to'], 'allow_sending_without_reply' => true] : null;
+        $bot     = App::botUsername();
+        $caption = '🎶 <b>' . h(mb_substr($job['title'], 0, 300)) . "</b>\n" . ($job['uploader'] !== '' ? '👤 ' . h($job['uploader']) . "\n" : '') . "\n📥 <a href=\"https://t.me/{$bot}\">@{$bot}</a>";
+        $media   = [];
+        $params  = ['chat_id' => $job['chat'], 'reply_parameters' => $reply];
+        foreach ($batch as $k => $b) {
+            $m = ['type' => 'audio', 'media' => $b['file'] !== null ? "attach://f{$k}" : $b['id']];
+            if ($b['file'] !== null) {
+                $m['title']     = $b['title'];
+                $m['performer'] = $b['performer'] !== '' ? $b['performer'] : null;
+                $m['duration']  = $b['duration'] ?: null;
+                $params["f{$k}"] = new CURLFile($b['file'], 'audio/mpeg', preg_replace('/[^\w\- ]+/u', '', $b['name']) . '.mp3');
+            }
+            if ($first && $k === 0) {
+                $m['caption']    = $caption;
+                $m['parse_mode'] = 'HTML';
+            }
+            $media[] = array_filter($m, static fn($v) => $v !== null);
+        }
+        if (count($media) === 1) {
+            $m = $media[0];
+            unset($params['f0']);
+            $p = ['chat_id' => $job['chat'], 'audio' => $batch[0]['file'] !== null ? new CURLFile($batch[0]['file'], 'audio/mpeg', 'track.mp3') : $batch[0]['id'], 'title' => $m['title'] ?? null, 'performer' => $m['performer'] ?? null, 'duration' => $m['duration'] ?? null, 'caption' => $first ? $caption : null, 'parse_mode' => 'HTML', 'reply_parameters' => $reply];
+            $r    = $tg->call('sendAudio', $p, 300);
+            $msgs = !empty($r['ok']) ? [$r['result']] : [];
+        } else {
+            $params['media'] = $media;
+            $r    = $tg->call('sendMediaGroup', $params, 300);
+            $msgs = !empty($r['ok']) ? array_values((array) $r['result']) : [];
+        }
+        if (!$msgs) {
+            logWarn('dl', 'set send failed: ' . (string) ($r['description'] ?? ''));
+            return false;
+        }
+        foreach ($batch as $k => $b) {
+            if ($b['file'] !== null) {
+                $fid = $msgs[$k]['audio']['file_id'] ?? $msgs[$k]['document']['file_id'] ?? null;
+                if ($fid) {
+                    Store::set('dl_files', $b['key'], ['type' => 'audio', 'file_id' => $fid]);
+                }
+            }
+            Users::hit('dl:spotify');
+        }
+        self::charge((int) $job['owner']);
+        return true;
     }
 
     private static function newJob(array $link, array $info, int $uid, int|string $chat, int $card, int $replyTo, ?string $imid = null, int $count = 1): string
@@ -822,6 +1035,10 @@ final class Downloader
         if (!is_array($job)) {
             return;
         }
+        if ($fmt === 'all' && !empty($job['sp_tracks'])) {
+            self::workSet($job, $token);
+            return;
+        }
         $chat = $job['chat'];
         $card = (int) $job['card'];
         $dir  = self::TMP . "/{$token}-{$fmt}";
@@ -1157,9 +1374,59 @@ final class Downloader
         return ['-f', $sel, '-S', 'res,vcodec:h264,ext:mp4:m4a', '--merge-output-format', 'mp4', '--remux-video', 'mp4'];
     }
 
+    public static function cookiesPath(): string
+    {
+        $saved = NULLINI_DATA . '/cookies.txt';
+        return is_file($saved) && filesize($saved) > 0 ? $saved : NULLINI_ROOT . '/cookies.txt';
+    }
+
+    public static function saveCookies(string $raw): array
+    {
+        $raw = str_replace(["\r\n", "\r"], "\n", $raw);
+        if (str_contains($raw, "\0") || strlen($raw) > 2 * 1048576) {
+            return ['error' => 'این فایل کوکی نیست یا خیلی بزرگه.'];
+        }
+        $n = 0;
+        foreach (explode("\n", $raw) as $line) {
+            $line = trim($line);
+            if ($line === '' || ($line[0] === '#' && !str_starts_with($line, '#HttpOnly_'))) {
+                continue;
+            }
+            if (count(explode("\t", $line)) >= 7) {
+                $n++;
+            }
+        }
+        if ($n === 0) {
+            return ['error' => "فرمت فایل درست نیست؛\nباید کوکی‌ها با فرمت Netscape (cookies.txt) باشن."];
+        }
+        $path = NULLINI_DATA . '/cookies.txt';
+        @mkdir(NULLINI_DATA, 0775, true);
+        if (@file_put_contents($path, rtrim($raw) . "\n", LOCK_EX) === false) {
+            return ['error' => 'نتونستم فایل رو ذخیره کنم.'];
+        }
+        @chmod($path, 0600);
+        return ['count' => $n];
+    }
+
+    public static function cookiesInfo(): array
+    {
+        $p = self::cookiesPath();
+        if (!is_file($p) || filesize($p) === 0) {
+            return [];
+        }
+        $n = 0;
+        foreach (explode("\n", (string) file_get_contents($p)) as $line) {
+            $line = trim($line);
+            if ($line !== '' && ($line[0] !== '#' || str_starts_with($line, '#HttpOnly_')) && count(explode("\t", $line)) >= 7) {
+                $n++;
+            }
+        }
+        return ['count' => $n, 'at' => (int) filemtime($p), 'saved' => $p === NULLINI_DATA . '/cookies.txt'];
+    }
+
     public static function cookiesFile(): ?string
     {
-        $src = NULLINI_ROOT . '/cookies.txt';
+        $src = self::cookiesPath();
         $jar = is_file($src) && filesize($src) > 0 ? rtrim((string) file_get_contents($src)) . "\n" : '';
         if ($jar === '') {
             return null;
