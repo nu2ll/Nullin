@@ -138,7 +138,7 @@ final class InlineHandler
         $off  = max(0, (int) (self::$iq['offset'] ?? 0));
         $list = array_slice($all, $off, 50, true);
         if (!$list) {
-            $r = Ui::article('mu_none', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Pensive%20face/3D/pensive_face_3d.png', 'Music', 'چیزی پیدا نشد', '😔 چیزی پیدا نشد');
+            $r = Ui::article('mu_none', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Pensive%20face/3D/pensive_face_3d.png', 'Music', 'آهنگی پیدا نکردم', "🤷 آهنگی با این اسم پیدا نکردم 😕\nاسمش رو دقیق‌تر بنویس.");
             $r['title'] = '🎵 Music 🎵';
             self::answer([$r]);
             return;

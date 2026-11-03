@@ -4,61 +4,15 @@ final class MusicId
 {
     private const WAIT   = 20;
     private const TMP    = '/tmp/nullini-music';
-    private const MAX_IN = 20 * 1024 * 1024;
     private const PAGE = 10;
-
-    public static function media(array $msg): ?array
-    {
-        foreach ([$msg, $msg['reply_to_message'] ?? []] as $m) {
-            if (!is_array($m)) {
-                continue;
-            }
-            foreach (['voice', 'audio', 'video', 'video_note', 'animation'] as $k) {
-                if (is_array($m[$k] ?? null) && !empty($m[$k]['file_id'])) {
-                    return ['id' => (string) $m[$k]['file_id'], 'size' => (int) ($m[$k]['file_size'] ?? 0), 'kind' => $k];
-                }
-            }
-            $d = $m['document'] ?? null;
-            if (is_array($d) && !empty($d['file_id']) && preg_match('#^(audio|video)/#', (string) ($d['mime_type'] ?? '')) === 1) {
-                return ['id' => (string) $d['file_id'], 'size' => (int) ($d['file_size'] ?? 0), 'kind' => 'document'];
-            }
-        }
-        return null;
-    }
 
     public static function start(array $msg, string $query = ''): void
     {
-        $tg  = App::tg();
-        $uid = (int) ($msg['from']['id'] ?? 0);
         if (trim($query) !== '') {
             self::searchText($msg, trim($query));
             return;
         }
-        $m   = self::media($msg);
-        if ($m === null) {
-            $tg->reply($msg, "🎧 <b>موزیک‌یاب نالینی</b>\n\nیه ویس، آهنگ یا ویدیوی صدادار بفرست و زیرش /music بزن؛\nیا روی همون پیام ریپلای کن و /music رو بنویس 😉\n\nیا اسم آهنگ رو بنویس:\n<code>/music geek</code>");
-            return;
-        }
-        if ($m['size'] > self::MAX_IN) {
-            $tg->reply($msg, "رسانه خیلی زیاد! حجم نباید بیشتر از 20 مگابایت باشد.");
-            return;
-        }
-        $admin = App::isAdmin($uid);
-        if (!$admin && Store::update('rl', 'music_' . $uid, static fn($at) => (is_int($at) && time() - $at < self::WAIT) ? null : time()) === null) {
-            $tg->reply($msg, "یه‌کم دیگه بیا 😅\n⏳ هر ۲۰ ثانیه فقط یه موزیک‌یاب!");
-            return;
-        }
-        $token = bin2hex(random_bytes(6));
-        Store::set('music', $token, [
-            'chat'    => $msg['chat']['id'],
-            'uid'     => $uid,
-            'reply'   => (int) ($msg['message_id'] ?? 0),
-            'card'    => 0,
-            'file_id' => $m['id'],
-        ]);
-        if (!self::spawn($token)) {
-            self::work($token);
-        }
+        App::tg()->reply($msg, "🎧 <b>موزیک‌یاب نالینی</b>\n\nاسم آهنگ یا خواننده رو بنویس:\n<code>/music geek</code>");
     }
 
     private static function spawn(string $token): bool
@@ -78,120 +32,13 @@ final class MusicId
         if (!is_array($job)) {
             return;
         }
-        if (!empty($job['imid']) || !empty($job['song'])) {
-            self::workSong($job, $token);
-            return;
-        }
-        $tg  = App::tg();
-        $dir = self::TMP . '/' . $token;
-        try {
-            self::rmrf($dir);
-            @mkdir($dir, 0775, true);
-
-            $bytes = $tg->download((string) $job['file_id']);
-            if ($bytes === null || $bytes === '') {
-                self::card($job, '😕 نتونستم موزیک رو بگیرم؛ یه بار دیگه امتحان کن.');
-                return;
-            }
-            file_put_contents($dir . '/in.bin', $bytes);
-            unset($bytes);
-
-            $song = self::identify($dir);
-            if ($song === null || empty($song['ok'])) {
-                self::card($job, '😕 نتونستم موزیک رو بگیرم؛ یه بار دیگه امتحان کن.');
-                return;
-            }
-
-            $yt = Downloader::musicMatch((string) $song['title'], (string) $song['artist']);
-            self::sendInfo($job, $song, $yt, $token);
-            Store::set('mures', $token, ['uid' => (int) $job['uid'], 'chat' => $job['chat'], 'reply' => (int) $job['reply'], 'song' => ['title' => (string) $song['title'], 'artist' => (string) $song['artist']]]);
-
-            $file = $yt === null ? null : Downloader::musicFile((string) $song['title'], (string) $song['artist'], (string) $song['cover'], $dir, $yt);
-            if ($file === null) {
-                return;
-            }
-            $p = [
-                'chat_id'          => $job['chat'],
-                'audio'            => new CURLFile($file['file'], 'audio/mpeg', 'track.mp3'),
-                'title'            => mb_substr((string) $song['title'], 0, 64),
-                'performer'        => mb_substr((string) $song['artist'], 0, 64) ?: null,
-                'reply_markup'     => self::audioKeyboard($song),
-                'reply_parameters' => $job['reply'] ? ['message_id' => (int) $job['reply'], 'allow_sending_without_reply' => true] : null,
-            ];
-            if (!empty($file['thumb']) && is_file($file['thumb'])) {
-                $p['thumbnail'] = new CURLFile($file['thumb'], 'image/jpeg', 'cover.jpg');
-            }
-            $r = $tg->call('sendAudio', $p, 300);
-            if (empty($r['ok'])) {
-                logWarn('music', 'sendAudio failed: ' . (string) ($r['description'] ?? ''));
-                return;
-            }
-            Users::hit('music');
-        } catch (\Throwable $e) {
-            logError('music', $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
-            self::card($job, '😕 نتونستم موزیک رو بگیرم؛ یه بار دیگه امتحان کن.');
-        } finally {
-            self::rmrf($dir);
-            Store::delete('music', $token);
-        }
-    }
-
-    // null = فایل صدا نداره؛ ['ok' => false] = نشناخت؛ وگرنه مشخصات آهنگ
-    private static function identify(string $dir): ?array
-    {
-        $in  = $dir . '/in.bin';
-        $dur = (float) trim((string) Downloader::exec(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', $in], 20)['out']);
-        $starts = [0];
-        if ($dur > 40) {
-            $starts = [0, (int) (($dur - 20) / 2), (int) ($dur - 20)];
-        } elseif ($dur > 20) {
-            $starts[] = (int) ($dur - 20);
-        }
-        $heard = false;
-        foreach ($starts as $i => $st) {
-            $wav = $dir . "/s{$i}.wav";
-            Downloader::exec(['ffmpeg', '-y', '-v', 'error', '-ss', (string) $st, '-i', $in, '-vn', '-ac', '1', '-ar', '44100', '-t', '20', $wav], 60);
-            if (!is_file($wav) || filesize($wav) < 20000) {
-                continue;
-            }
-            $heard = true;
-            $res = Downloader::exec(['python3', NULLINI_ROOT . '/bin/musicid.py', $wav], 60);
-            $line = trim((string) strrchr("\n" . trim($res['out']), "\n"));
-            $j    = json_decode($line, true);
-            if (is_array($j) && !empty($j['ok']) && ($j['title'] ?? '') !== '') {
-                return $j + ['title' => '', 'artist' => '', 'album' => '', 'label' => '', 'year' => '', 'genre' => '', 'cover' => ''];
-            }
-            if (is_array($j) && isset($j['error'])) {
-                logWarn('music', 'identify: ' . $j['error']);
-            }
-        }
-        return $heard ? ['ok' => false] : null;
-    }
-
-    private static function query(array $s): string
-    {
-        return trim(($s['artist'] !== '' ? $s['artist'] . ' - ' : '') . $s['title']);
+        self::workSong($job, $token);
     }
 
     private static function lead(array $s): string
     {
         $a = trim((string) (preg_split('/\s*(?:,|&|;|\sfeat\.?\s|\sft\.?\s)\s*/iu', (string) $s['artist']) ?: [''])[0]);
         return $a !== '' ? $a : (string) $s['title'];
-    }
-
-    private static function infoKeyboard(array $s, string $token): array
-    {
-        $q  = self::query($s);
-        $by = self::lead($s);
-        return ikb([
-            [
-                urlBtn('گوگل', Search::googleUrl($q), null),
-                urlBtn('یوتیوب موزیک', 'https://music.youtube.com/search?q=' . rawurlencode($q), null),
-                urlBtn('اسپاتیفای', 'https://open.spotify.com/search/' . rawurlencode($q), null),
-            ],
-            [['text' => '🔍 جستجوی آهنگ‌های خواننده', 'switch_inline_query_current_chat' => 'mu ' . mb_substr($by, 0, 100), 'style' => 'primary']],
-            [btn("\u{200F}❌ آهنگ اشتباهه ❌\u{200F}", 'mu:x:' . $token, 'danger')],
-        ]);
     }
 
     private static function audioKeyboard(array $s, bool $lyrics = true): array
@@ -265,7 +112,7 @@ final class MusicId
         }
         $text = Lyrics::find(self::lead($s), (string) $s['title'], (int) ($s['dur'] ?? 0));
         if ($text === null) {
-            $tg->answer($cq, 'متن آهنگ برای این آهنگ موجود نیست.');
+            $tg->answer($cq, '🤷 متن این آهنگ رو پیدا نکردم 😕');
             $tg->call('editMessageReplyMarkup', ['reply_markup' => self::audioKeyboard($s, false)] + ($imid !== '' ? ['inline_message_id' => $imid] : ['chat_id' => $m['chat']['id'], 'message_id' => (int) $m['message_id']]));
             return;
         }
@@ -277,49 +124,6 @@ final class MusicId
         ];
         $params += $imid !== '' ? ['inline_message_id' => $imid] : ['chat_id' => $m['chat']['id'], 'message_id' => (int) $m['message_id']];
         $tg->call('editMessageCaption', $params);
-    }
-
-    private static function infoCover(?string $yt, string $fallback): string
-    {
-        if (preg_match('#^https://#', $fallback) === 1) {
-            $r = Http::request('GET', $fallback, ['timeout' => 15, 'max_bytes' => 8 * 1048576]);
-            if ((string) $r['body'] !== '' && @getimagesizefromstring((string) $r['body']) !== false) {
-                return (string) $r['body'];
-            }
-        }
-        return '';
-    }
-
-    private static function sendInfo(array $job, array $s, ?string $yt, string $token): ?int
-    {
-        $tg   = App::tg();
-        $text = '🎵 <b>' . h(mb_substr((string) $s['title'], 0, 200)) . '</b>';
-        if ($s['artist'] !== '') {
-            $text .= "\n👤 " . h(mb_substr((string) $s['artist'], 0, 100));
-        }
-        if ($s['album'] !== '') {
-            $text .= "\n💿 آلبوم: " . h(mb_substr((string) $s['album'], 0, 100));
-        }
-        if ($s['year'] !== '') {
-            $text .= "\n📅 سال: " . fa(h((string) $s['year']));
-        }
-        if ($s['genre'] !== '') {
-            $text .= "\n🎼 ژانر: " . h((string) $s['genre']);
-        }
-        if ($s['label'] !== '') {
-            $text .= "\n🏷 لیبل: " . h(mb_substr((string) $s['label'], 0, 100));
-        }
-        $kb    = self::infoKeyboard($s, $token);
-        $reply = $job['reply'] ? (int) $job['reply'] : null;
-        $img   = self::infoCover($yt, (string) $s['cover']);
-        if ($img !== '') {
-            $id = $tg->sendPhotoCard($job['chat'], $img, $text, $reply, $kb);
-            if ($id !== null) {
-                return $id;
-            }
-        }
-        $r = $tg->send($job['chat'], $text, ['reply_markup' => $kb] + ($reply ? ['reply_parameters' => ['message_id' => $reply, 'allow_sending_without_reply' => true]] : []));
-        return !empty($r['ok']) ? (int) ($r['result']['message_id'] ?? 0) : null;
     }
 
     public static function inline(string $qt, int $i, string $imid, array $from): void
@@ -336,7 +140,7 @@ final class MusicId
             return;
         }
         $token = bin2hex(random_bytes(6));
-        Store::set('music', $token, ['chat' => 0, 'uid' => $uid, 'reply' => 0, 'card' => 0, 'file_id' => '', 'imid' => $imid, 'song' => $t]);
+        Store::set('music', $token, ['chat' => 0, 'uid' => $uid, 'reply' => 0, 'card' => 0, 'imid' => $imid, 'song' => $t]);
         if (!self::spawn($token)) {
             self::work($token);
         }
@@ -366,7 +170,7 @@ final class MusicId
             $yt   = !empty($t['yt']) ? 'https://www.youtube.com/watch?v=' . $t['yt'] : Downloader::musicMatch($song['title'], $song['artist'], $dur);
             $file = $yt === null ? null : Downloader::musicFile($song['title'], $song['artist'], $song['cover'], $dir, $yt);
             if ($file === null) {
-                $fail('😕 نتونستم موزیک رو بگیرم؛ یه بار دیگه امتحان کن.');
+                $fail('😕 نتونستم این آهنگ رو بگیرم؛' . "\n" . 'یه‌کم دیگه دوباره امتحان کن.');
                 return;
             }
             $target = $imid !== '' ? Downloader::storeChat($uid) : $job['chat'];
@@ -391,7 +195,7 @@ final class MusicId
             $fid = $r['result']['audio']['file_id'] ?? null;
             if (!$fid) {
                 logWarn('music', 'sendAudio failed: ' . (string) ($r['description'] ?? ''));
-                $fail('😕 نتونستم موزیک رو بگیرم؛ یه بار دیگه امتحان کن.');
+                $fail('😕 نتونستم این آهنگ رو بگیرم؛' . "\n" . 'یه‌کم دیگه دوباره امتحان کن.');
                 return;
             }
             if ($imid !== '') {
@@ -407,7 +211,7 @@ final class MusicId
                 }
                 if (empty($e['ok'])) {
                     logWarn('music', 'inline editMessageMedia failed: ' . (string) ($e['description'] ?? ''));
-                    $fail('😕 نتونستم موزیک رو بگیرم؛ یه بار دیگه امتحان کن.');
+                    $fail('😕 نتونستم این آهنگ رو بگیرم؛' . "\n" . 'یه‌کم دیگه دوباره امتحان کن.');
                     return;
                 }
             } elseif (!empty($job['pick'])) {
@@ -416,7 +220,7 @@ final class MusicId
             Users::hit($imid !== '' ? 'music:inline' : 'music');
         } catch (\Throwable $e) {
             logError('music', $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
-            $fail('😕 نتونستم موزیک رو بگیرم؛ یه بار دیگه امتحان کن.');
+            $fail('😕 نتونستم این آهنگ رو بگیرم؛' . "\n" . 'یه‌کم دیگه دوباره امتحان کن.');
         } finally {
             self::rmrf($dir);
             Store::delete('music', $token);
@@ -440,10 +244,6 @@ final class MusicId
             self::more($cq, $m, $uid, $x[1], (int) $x[2]);
             return;
         }
-        if (preg_match('/^mu:x:([a-f0-9]{12})$/', $data, $x) === 1) {
-            self::alternatives($cq, $m, $uid, $x[1]);
-            return;
-        }
         if (preg_match('/^mu:p:([a-f0-9]{12}):(\d{1,2})$/', $data, $x) === 1) {
             self::pick($cq, $m, $uid, $x[1], (int) $x[2]);
             return;
@@ -451,37 +251,7 @@ final class MusicId
         $tg->answer($cq);
     }
 
-    private static function alternatives(array $cq, array $m, int $uid, string $token): void
-    {
-        $tg  = App::tg();
-        $res = Store::getToday('mures', $token);
-        if (!is_array($res)) {
-            self::dropButtons($cq);
-            return;
-        }
-        if ($uid !== (int) $res['uid'] && !App::isAdmin($uid)) {
-            $tg->answer($cq);
-            return;
-        }
-        $s    = (array) $res['song'];
-        $lt   = mb_strtolower((string) $s['title']);
-        $la   = mb_strtolower(self::lead($s));
-        $list = array_values(array_filter(
-            MusicSearch::find(trim($s['artist'] . ' ' . $s['title'])),
-            static fn($t) => !(mb_strtolower($t['title']) === $lt && str_contains(mb_strtolower($t['artist']), $la))
-        ));
-        if (!$list) {
-            $tg->answer($cq, '😔 چیزی پیدا نشد');
-            return;
-        }
-        $tg->answer($cq);
-        $qt    = bin2hex(random_bytes(6));
-        $reply = (int) ($res['reply'] ?? 0);
-        Store::set('imusic', $qt, ['list' => $list, 'uid' => (int) $res['uid'], 'chat' => $res['chat'], 'reply' => $reply, 'alt' => 1]);
-        self::listPage($m['chat']['id'], $reply ?: (int) $m['message_id'], $qt, $list, 0, true);
-    }
-
-    private static function listPage($chat, int $reply, string $qt, array $list, int $off, bool $alt): void
+    private static function listPage($chat, int $reply, string $qt, array $list, int $off): void
     {
         $total = count($list);
         $songs = [];
@@ -500,7 +270,7 @@ final class MusicId
             $rows[] = [btn('آهنگ‌های بیشتر ➕', "mu:m:{$qt}:{$next}", null)];
         }
         $rows[] = [self::searchBtn()];
-        App::tg()->send($chat, $alt ? 'این تمام چیزهایی است که پیدا کردیم' : '🔍', ['reply_markup' => ikb($rows)] + ($reply ? ['reply_parameters' => ['message_id' => $reply, 'allow_sending_without_reply' => true]] : []));
+        App::tg()->send($chat, '🔍', ['reply_markup' => ikb($rows)] + ($reply ? ['reply_parameters' => ['message_id' => $reply, 'allow_sending_without_reply' => true]] : []));
     }
 
     private static function more(array $cq, array $m, int $uid, string $qt, int $off): void
@@ -525,7 +295,7 @@ final class MusicId
             }
         }
         $tg->call('editMessageReplyMarkup', ['chat_id' => $m['chat']['id'], 'message_id' => (int) $m['message_id'], 'reply_markup' => ikb($rows)]);
-        self::listPage($m['chat']['id'], (int) ($set['reply'] ?? 0) ?: (int) $m['message_id'], $qt, $list, $off, !empty($set['alt']));
+        self::listPage($m['chat']['id'], (int) ($set['reply'] ?? 0) ?: (int) $m['message_id'], $qt, $list, $off);
     }
 
     private static function searchText(array $msg, string $q): void
@@ -538,13 +308,13 @@ final class MusicId
         }
         $list = MusicSearch::find(mb_substr($q, 0, 100));
         if (!$list) {
-            $tg->reply($msg, '😔 چیزی پیدا نشد');
+            $tg->reply($msg, "🤷 آهنگی با این اسم پیدا نکردم 😕\nاسمش رو دقیق‌تر بنویس.");
             return;
         }
         $qt    = bin2hex(random_bytes(6));
         $reply = (int) ($msg['message_id'] ?? 0);
         Store::set('imusic', $qt, ['list' => $list, 'uid' => $uid, 'chat' => $msg['chat']['id'], 'reply' => $reply]);
-        self::listPage($msg['chat']['id'], $reply, $qt, $list, 0, false);
+        self::listPage($msg['chat']['id'], $reply, $qt, $list, 0);
     }
 
     private static function pick(array $cq, array $m, int $uid, string $qt, int $i): void
@@ -571,7 +341,7 @@ final class MusicId
         }
         $tg->call('editMessageReplyMarkup', ['chat_id' => $m['chat']['id'], 'message_id' => (int) $m['message_id'], 'reply_markup' => ikb($rows)]);
         $token = bin2hex(random_bytes(6));
-        Store::set('music', $token, ['chat' => $set['chat'], 'uid' => $uid, 'reply' => (int) ($set['reply'] ?? 0), 'card' => 0, 'file_id' => '', 'song' => $t, 'pick' => (int) $m['message_id']]);
+        Store::set('music', $token, ['chat' => $set['chat'], 'uid' => $uid, 'reply' => (int) ($set['reply'] ?? 0), 'card' => 0, 'song' => $t, 'pick' => (int) $m['message_id']]);
         if (!self::spawn($token)) {
             self::work($token);
         }

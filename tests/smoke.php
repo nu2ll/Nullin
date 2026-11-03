@@ -186,12 +186,6 @@ check('calc done', Calculator::render('8', true), "<b>🧮 ماشین‌حساب
 check('calc typing no preview', str_contains(Calculator::render('2+3'), '='), false);
 check('commands admin', count(Ui::commands('admin')), 22);
 check('commands private', count(Ui::commands('private')), 12);
-check('music media none', MusicId::media(['text' => '/music']), null);
-check('music media voice', MusicId::media(['voice' => ['file_id' => 'v1', 'file_size' => 5]])['kind'], 'voice');
-check('music media reply video', MusicId::media(['reply_to_message' => ['video' => ['file_id' => 'v2']]])['id'], 'v2');
-check('music media own first', MusicId::media(['audio' => ['file_id' => 'a1'], 'reply_to_message' => ['voice' => ['file_id' => 'v3']]])['id'], 'a1');
-check('music media doc image', MusicId::media(['document' => ['file_id' => 'd1', 'mime_type' => 'image/png']]), null);
-check('music media doc audio', MusicId::media(['document' => ['file_id' => 'd2', 'mime_type' => 'audio/mpeg']])['kind'], 'document');
 check('ping text', str_starts_with(Ui::ping(123), "پینگ: ۱۲۳ میلی‌ثانیه\n"), true);
 check('switch default on', Switches::on('chess'), true);
 Switches::toggle('image');
