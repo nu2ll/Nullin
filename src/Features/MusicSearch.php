@@ -13,7 +13,10 @@ final class MusicSearch
         if (is_array($hit) && $hit) {
             return $hit;
         }
-        $list = self::deezer($q, $limit) ?: self::itunes($q, $limit);
+        $list = self::unique(array_merge(self::deezer($q, 15), self::youtube($q, 10)));
+        if (!$list) {
+            $list = self::itunes($q, $limit);
+        }
         if ($list) {
             Store::set('cache', $key, $list);
         }
@@ -37,6 +40,22 @@ final class MusicSearch
             ];
         }
         return self::unique($out);
+    }
+
+    private static function youtube(string $q, int $limit): array
+    {
+        $out = [];
+        foreach (Downloader::ytSearch($q, $limit) as $e) {
+            $out[] = [
+                'title'  => $e['title'],
+                'artist' => trim(preg_replace('/\s+-\s+Topic$/u', '', $e['by']) ?? $e['by']),
+                'album'  => '',
+                'cover'  => 'https://i.ytimg.com/vi/' . $e['id'] . '/mqdefault.jpg',
+                'dur'    => $e['d'],
+                'yt'     => $e['id'],
+            ];
+        }
+        return $out;
     }
 
     private static function itunes(string $q, int $limit): array

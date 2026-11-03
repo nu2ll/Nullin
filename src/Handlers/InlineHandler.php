@@ -18,7 +18,7 @@ final class InlineHandler
         'wiki'    => ['wk', 'wiki', 'ویکی‌پدیا', 'ویکیپدیا', 'ویکی'],
         'gw'      => ['gw', 'giveaway', 'قرعه‌کشی', 'قرعه کشی', 'قرعه'],
         'linkcheck' => ['st'],
-        'music'   => ['mu', 'music', 'موزیک', 'آهنگ'],
+        'music'   => ['mu'],
     ];
 
     private static array $iq = [];

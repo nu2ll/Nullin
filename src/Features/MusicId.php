@@ -49,13 +49,12 @@ final class MusicId
             $tg->reply($msg, "یه‌کم دیگه بیا 😅\n⏳ هر ۲۰ ثانیه فقط یه موزیک‌یاب!");
             return;
         }
-        $r     = $tg->reply($msg, '🎧 دارم گوش می‌دم...');
         $token = bin2hex(random_bytes(6));
         Store::set('music', $token, [
             'chat'    => $msg['chat']['id'],
             'uid'     => $uid,
             'reply'   => (int) ($msg['message_id'] ?? 0),
-            'card'    => (int) ($r['result']['message_id'] ?? 0),
+            'card'    => 0,
             'file_id' => $m['id'],
         ]);
         if (!self::spawn($token)) {
@@ -80,8 +79,8 @@ final class MusicId
         if (!is_array($job)) {
             return;
         }
-        if (!empty($job['imid'])) {
-            self::workInline($job, $token);
+        if (!empty($job['imid']) || !empty($job['song'])) {
+            self::workSong($job, $token);
             return;
         }
         $tg  = App::tg();
@@ -114,10 +113,9 @@ final class MusicId
                 return;
             }
 
-            self::card($job, '✅ ' . h($song['title']) . ' — ' . h($song['artist']) . "\n⏳ دارم موزیک رو می‌گیرم...");
-            $yt     = Downloader::musicMatch((string) $song['title'], (string) $song['artist']);
-            $infoId = self::sendInfo($job, $song, $yt, $token);
-            Store::set('mures', $token, ['uid' => (int) $job['uid'], 'chat' => $job['chat'], 'info' => (int) $infoId, 'audio' => 0, 'dead' => false]);
+            $yt = Downloader::musicMatch((string) $song['title'], (string) $song['artist']);
+            self::sendInfo($job, $song, $yt, $token);
+            Store::set('mures', $token, ['uid' => (int) $job['uid'], 'chat' => $job['chat'], 'reply' => (int) $job['reply'], 'song' => ['title' => (string) $song['title'], 'artist' => (string) $song['artist']]]);
 
             $file = $yt === null ? null : Downloader::musicFile((string) $song['title'], (string) $song['artist'], (string) $song['cover'], $dir, $yt);
             if ($file === null) {
@@ -142,21 +140,8 @@ final class MusicId
                 self::card($job, '✅ ' . h($song['title']) . ' — ' . h($song['artist']) . "\n😕 فرستادن موزیک نشد، یه‌کم دیگه دوباره امتحان کن.");
                 return;
             }
-            $audioId = (int) ($r['result']['message_id'] ?? 0);
-            $res     = Store::get('mures', $token);
-            if (is_array($res) && $audioId > 0) {
-                if (!empty($res['dead'])) {
-                    $tg->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => $audioId]);
-                } else {
-                    $res['audio'] = $audioId;
-                    Store::set('mures', $token, $res);
-                }
-            }
             self::charge((int) $job['uid']);
             Users::hit('music');
-            if (!empty($job['card'])) {
-                $tg->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => (int) $job['card']]);
-            }
         } catch (\Throwable $e) {
             logError('music', $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
             self::card($job, '😕 یه مشکلی پیش اومد، دوباره امتحان کن.');
@@ -226,12 +211,58 @@ final class MusicId
         ]);
     }
 
-    private static function audioKeyboard(array $s): array
+    private static function audioKeyboard(array $s, bool $lyrics = true): array
     {
-        return ikb([[
-            urlBtn('📝 متن آهنگ', Search::googleUrl(self::query($s) . ' lyrics'), 'primary'),
-            ['text' => '🔍', 'switch_inline_query_current_chat' => 'mu ' . mb_substr(self::lead($s), 0, 100)],
-        ]]);
+        $row = [];
+        if ($lyrics) {
+            $tk = bin2hex(random_bytes(6));
+            Store::set('mulyr', $tk, ['title' => (string) $s['title'], 'artist' => (string) $s['artist'], 'dur' => (int) ($s['dur'] ?? 0)]);
+            $row[] = btn('📝 متن ترانه', 'mu:l:' . $tk, 'primary');
+        }
+        $row[] = ['text' => '🔍', 'switch_inline_query_current_chat' => 'mu ' . mb_substr(self::lead($s), 0, 100)];
+        return ikb([$row]);
+    }
+
+    private static function clip(string $t, int $max = 950): string
+    {
+        if (mb_strlen($t) <= $max) {
+            return $t;
+        }
+        $cut = mb_substr($t, 0, $max);
+        $pos = mb_strrpos($cut, "\n");
+        if ($pos !== false && $pos > $max / 2) {
+            $cut = mb_substr($cut, 0, $pos);
+        }
+        return rtrim($cut) . "\n…";
+    }
+
+    private static function lyrics(array $cq, string $tk): void
+    {
+        $tg = App::tg();
+        $s  = Store::get('mulyr', $tk);
+        if (!is_array($s)) {
+            $tg->answer($cq, '⌛️ منقضی شده');
+            return;
+        }
+        $imid = (string) ($cq['inline_message_id'] ?? '');
+        $m    = $cq['message'] ?? null;
+        if ($imid === '' && !is_array($m)) {
+            $tg->answer($cq);
+            return;
+        }
+        $text = Lyrics::find(self::lead($s), (string) $s['title'], (int) ($s['dur'] ?? 0));
+        if ($text === null) {
+            $tg->answer($cq, '😕 متن این ترانه رو پیدا نکردم');
+            return;
+        }
+        $tg->answer($cq);
+        $params = [
+            'caption'      => '<blockquote expandable>' . h(self::clip($text)) . '</blockquote>',
+            'parse_mode'   => 'HTML',
+            'reply_markup' => self::audioKeyboard($s, false),
+        ];
+        $params += $imid !== '' ? ['inline_message_id' => $imid] : ['chat_id' => $m['chat']['id'], 'message_id' => (int) $m['message_id']];
+        $tg->call('editMessageCaption', $params);
     }
 
     private static function infoCover(?string $yt, string $fallback): string
@@ -309,71 +340,87 @@ final class MusicId
         }
     }
 
-    private static function workInline(array $job, string $token): void
+    private static function workSong(array $job, string $token): void
     {
         $tg   = App::tg();
         $t    = (array) $job['song'];
-        $imid = (string) $job['imid'];
+        $imid = (string) ($job['imid'] ?? '');
         $uid  = (int) $job['uid'];
         $song = ['title' => (string) $t['title'], 'artist' => (string) $t['artist'], 'cover' => (string) ($t['cover'] ?? ''), 'album' => (string) ($t['album'] ?? '')];
         $dur  = (int) ($t['dur'] ?? 0);
+        $song['dur'] = $dur;
         $head = '🎵 <b>' . h(mb_substr($song['title'], 0, 200)) . '</b>' . ($song['artist'] !== '' ? "\n👤 " . h(mb_substr($song['artist'], 0, 100)) : '');
         $dir  = self::TMP . '/' . $token;
         $slot = null;
+        $fail = static function (string $text) use ($tg, $imid, $job, $head): void {
+            if ($imid !== '') {
+                $tg->editInline($imid, $head . "\n\n" . $text);
+            } else {
+                self::card($job, $head . "\n\n" . $text);
+            }
+        };
         try {
             $slot = self::acquireSlot();
             if ($slot === null) {
-                $tg->editInline($imid, $head . "\n\n😮‍💨 سرور الان خیلی شلوغه؛ چند دقیقه دیگه دوباره امتحان کن.");
+                $fail('😮‍💨 سرور الان خیلی شلوغه؛ چند دقیقه دیگه دوباره امتحان کن.');
                 return;
             }
             self::rmrf($dir);
             @mkdir($dir, 0775, true);
-            $yt   = Downloader::musicMatch($song['title'], $song['artist'], $dur);
+            $yt   = !empty($t['yt']) ? 'https://www.youtube.com/watch?v=' . $t['yt'] : Downloader::musicMatch($song['title'], $song['artist'], $dur);
             $file = $yt === null ? null : Downloader::musicFile($song['title'], $song['artist'], $song['cover'], $dir, $yt);
             if ($file === null) {
-                $tg->editInline($imid, $head . "\n\n😕 نتونستم موزیک رو بگیرم؛ یه بار دیگه امتحان کن.");
+                $fail('😕 نتونستم موزیک رو بگیرم؛ یه بار دیگه امتحان کن.');
                 return;
             }
-            $store = Downloader::storeChat($uid);
-            if ($store === null) {
-                $tg->editInline($imid, $head . "\n\n🤖 اول یه بار ربات رو تو پیوی استارت کن.");
+            $target = $imid !== '' ? Downloader::storeChat($uid) : $job['chat'];
+            if ($target === null) {
+                $fail('🤖 اول یه بار ربات رو تو پیوی استارت کن.');
                 return;
             }
             $p = [
-                'chat_id'   => $store,
+                'chat_id'   => $target,
                 'audio'     => new CURLFile($file['file'], 'audio/mpeg', 'track.mp3'),
                 'title'     => mb_substr($song['title'], 0, 64),
                 'performer' => mb_substr($song['artist'], 0, 64) ?: null,
                 'duration'  => $dur > 0 ? $dur : null,
             ];
+            if ($imid === '') {
+                $p['reply_markup']     = self::audioKeyboard($song);
+                $p['reply_parameters'] = !empty($job['reply']) ? ['message_id' => (int) $job['reply'], 'allow_sending_without_reply' => true] : null;
+            }
             if (!empty($file['thumb']) && is_file($file['thumb'])) {
                 $p['thumbnail'] = new CURLFile($file['thumb'], 'image/jpeg', 'cover.jpg');
             }
             $r   = $tg->call('sendAudio', $p, 300);
             $fid = $r['result']['audio']['file_id'] ?? null;
             if (!$fid) {
-                logWarn('music', 'inline sendAudio failed: ' . (string) ($r['description'] ?? ''));
-                $tg->editInline($imid, $head . "\n\n😕 فرستادن موزیک نشد؛ یه بار دیگه امتحان کن.");
+                logWarn('music', 'sendAudio failed: ' . (string) ($r['description'] ?? ''));
+                $fail('😕 فرستادن موزیک نشد؛ یه بار دیگه امتحان کن.');
                 return;
             }
-            $e = $tg->call('editMessageMedia', [
-                'inline_message_id' => $imid,
-                'media'             => ['type' => 'audio', 'media' => $fid, 'caption' => '🎧 @' . App::botUsername(), 'parse_mode' => 'HTML'],
-                'reply_markup'      => self::audioKeyboard($song),
-            ], 30);
-            if (env('DL_STORE_CHAT', '') === '' && !empty($r['result']['message_id'])) {
-                $tg->call('deleteMessage', ['chat_id' => $store, 'message_id' => (int) $r['result']['message_id']], 8);
-            }
-            if (empty($e['ok'])) {
-                logWarn('music', 'inline editMessageMedia failed: ' . (string) ($e['description'] ?? ''));
-                $tg->editInline($imid, $head . "\n\n😕 فرستادن موزیک نشد؛ یه بار دیگه امتحان کن.");
-                return;
+            if ($imid !== '') {
+                $e = $tg->call('editMessageMedia', [
+                    'inline_message_id' => $imid,
+                    'media'             => ['type' => 'audio', 'media' => $fid, 'caption' => '🎧 @' . App::botUsername(), 'parse_mode' => 'HTML'],
+                    'reply_markup'      => self::audioKeyboard($song),
+                ], 30);
+                if (env('DL_STORE_CHAT', '') === '' && !empty($r['result']['message_id'])) {
+                    $tg->call('deleteMessage', ['chat_id' => $target, 'message_id' => (int) $r['result']['message_id']], 8);
+                }
+                if (empty($e['ok'])) {
+                    logWarn('music', 'inline editMessageMedia failed: ' . (string) ($e['description'] ?? ''));
+                    $fail('😕 فرستادن موزیک نشد؛ یه بار دیگه امتحان کن.');
+                    return;
+                }
+            } elseif (!empty($job['pick'])) {
+                $tg->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => (int) $job['pick']], 8);
             }
             self::charge($uid);
-            Users::hit('music:inline');
+            Users::hit($imid !== '' ? 'music:inline' : 'music');
         } catch (\Throwable $e) {
             logError('music', $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
-            $tg->editInline($imid, $head . "\n\n😕 یه مشکلی پیش اومد، دوباره امتحان کن.");
+            $fail('😕 یه مشکلی پیش اومد، دوباره امتحان کن.');
         } finally {
             if (is_resource($slot)) {
                 flock($slot, LOCK_UN);
@@ -389,11 +436,29 @@ final class MusicId
         $tg  = App::tg();
         $m   = $cq['message'] ?? null;
         $uid = (int) ($cq['from']['id'] ?? 0);
-        if (!is_array($m) || !isset($m['message_id']) || preg_match('/^mu:x:([a-f0-9]{12})$/', $data, $x) !== 1) {
+        if (preg_match('/^mu:l:([a-f0-9]{12})$/', $data, $x) === 1) {
+            self::lyrics($cq, $x[1]);
+            return;
+        }
+        if (!is_array($m) || !isset($m['message_id'], $m['chat']['id'])) {
             $tg->answer($cq);
             return;
         }
-        $res = Store::get('mures', $x[1]);
+        if (preg_match('/^mu:x:([a-f0-9]{12})$/', $data, $x) === 1) {
+            self::alternatives($cq, $m, $uid, $x[1]);
+            return;
+        }
+        if (preg_match('/^mu:p:([a-f0-9]{12}):(\d{1,2})$/', $data, $x) === 1) {
+            self::pick($cq, $m, $uid, $x[1], (int) $x[2]);
+            return;
+        }
+        $tg->answer($cq);
+    }
+
+    private static function alternatives(array $cq, array $m, int $uid, string $token): void
+    {
+        $tg  = App::tg();
+        $res = Store::get('mures', $token);
         if (!is_array($res)) {
             $tg->answer($cq, '⌛️ منقضی شده');
             return;
@@ -402,15 +467,65 @@ final class MusicId
             $tg->answer($cq, '🙅 این دکمه مال کسیه که آهنگ رو فرستاده');
             return;
         }
-        foreach (array_unique(array_filter([(int) $m['message_id'], (int) ($res['info'] ?? 0), (int) ($res['audio'] ?? 0)])) as $id) {
-            $tg->call('deleteMessage', ['chat_id' => $res['chat'], 'message_id' => $id], 8);
+        if (Store::update('rl', 'mualt_' . $token, static fn($at) => (is_int($at) && time() - $at < 10) ? null : time()) === null) {
+            $tg->answer($cq, '⏳ نتایج دیگه همین الان فرستاده شد');
+            return;
         }
-        if ((int) ($res['audio'] ?? 0) > 0) {
-            Store::delete('mures', $x[1]);
-        } else {
-            Store::set('mures', $x[1], ['dead' => true, 'info' => 0, 'audio' => 0] + $res);
+        $s    = (array) $res['song'];
+        $lt   = mb_strtolower((string) $s['title']);
+        $la   = mb_strtolower(self::lead($s));
+        $list = array_values(array_filter(
+            MusicSearch::find(trim($s['artist'] . ' ' . $s['title']), 25),
+            static fn($t) => !(mb_strtolower($t['title']) === $lt && str_contains(mb_strtolower($t['artist']), $la))
+        ));
+        $list = array_slice($list, 0, 10);
+        if (!$list) {
+            $tg->answer($cq, '😕 آهنگ دیگه‌ای پیدا نکردم');
+            return;
         }
-        $tg->answer($cq, '🗑 آهنگ اشتباه حذف شد؛ یه تیکه‌ی واضح‌تر بفرست');
+        $tg->answer($cq);
+        $qt = bin2hex(random_bytes(6));
+        Store::set('imusic', $qt, ['list' => $list, 'uid' => (int) $res['uid'], 'chat' => $res['chat'], 'reply' => (int) ($res['reply'] ?? 0)]);
+        $rows = [];
+        foreach ($list as $i => $t) {
+            $d      = (int) $t['dur'];
+            $label  = ($d > 0 ? intdiv($d, 60) . ':' . sprintf('%02d', $d % 60) . ' • ' : '') . $t['title'] . ($t['artist'] !== '' ? ' — ' . $t['artist'] : '');
+            $rows[] = [btn(mb_substr($label, 0, 60), "mu:p:{$qt}:{$i}", null)];
+        }
+        $tg->send($m['chat']['id'], "🎧 همه‌ی چیزهایی که پیدا کردم؛\nآهنگ درست رو انتخاب کن 👇", [
+            'reply_markup'     => ikb($rows),
+            'reply_parameters' => ['message_id' => (int) $m['message_id'], 'allow_sending_without_reply' => true],
+        ]);
+    }
+
+    private static function pick(array $cq, array $m, int $uid, string $qt, int $i): void
+    {
+        $tg  = App::tg();
+        $set = Store::get('imusic', $qt);
+        $t   = is_array($set) ? ($set['list'][$i] ?? null) : null;
+        if (!is_array($t)) {
+            $tg->answer($cq, '⌛️ منقضی شده');
+            return;
+        }
+        $admin = App::isAdmin($uid);
+        if ($uid !== (int) ($set['uid'] ?? 0) && !$admin) {
+            $tg->answer($cq, '🙅 این لیست مال کسیه که آهنگ رو فرستاده');
+            return;
+        }
+        if (!$admin && self::usedToday($uid) >= self::DAILY) {
+            $tg->answer($cq, '✋ امروز سهمیه‌ی موزیکت تموم شده؛ فردا دوباره بیا');
+            return;
+        }
+        if (!$admin && Store::update('rl', 'mupick_' . $uid, static fn($at) => (is_int($at) && time() - $at < 10) ? null : time()) === null) {
+            $tg->answer($cq, '⏳ یه موزیک دیگه‌ت در جریانه؛ چند لحظه صبر کن');
+            return;
+        }
+        $tg->answer($cq, '⏳ دارم موزیک رو می‌گیرم...');
+        $token = bin2hex(random_bytes(6));
+        Store::set('music', $token, ['chat' => $set['chat'], 'uid' => $uid, 'reply' => (int) ($set['reply'] ?? 0), 'card' => 0, 'file_id' => '', 'song' => $t, 'pick' => (int) $m['message_id']]);
+        if (!self::spawn($token)) {
+            self::work($token);
+        }
     }
 
     private static function card(array $job, string $text): void
@@ -419,7 +534,7 @@ final class MusicId
         if (!empty($job['card'])) {
             $tg->editMessage($job['chat'], (int) $job['card'], $text);
         } else {
-            $tg->send($job['chat'], $text);
+            $tg->send($job['chat'], $text, !empty($job['reply']) ? ['reply_parameters' => ['message_id' => (int) $job['reply'], 'allow_sending_without_reply' => true]] : []);
         }
     }
 

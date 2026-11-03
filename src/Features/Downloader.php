@@ -552,6 +552,29 @@ final class Downloader
     }
 
     // موزیک‌یاب: با اسم و خواننده، خود آهنگ رو از یوتیوب می‌گیره و کاور رو توش می‌چسبونه
+    public static function ytSearch(string $q, int $n = 10): array
+    {
+        if (trim($q) === '' || self::bin() === null) {
+            return [];
+        }
+        $res = self::run(array_merge([self::bin()], self::commonArgs(), [
+            '-J', '--flat-playlist', '--no-warnings', '--socket-timeout', '10', 'ytsearch' . $n . ':' . $q,
+        ]), 20);
+        $j   = json_decode($res['out'], true);
+        $out = [];
+        foreach (array_values((array) ($j['entries'] ?? [])) as $e) {
+            $id = (string) ($e['id'] ?? '');
+            $d  = (int) ($e['duration'] ?? 0);
+            if (preg_match('/^[\w-]{11}$/', $id) === 1 && $d >= 30 && $d <= 900) {
+                $out[] = ['id' => $id, 'title' => (string) ($e['title'] ?? ''), 'by' => (string) ($e['channel'] ?? $e['uploader'] ?? ''), 'd' => $d];
+            }
+        }
+        if (!$out) {
+            logWarn('dl', 'yt search empty: ' . self::lastLine($res['err']));
+        }
+        return $out;
+    }
+
     public static function musicMatch(string $title, string $artist, int $dur = 0): ?string
     {
         $q = trim(($artist !== '' ? $artist . ' - ' : '') . $title);
