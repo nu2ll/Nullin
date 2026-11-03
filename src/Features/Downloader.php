@@ -392,7 +392,7 @@ final class Downloader
         }
         $text = '🎶 <b>' . h(mb_substr($title, 0, 200)) . "</b>\n"
             . ($c['owner'] !== '' ? '👤 ' . h(mb_substr($c['owner'], 0, 60)) . ' · ' : '') . '📍 ' . $link['name'] . "\n\n"
-            . '🎵 ' . fa((string) $total) . ' آهنگ' . "؛\nهمه‌شون رو به‌صورت آلبوم،\nهر ۱۰ تا توی یه آلبوم بفرستم؟ 👇";
+            . '🎵 ' . fa((string) $total) . ' آهنگ' . "؛\nهمه‌شون رو به‌صورت آلبوم بفرستم؟ 👇";
         $cover = (string) ($c['cover'] ?? '');
         if ($cover === '') {
             $f     = Spotify::track('https://open.spotify.com/track/' . $c['tracks'][0]['id']);

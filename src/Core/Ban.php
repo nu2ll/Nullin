@@ -2,9 +2,54 @@
 
 final class Ban
 {
+    // ضد اسپم: اگه کسی تو SPAM_WINDOW ثانیه SPAM_LIMIT تا پیام پشت سر هم بده، SPAM_BAN ثانیه ساکت بلاک می‌شه
+    private const SPAM_LIMIT  = 10;
+    private const SPAM_WINDOW = 20;
+    private const SPAM_BAN    = 3600;
+    private const SPAM_TEXT   = "⏳ یه ساعت استراحت؛ بعدش دوباره بیا.\n🚫 اینقدر سریع پیام دادی که نالینی قاطی کرد 😅";
+
     public static function is(int $uid): bool
     {
-        return $uid > 0 && !App::isAdmin($uid) && Store::get('ban', (string) $uid) !== null;
+        if ($uid <= 0 || App::isAdmin($uid)) {
+            return false;
+        }
+        if (Store::get('ban', (string) $uid) !== null) {
+            return true;
+        }
+        $until = (int) (Store::get('tban', (string) $uid)['until'] ?? 0);
+        if ($until > time()) {
+            return true;
+        }
+        if ($until > 0) {
+            Store::delete('tban', (string) $uid);
+        }
+        return false;
+    }
+
+    private static function spam(array $update): bool
+    {
+        $m = $update['message'] ?? null;
+        if (!is_array($m) || ($m['chat']['type'] ?? '') !== 'private') {
+            return false;
+        }
+        $uid = (int) ($m['from']['id'] ?? 0);
+        if ($uid <= 0 || App::isAdmin($uid)) {
+            return false;
+        }
+        $now  = time();
+        $hits = Store::update('spam', (string) $uid, static function ($old) use ($now) {
+            $a = is_array($old) ? $old : [];
+            $a = array_values(array_filter($a, static fn($t) => $now - (int) $t < self::SPAM_WINDOW));
+            $a[] = $now;
+            return $a;
+        });
+        if (is_array($hits) && count($hits) >= self::SPAM_LIMIT) {
+            Store::set('tban', (string) $uid, ['until' => $now + self::SPAM_BAN]);
+            Store::delete('spam', (string) $uid);
+            App::tg()->send($uid, self::SPAM_TEXT);
+            return true;
+        }
+        return false;
     }
 
     public static function add(int $uid, int $by): bool
@@ -57,7 +102,7 @@ final class Ban
     public static function block(array $update): bool
     {
         $uid = self::senderId($update);
-        if (!self::is($uid)) {
+        if (!self::is($uid) && !self::spam($update)) {
             return false;
         }
         $tg = App::tg();

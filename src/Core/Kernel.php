@@ -16,6 +16,8 @@ final class Kernel
         'inline_ai'       => 86400,
         'dl'              => 2 * 86400,
         'rl'              => 3600,
+        'spam'            => 3600,
+        'tban'            => 2 * 3600,
         'dl_busy'         => 86400,
         'dl_quota'        => 2 * 86400,
         'dl_files'        => 30 * 86400,

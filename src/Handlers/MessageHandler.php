@@ -183,6 +183,12 @@ final class MessageHandler
                 }
                 return true;
 
+            case 'ping':
+                $t0 = microtime(true);
+                $tg->call('getMe', [], 10);
+                $tg->reply($msg, Ui::ping((int) round((microtime(true) - $t0) * 1000)), ['reply_markup' => ikb([[btn('Nullini', 'noop', null)]])]);
+                return true;
+
             case 'help':
                 $tg->send($chatId, Ui::helpText(), ['reply_markup' => Ui::helpMenu($private)]);
                 return true;
