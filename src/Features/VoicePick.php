@@ -5,7 +5,7 @@ final class VoicePick
     public const DEFAULT = 'Puck';
 
     private const NS       = 'voice';
-    private const PER_PAGE = 10;
+    private const PER_PAGE = 5;
 
     // ۳۰ صدای رسمی Gemini TTS: اسم => [ایموجی، ویژگی]
     // ویژگی‌ها: ترجمه‌ی توصیف رسمی گوگل (ai.google.dev/gemini-api/docs/speech-generation)
@@ -69,13 +69,9 @@ final class VoicePick
         $cur   = self::get($uid);
 
         $rows = [];
-        foreach (array_chunk(array_slice($names, $page * self::PER_PAGE, self::PER_PAGE), 2) as $pair) {
-            $row = [];
-            foreach ($pair as $n) {
-                [$e, $d] = self::VOICES[$n];
-                $row[]   = btn("{$e} {$n} · {$d}", "vc:{$uid}:s:{$n}", $n === $cur ? 'success' : null);
-            }
-            $rows[] = $row;
+        foreach (array_slice($names, $page * self::PER_PAGE, self::PER_PAGE) as $n) {
+            [$e, $d] = self::VOICES[$n];
+            $rows[]  = [btn("{$e} {$n} · {$d}", "vc:{$uid}:s:{$n}", $n === $cur ? 'success' : null)];
         }
 
         $nav = [];
@@ -87,13 +83,13 @@ final class VoicePick
             $nav[] = btn('بعدی ▶️', "vc:{$uid}:p:" . ($page + 1), null);
         }
         $rows[] = $nav;
-        $rows[] = [btn('🔄 برگشت به صدای پیش‌فرض', "vc:{$uid}:d", null)];
 
         [$e, $d] = self::VOICES[$cur];
         $text = "🎙 <b>صدای نالینی</b>\n\n"
             . "صدای فعلی تو: <b>{$e} {$cur}</b> · {$d}\n\n"
-            . 'یکی از صداها رو بزن تا همون لحظه فعال بشه. '
-            . 'از این به بعد تو هر چتی (پیوی، گروه، مهمان و...) وقتی نالینی برای تو ویس بفرسته، با همین صدا حرف می‌زنه.';
+            . "یکی از صداها رو بزن تا همون لحظه فعال بشه.\n"
+            . "از این به بعد تو هر چتی (پیوی، گروه، مهمان و...) \n"
+            . 'وقتی نالینی برای تو ویس بفرسته، با همین حرف می‌زنه.';
 
         return [$text, ikb($rows)];
     }
@@ -104,38 +100,30 @@ final class VoicePick
         $m   = $cq['message'] ?? null;
         $uid = (int) ($cq['from']['id'] ?? 0);
 
-        if (!is_array($m) || !isset($m['chat']['id'], $m['message_id']) || !preg_match('/^vc:(\d+):(p|s|d)(?::(\w+))?$/', $data, $x)) {
+        if (!is_array($m) || !isset($m['chat']['id'], $m['message_id']) || !preg_match('/^vc:(\d+):(p|s):(\w+)$/', $data, $x)) {
             $tg->answer($cq);
             return;
         }
         if ((int) $x[1] !== $uid) {
-            $tg->alert($cq, '🔒 این پنل مال کسیه که /voice زده؛ خودت /voice بزن.');
+            $tg->answer($cq);
             return;
         }
 
-        $chatId = (int) $m['chat']['id'];
-        $msgId  = (int) $m['message_id'];
-        $arg    = $x[3] ?? '';
-        $page   = 0;
-
         if ($x[2] === 'p') {
-            $page = (int) $arg;
+            $page = (int) $x[3];
             $tg->answer($cq);
-        } elseif ($x[2] === 'd') {
-            Store::delete(self::NS, (string) $uid);
-            $tg->answer($cq, '🔄 صدا به حالت پیش‌فرض برگشت');
         } else {
-            $picked = self::valid($arg);
-            if ($picked === null) {
+            $voice = self::valid($x[3]);
+            if ($voice === null) {
                 $tg->answer($cq);
                 return;
             }
-            Store::set(self::NS, (string) $uid, $picked);
-            $tg->answer($cq, "✅ {$picked} انتخاب شد");
-            $page = intdiv((int) array_search($picked, array_keys(self::VOICES), true), self::PER_PAGE);
+            Store::set(self::NS, (string) $uid, $voice);
+            $tg->answer($cq, "✅ {$voice} انتخاب شد");
+            $page = intdiv((int) array_search($voice, array_keys(self::VOICES), true), self::PER_PAGE);
         }
 
         [$text, $kb] = self::panel($uid, $page);
-        $tg->editMessage($chatId, $msgId, $text, $kb);
+        $tg->editMessage((int) $m['chat']['id'], (int) $m['message_id'], $text, $kb);
     }
 }
