@@ -323,6 +323,11 @@ switch ($arg) {
         Downloader::work((string) ($argv[2] ?? ''), (string) ($argv[3] ?? 'hd'));
         exit(0);
 
+    case '--music':
+        App::useBot((int) ($argv[3] ?? 0));
+        MusicId::work((string) ($argv[2] ?? ''));
+        exit(0);
+
     case '--autodl':
         App::useBot((int) ($argv[3] ?? 0));
         Downloader::auto((string) ($argv[2] ?? ''));

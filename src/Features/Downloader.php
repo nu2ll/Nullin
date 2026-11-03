@@ -551,6 +551,42 @@ final class Downloader
         return $item;
     }
 
+    // موزیک‌یاب: با اسم و خواننده، خود آهنگ رو از یوتیوب می‌گیره و کاور رو توش می‌چسبونه
+    public static function musicFile(string $title, string $artist, string $coverUrl, string $dir): ?array
+    {
+        $q = trim(($artist !== '' ? $artist . ' - ' : '') . $title);
+        if ($q === '' || self::bin() === null) {
+            return null;
+        }
+        $yt = self::ytMatch($q, 0);
+        if ($yt === null) {
+            return null;
+        }
+        $cover = $coverUrl !== '' ? self::setCover($coverUrl, $dir . '/mc') : null;
+        $out   = $dir . '/mt';
+        @mkdir($out, 0775, true);
+        self::run(array_merge([self::bin()], self::commonArgs(), self::formatArgs('mp3', true), [
+            '--no-playlist', '--no-warnings', '--no-mtime', '--restrict-filenames',
+            '--socket-timeout', '20', '--retries', '3', '--fragment-retries', '3', '--max-filesize', '49M',
+            '-o', $out . '/%(id).40s.%(ext)s',
+        ], [$yt]), 240);
+        $file = self::pickFile($out);
+        if ($file === null || filesize($file) > self::BOT_API_BYTES) {
+            return null;
+        }
+        if ($cover !== null) {
+            $tmp = $out . '/withcover.mp3';
+            self::run(['ffmpeg', '-y', '-v', 'error', '-i', $file, '-i', $cover['full'], '-map', '0:a', '-map', '1:v', '-c', 'copy', '-id3v2_version', '3',
+                '-metadata:s:v', 'title=Cover', '-metadata:s:v', 'comment=Cover (front)', $tmp], 60);
+            if (is_file($tmp) && filesize($tmp) > 0 && filesize($tmp) <= self::BOT_API_BYTES) {
+                @rename($tmp, $file);
+            } else {
+                @unlink($tmp);
+            }
+        }
+        return ['file' => $file, 'thumb' => $cover['thumb'] ?? null];
+    }
+
     // کاور اسپاتیفای با بالاترین کیفیت: نسخه‌ی کامل برای داخل MP3 و نسخه‌ی ۳۲۰ (حد تلگرام) برای بندانگشتی
     private static function setCover(string $url, string $base): ?array
     {

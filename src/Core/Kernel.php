@@ -17,6 +17,8 @@ final class Kernel
         'dl'              => 2 * 86400,
         'rl'              => 3600,
         'spam'            => 3600,
+        'music'           => 86400,
+        'mquota'          => 2 * 86400,
         'tban'            => 2 * 3600,
         'dl_busy'         => 86400,
         'dl_quota'        => 2 * 86400,

@@ -375,6 +375,7 @@ final class Ui
             $c('help', '📘 راهنما'),
             $c('voice', '🎙 انتخاب صدای نالینی'),
             $c('ping', '🏓 پینگ'),
+            $c('music', '🎧 موزیک‌یاب'),
         ];
         foreach ([['img', '🎨 ساخت عکس'], ['tr', '🌐 ترجمه'], ['ft', '✨ فونت‌ساز'], ['gw', '🎁 قرعه‌کشی'], ['wk', '📖 ویکی‌پدیا'], ['st', '🛡 ردیاب اشتراک']] as [$cmd, $desc]) {
             if (Switches::on(Switches::COMMAND_SWITCH[$cmd])) {
