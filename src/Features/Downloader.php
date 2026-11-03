@@ -206,9 +206,6 @@ final class Downloader
         if (!App::isAdmin($uid) && self::usedToday($uid) >= self::DAILY) {
             return 'فردا دوباره بیا 🙂' . "\n" . '✋ امروز سهمیه‌ی دانلودت (' . fa(self::DAILY) . ' تا) تموم شده؛';
         }
-        if ($link['site'] === 'instagram' && preg_match('#instagram\.com/(stories/|s/)#i', $link['url'])) {
-            return "پست و ریلز رو بفرست 🙂\n📸 استوری اینستا رو دانلود نمی‌کنم؛";
-        }
         return null;
     }
 
@@ -708,7 +705,7 @@ final class Downloader
         }
         $best = null;
         if ($dur > 0 && $list) {
-            $near = array_values(array_filter($list, static fn($e) => $e['d'] > 0 && abs($e['d'] - $dur) <= 2));
+            $near = array_values(array_filter($list, static fn($e) => $e['d'] > 0 && abs($e['d'] - $dur) <= 4));
             if ($near && $near[0]['id'] === $list[0]['id']) {
                 return 'https://www.youtube.com/watch?v=' . $list[0]['id'];
             }
