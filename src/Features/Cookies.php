@@ -80,18 +80,12 @@ final class Cookies
         }
 
         Store::delete(self::NS, (string) $uid);
-        self::del($chat, $fileMid);
-        $text = '🍪✅ ' . fa($res['count']) . ' تا کوکی ذخیره شد.';
-        if (!$res['insta']) {
-            $text .= "\n⚠️ کوکیِ لاگینِ اینستاگرام (sessionid) توش نیست؛ استوری و پیج خصوصی باز نمی‌شن.";
+        // پیام فایل می‌مونه و فقط یه 👍 می‌خوره؛ پیام 🍪 (دکمه‌ی انصراف) پاک می‌شه
+        if ($fileMid) {
+            $tg->react($chat, $fileMid, '👍');
         }
         if ($promptMid) {
-            $r = $tg->editMessage($chat, $promptMid, $text, ['inline_keyboard' => []]);
-            if (empty($r['ok'])) {
-                $tg->send($chat, $text);
-            }
-        } else {
-            $tg->send($chat, $text);
+            self::del($chat, $promptMid);
         }
         Backup::push('cookies');
         return true;
