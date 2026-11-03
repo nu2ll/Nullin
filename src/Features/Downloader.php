@@ -801,6 +801,10 @@ final class Downloader
     private static function preview(array $info): array
     {
         $thumb = (string) ($info['thumbnail'] ?? '');
+        $page  = (string) ($info['webpage_url'] ?? '');
+        if (preg_match('#^https://[^/]*(cdninstagram|fbcdn)\.#i', $thumb) && preg_match('#^https://(www\.)?instagram\.com/#i', $page)) {
+            $thumb = $page;
+        }
         if ($thumb === '' || !preg_match('#^https://#', $thumb)) {
             return ['is_disabled' => true];
         }
@@ -1797,6 +1801,9 @@ final class Downloader
         $info = json_decode($res['out'], true);
         if (!is_array($info)) {
             logError('dl', 'probe ' . parse_url($url, PHP_URL_HOST) . ' failed (exit ' . $res['code'] . '): ' . self::lastLine($res['err']));
+            $ckPath = self::cookiesPath();
+            $ck     = is_file($ckPath) ? self::normalizeCookies((string) file_get_contents($ckPath)) : ['count' => 0, 'insta' => false];
+            logWarn('dl', 'cookies at probe: file=' . (is_file($ckPath) ? $ckPath : 'none') . ' count=' . $ck['count'] . ' sessionid=' . ($ck['insta'] ? '1' : '0'));
             return ['error' => self::explain($res['err'], $res['code'])];
         }
         if (($info['_type'] ?? '') === 'playlist') {
