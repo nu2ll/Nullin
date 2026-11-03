@@ -1448,6 +1448,16 @@ final class Downloader
     public static function cookiesPath(): string
     {
         $saved = NULLINI_DATA . '/cookies.txt';
+        if (!is_file($saved) || filesize($saved) === 0) {
+            // بعد از دیپلوی فایل از بین رفته؛ از دیتابیس (که تو برنچ data بکاپ می‌شه) برمی‌گردونیمش
+            $kept = Store::get('cfg', 'cookies_txt');
+            if (is_string($kept) && $kept !== '') {
+                @mkdir(NULLINI_DATA, 0775, true);
+                if (@file_put_contents($saved, $kept, LOCK_EX) !== false) {
+                    @chmod($saved, 0600);
+                }
+            }
+        }
         return is_file($saved) && filesize($saved) > 0 ? $saved : NULLINI_ROOT . '/cookies.txt';
     }
 
@@ -1476,6 +1486,7 @@ final class Downloader
             return ['error' => 'نتونستم فایل رو ذخیره کنم.'];
         }
         @chmod($path, 0600);
+        Store::set('cfg', 'cookies_txt', rtrim($raw) . "\n");
         return ['count' => $n];
     }
 
