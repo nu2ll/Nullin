@@ -193,8 +193,6 @@ final class Downloader
         }
         $store = self::storeChat($uid);
         if ($store === null) {
-            $bot = App::botUsername();
-            $tg->editInline($imid, "🤖 برای دانلود این‌جا،\nاول یه بار ربات رو تو پیوی استارت کن.", ikb([[urlBtn('🤖 استارت ربات', "https://t.me/{$bot}?start=dl", 'success')]]));
             return;
         }
         self::prepare(['chat' => $store, 'card' => 0, 'imid' => $imid], $link, $uid, 0, null);
@@ -752,7 +750,7 @@ final class Downloader
             return;
         }
         $r = self::begin($token, (string) $job['auto'], (int) $job['owner']);
-        if (isset($r['error'])) {
+        if (isset($r['error']) && $r['error'] !== '') {
             self::show($job, $r['error']);
         }
     }
@@ -843,7 +841,7 @@ final class Downloader
             $card = (int) ($r['result']['message_id'] ?? 0);
             if (!$card) {
                 Store::delete('dl_busy', (string) $uid);
-                return ['error' => "🤖 اول ربات رو تو پیوی استارت کن،\nبعد دوباره بزن."];
+                return ['error' => ''];
             }
             $job['card'] = $card;
             Store::set('dl', $token, $job);
@@ -1154,7 +1152,7 @@ final class Downloader
 
         $r = self::begin($token, $fmt, $uid);
         if (isset($r['error'])) {
-            $tg->alert($cq, $r['error']);
+            $r['error'] !== '' ? $tg->alert($cq, $r['error']) : $tg->answer($cq);
             return;
         }
         $tg->answer($cq, $r['ok'] === 'sent' ? '⚡️ فرستادمش' : '⏳ شروع شد');

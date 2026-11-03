@@ -2,7 +2,6 @@
 
 final class MusicId
 {
-    private const DAILY  = PHP_INT_MAX;
     private const WAIT   = 20;
     private const TMP    = '/tmp/nullini-music';
     private const SLOTS  = 2;
@@ -37,14 +36,10 @@ final class MusicId
             return;
         }
         if ($m['size'] > self::MAX_IN) {
-            $tg->reply($msg, "😕 فایل بزرگه؛ فقط تا ۲۰ مگابایت می‌تونم بگیرم.\nیه تیکه‌ی کوتاه‌ترش رو بفرست.");
+            $tg->reply($msg, "رسانه خیلی زیاد! حجم نباید بیشتر از 20 مگابایت باشد.");
             return;
         }
         $admin = App::isAdmin($uid);
-        if (!$admin && self::usedToday($uid) >= self::DAILY) {
-            $tg->reply($msg, "فردا دوباره بیا 🙂\n✋ امروز سهمیه‌ی موزیک‌یابت تموم شده؛");
-            return;
-        }
         if (!$admin && Store::update('rl', 'music_' . $uid, static fn($at) => (is_int($at) && time() - $at < self::WAIT) ? null : time()) === null) {
             $tg->reply($msg, "یه‌کم دیگه بیا 😅\n⏳ هر ۲۰ ثانیه فقط یه موزیک‌یاب!");
             return;
@@ -109,7 +104,7 @@ final class MusicId
                 return;
             }
             if (empty($song['ok'])) {
-                self::card($job, "😕 نتونستم آهنگ رو بشناسم؛\nیه قسمت واضح‌تر و بدون حرف و سروصدا بفرست.");
+                self::card($job, "آهنگ شناسایی نشد.\nبخش دیگری بفرست که موسیقی در آن واضح شنیده شود، بدون صحبت یا سروصدای زیاد.");
                 return;
             }
 
@@ -119,8 +114,6 @@ final class MusicId
 
             $file = $yt === null ? null : Downloader::musicFile((string) $song['title'], (string) $song['artist'], (string) $song['cover'], $dir, $yt);
             if ($file === null) {
-                self::card($job, '✅ ' . h($song['title']) . ' — ' . h($song['artist']) . "\n😕 اسمش رو پیدا کردم ولی نتونستم خود موزیک رو بگیرم.");
-                self::charge((int) $job['uid']);
                 return;
             }
             $p = [
@@ -137,10 +130,8 @@ final class MusicId
             $r = $tg->call('sendAudio', $p, 300);
             if (empty($r['ok'])) {
                 logWarn('music', 'sendAudio failed: ' . (string) ($r['description'] ?? ''));
-                self::card($job, '✅ ' . h($song['title']) . ' — ' . h($song['artist']) . "\n😕 فرستادن موزیک نشد، یه‌کم دیگه دوباره امتحان کن.");
                 return;
             }
-            self::charge((int) $job['uid']);
             Users::hit('music');
         } catch (\Throwable $e) {
             logError('music', $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
@@ -219,8 +210,38 @@ final class MusicId
             Store::set('mulyr', $tk, ['title' => (string) $s['title'], 'artist' => (string) $s['artist'], 'dur' => (int) ($s['dur'] ?? 0)]);
             $row[] = btn('📝 متن ترانه', 'mu:l:' . $tk, 'primary');
         }
-        $row[] = ['text' => '🔍', 'switch_inline_query_current_chat' => 'mu ' . mb_substr(self::lead($s), 0, 100)];
+        $row[] = self::searchBtn();
         return ikb([$row]);
+    }
+
+    private static function searchBtn(): array
+    {
+        return ['text' => '🔍', 'switch_inline_query_current_chat' => 'mu '];
+    }
+
+    // expired data: no message to the user, just drop the callback buttons (URL / inline-search buttons stay)
+    private static function dropButtons(array $cq): void
+    {
+        $tg   = App::tg();
+        $tg->answer($cq);
+        $imid = (string) ($cq['inline_message_id'] ?? '');
+        $m    = $cq['message'] ?? null;
+        if ($imid !== '') {
+            $rows   = [[self::searchBtn()]];
+            $target = ['inline_message_id' => $imid];
+        } elseif (is_array($m) && isset($m['message_id'], $m['chat']['id'])) {
+            $rows = [];
+            foreach ((array) ($m['reply_markup']['inline_keyboard'] ?? []) as $row) {
+                $keep = array_values(array_filter((array) $row, static fn($b) => is_array($b) && !isset($b['callback_data'])));
+                if ($keep) {
+                    $rows[] = $keep;
+                }
+            }
+            $target = ['chat_id' => $m['chat']['id'], 'message_id' => (int) $m['message_id']];
+        } else {
+            return;
+        }
+        $tg->call('editMessageReplyMarkup', ['reply_markup' => ikb($rows)] + $target);
     }
 
     private static function clip(string $t, int $max = 950): string
@@ -239,9 +260,9 @@ final class MusicId
     private static function lyrics(array $cq, string $tk): void
     {
         $tg = App::tg();
-        $s  = Store::get('mulyr', $tk);
+        $s  = Store::getToday('mulyr', $tk);
         if (!is_array($s)) {
-            $tg->answer($cq, '⌛️ منقضی شده');
+            self::dropButtons($cq);
             return;
         }
         $imid = (string) ($cq['inline_message_id'] ?? '');
@@ -252,7 +273,8 @@ final class MusicId
         }
         $text = Lyrics::find(self::lead($s), (string) $s['title'], (int) ($s['dur'] ?? 0));
         if ($text === null) {
-            $tg->answer($cq, '😕 متن این ترانه رو پیدا نکردم');
+            $tg->answer($cq, 'متن آهنگ برای این آهنگ موجود نیست.');
+            $tg->call('editMessageReplyMarkup', ['reply_markup' => self::audioKeyboard($s, false)] + ($imid !== '' ? ['inline_message_id' => $imid] : ['chat_id' => $m['chat']['id'], 'message_id' => (int) $m['message_id']]));
             return;
         }
         $tg->answer($cq);
@@ -312,18 +334,13 @@ final class MusicId
     {
         $tg  = App::tg();
         $uid = (int) ($from['id'] ?? 0);
-        $set = Store::get('imusic', $qt);
+        $set = Store::getToday('imusic', $qt);
         $t   = is_array($set) ? ($set['list'][$i] ?? null) : null;
         if (!is_array($t)) {
-            $tg->editInline($imid, '⌛️ منقضی شده؛ دوباره جستجو کن.');
-            return;
-        }
-        if (!App::isAdmin($uid) && self::usedToday($uid) >= self::DAILY) {
-            $tg->editInline($imid, "فردا دوباره بیا 🙂\n✋ امروز سهمیه‌ی موزیکت تموم شده؛");
+            $tg->editInline($imid, '🎧', ikb([[self::searchBtn()]]));
             return;
         }
         if (Downloader::storeChat($uid) === null) {
-            $tg->editInline($imid, "🤖 برای گرفتن موزیک این‌جا،\nاول یه بار ربات رو تو پیوی استارت کن.", ikb([[urlBtn('🤖 استارت ربات', 'https://t.me/' . App::botUsername() . '?start=dl', 'success')]]));
             return;
         }
         $token = bin2hex(random_bytes(6));
@@ -368,7 +385,6 @@ final class MusicId
             }
             $target = $imid !== '' ? Downloader::storeChat($uid) : $job['chat'];
             if ($target === null) {
-                $fail('🤖 اول یه بار ربات رو تو پیوی استارت کن.');
                 return;
             }
             $p = [
@@ -411,7 +427,6 @@ final class MusicId
             } elseif (!empty($job['pick'])) {
                 $tg->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => (int) $job['pick']], 8);
             }
-            self::charge($uid);
             Users::hit($imid !== '' ? 'music:inline' : 'music');
         } catch (\Throwable $e) {
             logError('music', $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
@@ -453,17 +468,13 @@ final class MusicId
     private static function alternatives(array $cq, array $m, int $uid, string $token): void
     {
         $tg  = App::tg();
-        $res = Store::get('mures', $token);
+        $res = Store::getToday('mures', $token);
         if (!is_array($res)) {
-            $tg->answer($cq, '⌛️ منقضی شده');
+            self::dropButtons($cq);
             return;
         }
         if ($uid !== (int) $res['uid'] && !App::isAdmin($uid)) {
-            $tg->answer($cq, '🙅 این دکمه مال کسیه که آهنگ رو فرستاده');
-            return;
-        }
-        if (Store::update('rl', 'mualt_' . $token, static fn($at) => (is_int($at) && time() - $at < 10) ? null : time()) === null) {
-            $tg->answer($cq, '⏳ نتایج دیگه همین الان فرستاده شد');
+            $tg->answer($cq);
             return;
         }
         $s    = (array) $res['song'];
@@ -475,7 +486,7 @@ final class MusicId
         ));
         $list = array_slice($list, 0, 100);
         if (!$list) {
-            $tg->answer($cq, '😕 آهنگ دیگه‌ای پیدا نکردم');
+            $tg->answer($cq, '😔 چیزی پیدا نشد');
             return;
         }
         $tg->answer($cq);
@@ -496,26 +507,26 @@ final class MusicId
     private static function pick(array $cq, array $m, int $uid, string $qt, int $i): void
     {
         $tg  = App::tg();
-        $set = Store::get('imusic', $qt);
+        $set = Store::getToday('imusic', $qt);
         $t   = is_array($set) ? ($set['list'][$i] ?? null) : null;
         if (!is_array($t)) {
-            $tg->answer($cq, '⌛️ منقضی شده');
+            self::dropButtons($cq);
             return;
         }
         $admin = App::isAdmin($uid);
         if ($uid !== (int) ($set['uid'] ?? 0) && !$admin) {
-            $tg->answer($cq, '🙅 این لیست مال کسیه که آهنگ رو فرستاده');
-            return;
-        }
-        if (!$admin && self::usedToday($uid) >= self::DAILY) {
-            $tg->answer($cq, '✋ امروز سهمیه‌ی موزیکت تموم شده؛ فردا دوباره بیا');
-            return;
-        }
-        if (!$admin && Store::update('rl', 'mupick_' . $uid, static fn($at) => (is_int($at) && time() - $at < 10) ? null : time()) === null) {
-            $tg->answer($cq, '⏳ یه موزیک دیگه‌ت در جریانه؛ چند لحظه صبر کن');
+            $tg->answer($cq);
             return;
         }
         $tg->answer($cq, '⏳ دارم موزیک رو می‌گیرم...');
+        $rows = [];
+        foreach ((array) ($m['reply_markup']['inline_keyboard'] ?? []) as $row) {
+            $keep = array_values(array_filter((array) $row, static fn($b) => is_array($b) && ($b['callback_data'] ?? '') !== ($cq['data'] ?? '')));
+            if ($keep) {
+                $rows[] = $keep;
+            }
+        }
+        $tg->call('editMessageReplyMarkup', ['chat_id' => $m['chat']['id'], 'message_id' => (int) $m['message_id'], 'reply_markup' => ikb($rows)]);
         $token = bin2hex(random_bytes(6));
         Store::set('music', $token, ['chat' => $set['chat'], 'uid' => $uid, 'reply' => (int) ($set['reply'] ?? 0), 'card' => 0, 'file_id' => '', 'song' => $t, 'pick' => (int) $m['message_id']]);
         if (!self::spawn($token)) {
@@ -531,21 +542,6 @@ final class MusicId
         } else {
             $tg->send($job['chat'], $text, !empty($job['reply']) ? ['reply_parameters' => ['message_id' => (int) $job['reply'], 'allow_sending_without_reply' => true]] : []);
         }
-    }
-
-    private static function usedToday(int $uid): int
-    {
-        $q = Store::get('mquota', (string) $uid);
-        return is_array($q) && (int) ($q['d'] ?? 0) === Store::dayStart() ? (int) ($q['n'] ?? 0) : 0;
-    }
-
-    private static function charge(int $uid): void
-    {
-        Store::update('mquota', (string) $uid, static function ($q) {
-            $d = Store::dayStart();
-            $n = is_array($q) && (int) ($q['d'] ?? 0) === $d ? (int) ($q['n'] ?? 0) : 0;
-            return ['d' => $d, 'n' => $n + 1];
-        });
     }
 
     private static function acquireSlot()

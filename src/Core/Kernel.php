@@ -2,7 +2,7 @@
 
 final class Kernel
 {
-    private const DAILY = ['whisper_pending', 'gw_draft', 'gw_wiz'];
+    private const DAILY = ['whisper_pending', 'gw_draft', 'gw_wiz', 'imusic', 'mures', 'mulyr'];
 
     private const TTL = [
         'games'           => 7 * 86400,
@@ -18,10 +18,6 @@ final class Kernel
         'rl'              => 3600,
         'spam'            => 3600,
         'music'           => 86400,
-        'mures'           => 86400,
-        'imusic'          => 86400,
-        'mulyr'           => 7 * 86400,
-        'mquota'          => 2 * 86400,
         'tban'            => 2 * 3600,
         'dl_busy'         => 86400,
         'dl_quota'        => 2 * 86400,

@@ -138,7 +138,9 @@ final class InlineHandler
         $off  = max(0, (int) (self::$iq['offset'] ?? 0));
         $list = array_slice($all, $off, 50, true);
         if (!$list) {
-            self::fail('mu_none', '🎧 چیزی پیدا نشد', 'یه جور دیگه بنویس', '🎧 آهنگی برای «' . h(mb_substr($q, 0, 80)) . '» پیدا نکردم.');
+            $r = Ui::article('mu_none', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Pensive%20face/3D/pensive_face_3d.png', 'Music', 'چیزی پیدا نشد', '😔 چیزی پیدا نشد');
+            $r['title'] = '🎵 Music 🎵';
+            self::answer([$r]);
             return;
         }
         $qt = substr(md5($q . self::$iq['from']['id']), 0, 12);
@@ -147,7 +149,7 @@ final class InlineHandler
         foreach ($list as $i => $t) {
             $name = h(mb_substr(($t['artist'] !== '' ? $t['artist'] . ' — ' : '') . $t['title'], 0, 200));
             $text = (!empty($t['yt']) ? '<a href="https://song.link/y/' . $t['yt'] . '">' . $name . '</a>' : $name) . ' دانلود ⏳';
-            $items[] = Ui::article("mus_{$qt}_{$i}", preg_match('#^https://#', $t['cover']) === 1 ? $t['cover'] : 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Musical%20note/3D/musical_note_3d.png', mb_substr($t['title'], 0, 100), mb_substr($t['artist'] . ($t['album'] !== '' ? ' — ' . $t['album'] : ''), 0, 100), $text, ikb([[['text' => '🔍', 'switch_inline_query_current_chat' => 'mu ' . mb_substr($q, 0, 100)]]]));
+            $items[] = Ui::article("mus_{$qt}_{$i}", preg_match('#^https://#', $t['cover']) === 1 ? $t['cover'] : 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Musical%20note/3D/musical_note_3d.png', mb_substr($t['title'], 0, 100), mb_substr($t['artist'] . ($t['album'] !== '' ? ' — ' . $t['album'] : ''), 0, 100), $text, ikb([[['text' => '🔍', 'switch_inline_query_current_chat' => 'mu ']]]));
         }
         self::answer($items, 60, true, $off + 50 < count($all) ? (string) ($off + 50) : '');
     }
