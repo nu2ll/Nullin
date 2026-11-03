@@ -801,10 +801,6 @@ final class Downloader
     private static function preview(array $info): array
     {
         $thumb = (string) ($info['thumbnail'] ?? '');
-        $page  = (string) ($info['webpage_url'] ?? '');
-        if (preg_match('#^https://[^/]*(cdninstagram|fbcdn)\.#i', $thumb) && preg_match('#^https://(www\.)?instagram\.com/#i', $page)) {
-            $thumb = $page;
-        }
         if ($thumb === '' || !preg_match('#^https://#', $thumb)) {
             return ['is_disabled' => true];
         }
