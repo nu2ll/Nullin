@@ -7,39 +7,41 @@ final class VoicePick
     private const NS       = 'voice';
     private const PER_PAGE = 10;
 
-    // ۳۰ صدای رسمی Gemini TTS و ویژگی هر کدوم (ترجمه‌ی توصیف رسمی گوگل)
-    // منبع: https://ai.google.dev/gemini-api/docs/speech-generation (بخش Voice options)
+    // ۳۰ صدای رسمی Gemini TTS: اسم => [ایموجی، ویژگی]
+    // ویژگی‌ها: ترجمه‌ی توصیف رسمی گوگل (ai.google.dev/gemini-api/docs/speech-generation)
+    // جنسیت: طبق جدول رسمی Google Cloud (cloud.google.com/text-to-speech/docs/gemini-tts)؛ 👩 زن، 👨 مرد
+    // لدا تنها صدایی‌ه که گوگل «Youthful» (جوان) نوشته، برای همین 👧
     public const VOICES = [
-        'Zephyr'        => 'روشن',          // Bright
-        'Puck'          => 'سرزنده',        // Upbeat
-        'Charon'        => 'آموزنده',       // Informative
-        'Kore'          => 'محکم',          // Firm
-        'Fenrir'        => 'پرشور',         // Excitable
-        'Leda'          => 'جوان',          // Youthful
-        'Orus'          => 'محکم',          // Firm
-        'Aoede'         => 'سبک و راحت',    // Breezy
-        'Callirrhoe'    => 'راحت',          // Easy-going
-        'Autonoe'       => 'روشن',          // Bright
-        'Enceladus'     => 'نفس‌دار',       // Breathy
-        'Iapetus'       => 'شفاف',          // Clear
-        'Umbriel'       => 'راحت',          // Easy-going
-        'Algieba'       => 'نرم',           // Smooth
-        'Despina'       => 'نرم',           // Smooth
-        'Erinome'       => 'شفاف',          // Clear
-        'Algenib'       => 'خش‌دار',        // Gravelly
-        'Rasalgethi'    => 'آموزنده',       // Informative
-        'Laomedeia'     => 'سرزنده',        // Upbeat
-        'Achernar'      => 'لطیف',          // Soft
-        'Alnilam'       => 'محکم',          // Firm
-        'Schedar'       => 'یکدست',         // Even
-        'Gacrux'        => 'پخته',          // Mature
-        'Pulcherrima'   => 'رک',            // Forward
-        'Achird'        => 'دوستانه',       // Friendly
-        'Zubenelgenubi' => 'خودمونی',       // Casual
-        'Vindemiatrix'  => 'ملایم',         // Gentle
-        'Sadachbia'     => 'پرجنب‌وجوش',    // Lively
-        'Sadaltager'    => 'دانا',          // Knowledgeable
-        'Sulafat'       => 'گرم',           // Warm
+        'Zephyr'         => ['👩', 'روشن'],            // Bright
+        'Puck'           => ['👨', 'سرزنده'],          // Upbeat
+        'Charon'         => ['👨', 'آموزنده'],         // Informative
+        'Kore'           => ['👩', 'محکم'],            // Firm
+        'Fenrir'         => ['👨', 'پرشور'],           // Excitable
+        'Leda'           => ['👧', 'جوان'],            // Youthful
+        'Orus'           => ['👨', 'محکم'],            // Firm
+        'Aoede'          => ['👩', 'سبک و راحت'],      // Breezy
+        'Callirrhoe'     => ['👩', 'راحت'],            // Easy-going
+        'Autonoe'        => ['👩', 'روشن'],            // Bright
+        'Enceladus'      => ['👨', 'نفس‌دار'],         // Breathy
+        'Iapetus'        => ['👨', 'شفاف'],            // Clear
+        'Umbriel'        => ['👨', 'راحت'],            // Easy-going
+        'Algieba'        => ['👨', 'نرم'],             // Smooth
+        'Despina'        => ['👩', 'نرم'],             // Smooth
+        'Erinome'        => ['👩', 'شفاف'],            // Clear
+        'Algenib'        => ['👨', 'خش‌دار'],          // Gravelly
+        'Rasalgethi'     => ['👨', 'آموزنده'],         // Informative
+        'Laomedeia'      => ['👩', 'سرزنده'],          // Upbeat
+        'Achernar'       => ['👩', 'لطیف'],            // Soft
+        'Alnilam'        => ['👨', 'محکم'],            // Firm
+        'Schedar'        => ['👨', 'یکدست'],           // Even
+        'Gacrux'         => ['👩', 'پخته'],            // Mature
+        'Pulcherrima'    => ['👩', 'رک'],              // Forward
+        'Achird'         => ['👨', 'دوستانه'],         // Friendly
+        'Zubenelgenubi'  => ['👨', 'خودمونی'],         // Casual
+        'Vindemiatrix'   => ['👩', 'ملایم'],           // Gentle
+        'Sadachbia'      => ['👨', 'پرجنب‌وجوش'],      // Lively
+        'Sadaltager'     => ['👨', 'دانا'],            // Knowledgeable
+        'Sulafat'        => ['👩', 'گرم'],             // Warm
     ];
 
     public static function valid(?string $name): ?string
@@ -70,7 +72,8 @@ final class VoicePick
         foreach (array_chunk(array_slice($names, $page * self::PER_PAGE, self::PER_PAGE), 2) as $pair) {
             $row = [];
             foreach ($pair as $n) {
-                $row[] = btn(($n === $cur ? '✅ ' : '') . "{$n} · " . self::VOICES[$n], "vc:{$uid}:s:{$n}", $n === $cur ? 'success' : null);
+                [$e, $d] = self::VOICES[$n];
+                $row[]   = btn("{$e} {$n} · {$d}", "vc:{$uid}:s:{$n}", $n === $cur ? 'success' : null);
             }
             $rows[] = $row;
         }
@@ -86,9 +89,10 @@ final class VoicePick
         $rows[] = $nav;
         $rows[] = [btn('🔄 برگشت به صدای پیش‌فرض', "vc:{$uid}:d", null)];
 
+        [$e, $d] = self::VOICES[$cur];
         $text = "🎙 <b>صدای نالینی</b>\n\n"
-            . "صدای فعلی تو: <b>{$cur}</b> · " . self::VOICES[$cur] . "\n\n"
-            . 'یکی از صداها رو بزن تا همون لحظه فعال بشه و یه نمونه‌ش رو بشنوی. '
+            . "صدای فعلی تو: <b>{$e} {$cur}</b> · {$d}\n\n"
+            . 'یکی از صداها رو بزن تا همون لحظه فعال بشه. '
             . 'از این به بعد تو هر چتی (پیوی، گروه، مهمان و...) وقتی نالینی برای تو ویس بفرسته، با همین صدا حرف می‌زنه.';
 
         return [$text, ikb($rows)];
@@ -113,7 +117,6 @@ final class VoicePick
         $msgId  = (int) $m['message_id'];
         $arg    = $x[3] ?? '';
         $page   = 0;
-        $picked = null;
 
         if ($x[2] === 'p') {
             $page = (int) $arg;
@@ -134,30 +137,5 @@ final class VoicePick
 
         [$text, $kb] = self::panel($uid, $page);
         $tg->editMessage($chatId, $msgId, $text, $kb);
-
-        if ($picked !== null) {
-            self::sample($chatId, $msgId, $uid, $picked);
-        }
-    }
-
-    private static function sample(int $chatId, int $msgId, int $uid, string $voice): void
-    {
-        if (time() - (int) Store::get('voice_t', (string) $uid, 0) < 20) {
-            return;
-        }
-        Store::set('voice_t', (string) $uid, time());
-
-        $tg = App::tg();
-        $tg->action($chatId, 'record_voice');
-        $file = AI::speak('سلام! من نالینی‌ام. این صدای منه؛ خوشت اومد؟', null, 'ogg', $voice);
-        if ($file === null) {
-            return;
-        }
-        $tg->call('sendVoice', [
-            'chat_id'          => $chatId,
-            'voice'            => new CURLFile($file, 'audio/ogg', 'voice.ogg'),
-            'reply_parameters' => ['message_id' => $msgId, 'allow_sending_without_reply' => true],
-        ], 120);
-        @unlink($file);
     }
 }
