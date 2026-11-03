@@ -2,21 +2,20 @@
 
 final class MusicSearch
 {
-    public static function find(string $q, int $limit = 25): array
+    public static function find(string $q, int $limit = 50): array
     {
         $q = trim($q);
         if ($q === '') {
             return [];
         }
-        $key = 'ms:' . md5(mb_strtolower($q));
+        $key = 'ms5:' . md5(mb_strtolower($q));
         $hit = Store::get('cache', $key);
         if (is_array($hit) && $hit) {
             return $hit;
         }
-        $list = self::unique(array_merge(self::deezer($q, 15), self::youtube($q, 10)));
-        if (!$list) {
-            $list = self::itunes($q, $limit);
-        }
+        $dz   = self::deezer($q, 50);
+        $itn  = self::itunes($q, $limit);
+        $list = self::originalCovers(self::unique(array_merge($dz, self::youtube($q, 50), $itn)), array_merge($dz, $itn));
         if ($list) {
             Store::set('cache', $key, $list);
         }
@@ -50,7 +49,7 @@ final class MusicSearch
                 'title'  => $e['title'],
                 'artist' => trim(preg_replace('/\s+-\s+Topic$/u', '', $e['by']) ?? $e['by']),
                 'album'  => '',
-                'cover'  => 'https://i.ytimg.com/vi/' . $e['id'] . '/mqdefault.jpg',
+                'cover'  => '',
                 'dur'    => $e['d'],
                 'yt'     => $e['id'],
             ];
@@ -75,6 +74,47 @@ final class MusicSearch
             ];
         }
         return self::unique($out);
+    }
+
+    private static function norm(string $t): string
+    {
+        $t = mb_strtolower($t);
+        $t = preg_replace('/[\(\[][^\)\]]*[\)\]]/u', ' ', $t) ?? $t;
+        $t = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $t) ?? $t;
+        return trim($t);
+    }
+
+    // YouTube results only have a video frame; swap it for the real album cover when Deezer/iTunes know the track
+    private static function originalCovers(array $list, array $refs): array
+    {
+        $idx = [];
+        foreach ($refs as $r) {
+            if (preg_match('#^https://#', (string) $r['cover']) !== 1) {
+                continue;
+            }
+            $idx[] = ['t' => self::norm($r['title']), 'a' => self::norm($r['artist']), 'r' => $r];
+        }
+        foreach ($list as $i => $t) {
+            if (empty($t['yt'])) {
+                continue;
+            }
+            $yt = self::norm($t['title']);
+            $ya = self::norm($t['artist']);
+            foreach ($idx as $c) {
+                if ($c['t'] === '' || !str_contains(' ' . $yt . ' ', ' ' . $c['t'] . ' ')) {
+                    continue;
+                }
+                if ($c['a'] !== '' && !str_contains(' ' . $ya . ' ' . $yt . ' ', ' ' . $c['a'] . ' ')) {
+                    continue;
+                }
+                $list[$i]['cover'] = $c['r']['cover'];
+                if ($t['album'] === '') {
+                    $list[$i]['album'] = $c['r']['album'];
+                }
+                break;
+            }
+        }
+        return $list;
     }
 
     private static function unique(array $list): array

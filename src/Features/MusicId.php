@@ -2,7 +2,7 @@
 
 final class MusicId
 {
-    private const DAILY  = 10;
+    private const DAILY  = PHP_INT_MAX;
     private const WAIT   = 20;
     private const TMP    = '/tmp/nullini-music';
     private const SLOTS  = 2;
@@ -267,13 +267,6 @@ final class MusicId
 
     private static function infoCover(?string $yt, string $fallback): string
     {
-        if ($yt !== null && preg_match('/v=([\w-]{11})/', $yt, $m) === 1) {
-            $r = Http::request('GET', 'https://i.ytimg.com/vi/' . $m[1] . '/maxresdefault.jpg', ['timeout' => 15, 'max_bytes' => 8 * 1048576]);
-            $i = $r['code'] === 200 && (string) $r['body'] !== '' ? @getimagesizefromstring((string) $r['body']) : false;
-            if ($i !== false && $i[0] >= 640) {
-                return (string) $r['body'];
-            }
-        }
         if (preg_match('#^https://#', $fallback) === 1) {
             $r = Http::request('GET', $fallback, ['timeout' => 15, 'max_bytes' => 8 * 1048576]);
             if ((string) $r['body'] !== '' && @getimagesizefromstring((string) $r['body']) !== false) {
@@ -400,9 +393,11 @@ final class MusicId
                 return;
             }
             if ($imid !== '') {
+                $vid  = preg_match('/v=([\w-]{11})/', (string) $yt, $vm) === 1 ? $vm[1] : '';
+                $cap  = '@' . App::botUsername() . ($vid !== '' ? ' | <a href="https://song.link/y/' . $vid . '">info</a>' : '');
                 $e = $tg->call('editMessageMedia', [
                     'inline_message_id' => $imid,
-                    'media'             => ['type' => 'audio', 'media' => $fid, 'caption' => '🎧 @' . App::botUsername(), 'parse_mode' => 'HTML'],
+                    'media'             => ['type' => 'audio', 'media' => $fid, 'caption' => $cap, 'parse_mode' => 'HTML'],
                     'reply_markup'      => self::audioKeyboard($song),
                 ], 30);
                 if (env('DL_STORE_CHAT', '') === '' && !empty($r['result']['message_id'])) {
@@ -475,10 +470,10 @@ final class MusicId
         $lt   = mb_strtolower((string) $s['title']);
         $la   = mb_strtolower(self::lead($s));
         $list = array_values(array_filter(
-            MusicSearch::find(trim($s['artist'] . ' ' . $s['title']), 25),
+            MusicSearch::find(trim($s['artist'] . ' ' . $s['title'])),
             static fn($t) => !(mb_strtolower($t['title']) === $lt && str_contains(mb_strtolower($t['artist']), $la))
         ));
-        $list = array_slice($list, 0, 10);
+        $list = array_slice($list, 0, 100);
         if (!$list) {
             $tg->answer($cq, '😕 آهنگ دیگه‌ای پیدا نکردم');
             return;

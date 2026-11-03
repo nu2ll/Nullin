@@ -85,14 +85,14 @@ final class InlineHandler
         self::menu($query);
     }
 
-    private static function answer(array $results, int $cache = 0, bool $personal = true): void
+    private static function answer(array $results, int $cache = 0, bool $personal = true, string $next = ''): void
     {
         self::send([
             'inline_query_id' => self::$iq['id'],
             'results'         => $results,
             'cache_time'      => $cache,
             'is_personal'     => $personal,
-        ]);
+        ] + ($next !== '' ? ['next_offset' => $next] : []));
     }
 
     private static function guide(string $key, string $icon, string $title, string $desc): void
@@ -134,19 +134,22 @@ final class InlineHandler
             self::answer([Ui::article('mu_help', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Musical%20note/3D/musical_note_3d.png', '🎧 جستجوی موزیک', 'بعد از mu اسم آهنگ یا خواننده رو بنویس', "<b>🎧 جستجوی موزیک</b>\n\nبعد از <code>mu</code> اسم آهنگ یا خواننده رو بنویس 🙂", ikb([[['text' => '💬 تو چت امتحانش کن', 'switch_inline_query_current_chat' => 'mu ', 'style' => 'primary']]]))]);
             return;
         }
-        $list = array_slice(MusicSearch::find($q), 0, 25);
+        $all  = MusicSearch::find($q);
+        $off  = max(0, (int) (self::$iq['offset'] ?? 0));
+        $list = array_slice($all, $off, 50, true);
         if (!$list) {
             self::fail('mu_none', '🎧 چیزی پیدا نشد', 'یه جور دیگه بنویس', '🎧 آهنگی برای «' . h(mb_substr($q, 0, 80)) . '» پیدا نکردم.');
             return;
         }
-        $qt = substr(md5($q . self::$iq['from']['id'] . microtime()), 0, 12);
-        Store::set('imusic', $qt, ['list' => $list]);
+        $qt = substr(md5($q . self::$iq['from']['id']), 0, 12);
+        Store::set('imusic', $qt, ['list' => $all]);
         $items = [];
         foreach ($list as $i => $t) {
-            $text = '🎵 <b>' . h(mb_substr($t['title'], 0, 200)) . '</b>' . ($t['artist'] !== '' ? "\n👤 " . h(mb_substr($t['artist'], 0, 100)) : '') . "\n\n⏳ دارم موزیک رو می‌گیرم...";
-            $items[] = Ui::article("mus_{$qt}_{$i}", preg_match('#^https://#', $t['cover']) === 1 ? $t['cover'] : 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Musical%20note/3D/musical_note_3d.png', mb_substr($t['title'], 0, 100), mb_substr($t['artist'] . ($t['album'] !== '' ? ' — ' . $t['album'] : ''), 0, 100), $text, ikb([[btn('⏳ صبر کن...', 'noop', null)]]));
+            $name = h(mb_substr(($t['artist'] !== '' ? $t['artist'] . ' — ' : '') . $t['title'], 0, 200));
+            $text = (!empty($t['yt']) ? '<a href="https://song.link/y/' . $t['yt'] . '">' . $name . '</a>' : $name) . ' دانلود ⏳';
+            $items[] = Ui::article("mus_{$qt}_{$i}", preg_match('#^https://#', $t['cover']) === 1 ? $t['cover'] : 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Musical%20note/3D/musical_note_3d.png', mb_substr($t['title'], 0, 100), mb_substr($t['artist'] . ($t['album'] !== '' ? ' — ' . $t['album'] : ''), 0, 100), $text, ikb([[['text' => '🔍', 'switch_inline_query_current_chat' => 'mu ' . mb_substr($q, 0, 100)]]]));
         }
-        self::answer($items, 60);
+        self::answer($items, 60, true, $off + 50 < count($all) ? (string) ($off + 50) : '');
     }
 
     private static function wiki(string $q): void
