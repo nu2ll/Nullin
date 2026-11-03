@@ -19,6 +19,7 @@ final class Kernel
         'spam'            => 3600,
         'music'           => 86400,
         'mures'           => 86400,
+        'imusic'          => 86400,
         'mquota'          => 2 * 86400,
         'tban'            => 2 * 3600,
         'dl_busy'         => 86400,

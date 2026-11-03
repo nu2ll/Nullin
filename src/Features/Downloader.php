@@ -214,7 +214,7 @@ final class Downloader
         return null;
     }
 
-    private static function storeChat(int $uid): int|string|null
+    public static function storeChat(int $uid): int|string|null
     {
         $fixed = (string) env('DL_STORE_CHAT', '');
         if ($fixed !== '') {
@@ -552,13 +552,13 @@ final class Downloader
     }
 
     // موزیک‌یاب: با اسم و خواننده، خود آهنگ رو از یوتیوب می‌گیره و کاور رو توش می‌چسبونه
-    public static function musicMatch(string $title, string $artist): ?string
+    public static function musicMatch(string $title, string $artist, int $dur = 0): ?string
     {
         $q = trim(($artist !== '' ? $artist . ' - ' : '') . $title);
         if ($q === '' || self::bin() === null) {
             return null;
         }
-        return self::ytMatch($q, 0);
+        return self::ytMatch($q, $dur);
     }
 
     public static function musicFile(string $title, string $artist, string $coverUrl, string $dir, ?string $yt = null): ?array

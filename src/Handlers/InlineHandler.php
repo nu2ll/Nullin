@@ -18,6 +18,7 @@ final class InlineHandler
         'wiki'    => ['wk', 'wiki', 'ویکی‌پدیا', 'ویکیپدیا', 'ویکی'],
         'gw'      => ['gw', 'giveaway', 'قرعه‌کشی', 'قرعه کشی', 'قرعه'],
         'linkcheck' => ['st'],
+        'music'   => ['mu', 'music', 'موزیک', 'آهنگ'],
     ];
 
     private static array $iq = [];
@@ -70,6 +71,7 @@ final class InlineHandler
                         'gw'      => self::giveaway($rest),
                         'wiki'    => self::wiki($rest),
                         'linkcheck' => self::linkcheck($rest),
+                        'music'   => self::music($rest),
                     };
                     return;
                 }
@@ -124,6 +126,27 @@ final class InlineHandler
             "{$head}\n\n⏳ {$wait}",
             ikb([[btn('⏳ صبر کن...', "{$kind}q:{$token}", null)]])
         );
+    }
+
+    private static function music(string $q): void
+    {
+        if ($q === '') {
+            self::answer([Ui::article('mu_help', 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Musical%20note/3D/musical_note_3d.png', '🎧 جستجوی موزیک', 'بعد از mu اسم آهنگ یا خواننده رو بنویس', "<b>🎧 جستجوی موزیک</b>\n\nبعد از <code>mu</code> اسم آهنگ یا خواننده رو بنویس 🙂", ikb([[['text' => '💬 تو چت امتحانش کن', 'switch_inline_query_current_chat' => 'mu ', 'style' => 'primary']]]))]);
+            return;
+        }
+        $list = array_slice(MusicSearch::find($q), 0, 25);
+        if (!$list) {
+            self::fail('mu_none', '🎧 چیزی پیدا نشد', 'یه جور دیگه بنویس', '🎧 آهنگی برای «' . h(mb_substr($q, 0, 80)) . '» پیدا نکردم.');
+            return;
+        }
+        $qt = substr(md5($q . self::$iq['from']['id'] . microtime()), 0, 12);
+        Store::set('imusic', $qt, ['list' => $list]);
+        $items = [];
+        foreach ($list as $i => $t) {
+            $text = '🎵 <b>' . h(mb_substr($t['title'], 0, 200)) . '</b>' . ($t['artist'] !== '' ? "\n👤 " . h(mb_substr($t['artist'], 0, 100)) : '') . "\n\n⏳ دارم موزیک رو می‌گیرم...";
+            $items[] = Ui::article("mus_{$qt}_{$i}", preg_match('#^https://#', $t['cover']) === 1 ? $t['cover'] : 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Musical%20note/3D/musical_note_3d.png', mb_substr($t['title'], 0, 100), mb_substr($t['artist'] . ($t['album'] !== '' ? ' — ' . $t['album'] : ''), 0, 100), $text, ikb([[btn('⏳ صبر کن...', 'noop', null)]]));
+        }
+        self::answer($items, 60);
     }
 
     private static function wiki(string $q): void

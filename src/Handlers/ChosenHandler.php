@@ -29,6 +29,9 @@ final class ChosenHandler
         if (preg_match('/^(ai|tr)q_(\w+)$/', $id, $m)) {
             InlineHandler::resolveDeferred($m[2], $imid);
         }
+        if (preg_match('/^mus_([a-f0-9]{12})_(\d+)$/', $id, $m) === 1) {
+            MusicId::inline($m[1], (int) $m[2], $imid, $from);
+        }
         if (str_starts_with($id, 'rs_')) {
             Roast::resolve(substr($id, 3), $imid);
         }
