@@ -2,6 +2,18 @@
 
 final class Rich
 {
+    private static array $sent = [];
+
+    public static function was(int $chatId, int $mid): bool
+    {
+        return isset(self::$sent[$chatId . ':' . $mid]);
+    }
+
+    public static function mark(int $chatId, int $mid): void
+    {
+        self::$sent[$chatId . ':' . $mid] = true;
+    }
+
     public static function reply(array $msg, string $text): ?int
     {
         if (!in_array($msg['chat']['type'] ?? '', ['private', 'group', 'supergroup'], true) || trim($text) === '' || mb_strlen($text) > 30000) {
@@ -9,6 +21,9 @@ final class Rich
         }
         $r = App::tg()->replyRich($msg, self::markdown($text));
         $id = empty($r['ok']) ? 0 : (int) ($r['result']['message_id'] ?? 0);
+        if ($id > 0) {
+            self::mark((int) $msg['chat']['id'], $id);
+        }
         return $id > 0 ? $id : null;
     }
 

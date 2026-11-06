@@ -20,6 +20,7 @@ final class LiveReply
     private int $shown    = 0;
     private bool $armed   = false;
     private bool $adopted = false;
+    private bool $richMsg = false;
     private bool $inTick  = false;
     private bool $typingOnly = false;
 
@@ -45,12 +46,22 @@ final class LiveReply
         $this->arm();
     }
 
-    public function adopt(int $mid): void
+    public function adopt(int $mid, bool $rich = false): void
     {
         $this->adopted = true;
+        $this->richMsg = $rich;
         $this->ids[0] = $mid;
-        App::tg()->editMessage($this->msg['chat']['id'], $mid, $this->frame(0));
+        $this->editMsg($mid, $this->frame(0));
         $this->arm();
+    }
+
+    private function editMsg(int $mid, string $html): ?array
+    {
+        $chatId = $this->msg['chat']['id'];
+        if ($this->richMsg && $mid === ($this->ids[0] ?? 0)) {
+            return AnswerButtons::editHtmlRich((int) $chatId, $mid, $html);
+        }
+        return App::tg()->editMessage($chatId, $mid, $html);
     }
 
     public function stop(): void
@@ -104,7 +115,7 @@ final class LiveReply
             } elseif ($this->imid !== null) {
                 $r = App::tg()->editInline($this->imid, $html);
             } elseif (isset($this->ids[0])) {
-                $r = App::tg()->editMessage($this->msg['chat']['id'], $this->ids[0], $html);
+                $r = $this->editMsg($this->ids[0], $html);
             }
             if ((int) ($r['error_code'] ?? 0) === 429) {
                 $this->disarm();
@@ -259,7 +270,7 @@ final class LiveReply
         if (!isset($this->ids[0])) {
             return false;
         }
-        $r = App::tg()->editMessage($this->msg['chat']['id'], $this->ids[0], $html);
+        $r = $this->editMsg($this->ids[0], $html);
         if (!empty($r['ok']) || stripos((string) ($r['description'] ?? ''), 'not modified') !== false) {
             return true;
         }
@@ -388,7 +399,7 @@ final class LiveReply
                 $this->ids[0] = (int) $r['result']['message_id'];
             }
         } else {
-            $tg->editMessage($this->msg['chat']['id'], $this->ids[0], $html);
+            $this->editMsg($this->ids[0], $html);
         }
     }
 
@@ -397,6 +408,21 @@ final class LiveReply
         $tg    = App::tg();
         $parts = AI::chunks($text);
         $last  = count($parts) - 1;
+
+        if ($final && $this->richMsg && isset($this->ids[0]) && mb_strlen($text) <= 12000) {
+            $mid = (int) $this->ids[0];
+            $r   = $tg->call('editMessageText', [
+                'chat_id'      => $this->msg['chat']['id'],
+                'message_id'   => $mid,
+                'rich_message' => ['markdown' => Rich::markdown(substr_count($text, '```') % 2 === 1 ? $text . "\n```" : $text)],
+            ], 10);
+            if (!empty($r['ok']) || stripos((string) ($r['description'] ?? ''), 'not modified') !== false) {
+                Rich::mark((int) $this->msg['chat']['id'], $mid);
+                $this->ids  = [0 => $mid];
+                $this->sent = [];
+                return true;
+            }
+        }
 
         if ($final && !$this->adopted && ($rid = Rich::reply($this->msg, substr_count($text, '```') % 2 === 1 ? $text . "\n```" : $text)) !== null) {
             foreach ($this->ids as $old) {
@@ -422,7 +448,7 @@ final class LiveReply
                 }
                 $this->ids[$i] = (int) $r['result']['message_id'];
             } else {
-                $r = $tg->editMessage($this->msg['chat']['id'], $this->ids[$i], $html);
+                $r = $i === 0 ? $this->editMsg($this->ids[0], $html) : $tg->editMessage($this->msg['chat']['id'], $this->ids[$i], $html);
                 if (empty($r['ok']) && stripos((string) ($r['description'] ?? ''), 'not modified') === false) {
                     return false;
                 }

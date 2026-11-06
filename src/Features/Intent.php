@@ -84,6 +84,10 @@ final class Intent
             ], 30);
             return !empty($r['ok']);
         }
+        if (!empty($o['retry']) && ($o['retry']['k'] ?? '') === 'tr' && $o['text'] === AI::FAIL_TEXT) {
+            AnswerButtons::sendFail($msg, AI::FAIL_TEXT, array_diff_key($o['retry'], ['a' => 1, 'f' => 1]) + ['o' => (int) $msg['message_id']]);
+            return true;
+        }
         $sent = $tg->reply($msg, $o['text'], array_filter([
             'reply_markup'         => $o['kb'] ?? null,
             'link_preview_options' => $o['preview'] ?? null,

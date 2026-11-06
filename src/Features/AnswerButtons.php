@@ -4,6 +4,9 @@ final class AnswerButtons
 {
     private const NS        = 'aibtn';
     private const VOICE_MAX = 2500;
+    private const L_SEARCH = '🔎 جستجو در وب';
+    private const L_VOICE  = '🔊 ویس';
+    private const L_RETRY  = '🔄 تلاش دوباره';
 
     public static function plain(string $answer): string
     {
@@ -21,6 +24,130 @@ final class AnswerButtons
         }
 
         return ['inline_keyboard' => $row ? [$row] : []];
+    }
+
+    private static function rb(string $label, string $data, string $style): string
+    {
+        return '<tg-button type="callback_data" style="' . $style . '" data="' . h($data) . '">' . h($label) . '</tg-button>';
+    }
+
+    public static function rows(bool $searched, bool $voice = true, bool $noSearch = false): string
+    {
+        $row = '';
+        if (!$searched && !$noSearch && WebSearch::available()) {
+            $row .= self::rb(self::L_SEARCH, 'ab:s', 'primary');
+        }
+        if ($voice) {
+            $row .= self::rb(self::L_VOICE, 'ab:v', 'success');
+        }
+        return $row === '' ? '' : '<tg-button-row>' . $row . '</tg-button-row>';
+    }
+
+    public static function retryRows(): string
+    {
+        return '<tg-button-row>' . self::rb(self::L_RETRY, 'ab:r', 'danger') . '</tg-button-row>';
+    }
+
+    private static function body(string $answer, string $rows): string
+    {
+        $answer = rtrim($answer);
+        if (substr_count($answer, '```') % 2 === 1) {
+            $answer .= "\n```";
+        }
+        return Rich::markdown($answer) . ($rows !== '' ? "\n\n" . $rows : '');
+    }
+
+    public static function okEditPublic(?array $r): bool
+    {
+        return self::okEdit($r);
+    }
+
+    private static function okEdit(?array $r): bool
+    {
+        return !empty($r['ok']) || stripos((string) ($r['description'] ?? ''), 'not modified') !== false;
+    }
+
+    public static function editRich(int $chatId, int $mid, string $answer, string $rows): bool
+    {
+        if (trim($answer) === '' || mb_strlen($answer) > 12000) {
+            return false;
+        }
+        return self::okEdit(self::richEdit(App::tg(), $chatId, $mid, $answer, $rows));
+    }
+
+    private static function richEdit(Telegram $tg, int $chatId, int $mid, string $answer, string $rows): ?array
+    {
+        return $tg->call('editMessageText', [
+            'chat_id'      => $chatId,
+            'message_id'   => $mid,
+            'rich_message' => ['markdown' => self::body($answer, $rows)],
+        ], 10);
+    }
+
+    public static function editHtmlRich(int $chatId, int $mid, string $html): ?array
+    {
+        return App::tg()->call('editMessageText', [
+            'chat_id'      => $chatId,
+            'message_id'   => $mid,
+            'rich_message' => ['html' => '<p>' . str_replace("\n", '<br>', $html) . '</p>'],
+        ], 10);
+    }
+
+    private static function failBody(string $plain): string
+    {
+        return '<p>' . str_replace("\n", '<br>', h($plain)) . '</p>' . self::retryRows();
+    }
+
+    public static function sendFail(array $msg, string $plain, array $rec): void
+    {
+        $tg     = App::tg();
+        $chatId = (int) $msg['chat']['id'];
+        $rich   = false;
+        $r      = null;
+        if (in_array($msg['chat']['type'] ?? '', ['private', 'group', 'supergroup'], true)) {
+            $r    = $tg->call('sendRichMessage', [
+                'chat_id'          => $chatId,
+                'rich_message'     => ['html' => self::failBody($plain)],
+                'reply_parameters' => ['message_id' => $msg['message_id'], 'allow_sending_without_reply' => true],
+            ]);
+            $rich = !empty($r['ok']);
+        }
+        if (!$rich) {
+            $r = $tg->reply($msg, $plain, ['reply_markup' => self::retryKeyboard()]);
+        }
+        $mid = (int) ($r['result']['message_id'] ?? 0);
+        if ($mid > 0) {
+            self::attach($chatId, $mid, $rec + ['a' => $plain, 'f' => 1, 'rc' => $rich ? 1 : 0], false);
+        }
+    }
+
+    public static function failEdit(int $chatId, int $mid, string $plain): void
+    {
+        $tg   = App::tg();
+        $rich = self::okEdit($tg->call('editMessageText', [
+            'chat_id'      => $chatId,
+            'message_id'   => $mid,
+            'rich_message' => ['html' => self::failBody($plain)],
+        ], 10));
+        if (!$rich) {
+            $tg->editMessage($chatId, $mid, h($plain), self::retryKeyboard());
+        }
+        $key = $chatId . ':' . $mid;
+        $rec = Store::get(self::NS, $key);
+        if (is_array($rec)) {
+            $rec['rc'] = $rich ? 1 : 0;
+            Store::set(self::NS, $key, $rec);
+        }
+    }
+
+    private static function applyKb(int $chatId, int $mid, array $rec, bool $voice): void
+    {
+        $sr = !empty($rec['sr']);
+        $ns = !empty($rec['ns']);
+        if (!empty($rec['rc']) && self::editRich($chatId, $mid, (string) $rec['a'], self::rows($sr, $voice, $ns))) {
+            return;
+        }
+        self::setKeyboard($chatId, $mid, self::keyboard($sr, $voice, $ns));
     }
 
     public static function retryKeyboard(): array
@@ -50,17 +177,26 @@ final class AnswerButtons
         if ($mid <= 0 || trim((string) ($rec['a'] ?? '')) === '') {
             return;
         }
+        $fits     = mb_strlen((string) $rec['a']) <= 12000;
         $rec['a'] = mb_substr((string) $rec['a'], 0, 12000);
         $rec['q'] = mb_substr((string) ($rec['q'] ?? ''), 0, 4000);
         $rec['b'] = App::botIndex();
-        Store::set(self::NS, $chatId . ':' . $mid, $rec);
         if ($withMarkup) {
-            App::tg()->call('editMessageReplyMarkup', [
-                'chat_id'      => $chatId,
-                'message_id'   => $mid,
-                'reply_markup' => !empty($rec['f']) ? self::retryKeyboard() : self::keyboard(!empty($rec['sr']), empty($rec['vo']), !empty($rec['ns'])),
-            ], 8);
+            $rows = !empty($rec['f']) ? self::retryRows() : self::rows(!empty($rec['sr']), empty($rec['vo']), !empty($rec['ns']));
+            $rich = $rows !== '' && $fits && empty($rec['k']) && (Rich::was($chatId, $mid) || (int) ($rec['n'] ?? 1) <= 1)
+                && self::editRich($chatId, $mid, (string) $rec['a'], $rows);
+            $rec['rc'] = $rich ? 1 : 0;
+            Store::set(self::NS, $chatId . ':' . $mid, $rec);
+            if (!$rich) {
+                App::tg()->call('editMessageReplyMarkup', [
+                    'chat_id'      => $chatId,
+                    'message_id'   => $mid,
+                    'reply_markup' => !empty($rec['f']) ? self::retryKeyboard() : self::keyboard(!empty($rec['sr']), empty($rec['vo']), !empty($rec['ns'])),
+                ], 8);
+            }
+            return;
         }
+        Store::set(self::NS, $chatId . ':' . $mid, $rec);
     }
 
     public static function sweep(int $budget = 100): int
@@ -81,11 +217,17 @@ final class AnswerButtons
                 ], 5);
             } else {
                 [$chat, $mid] = array_pad(explode(':', (string) $k, 2), 2, '0');
-                $r = $tgx->call('editMessageReplyMarkup', [
-                    'chat_id'      => (int) $chat,
-                    'message_id'   => (int) $mid,
-                    'reply_markup' => ['inline_keyboard' => []],
-                ], 5);
+                $r = null;
+                if (is_array($rec) && !empty($rec['rc']) && trim((string) ($rec['a'] ?? '')) !== '') {
+                    $r = self::richEdit($tgx, (int) $chat, (int) $mid, (string) $rec['a'], '');
+                }
+                if (!is_array($r) || (empty($r['ok']) && (int) ($r['error_code'] ?? 0) !== 429 && stripos((string) ($r['description'] ?? ''), 'not modified') === false)) {
+                    $r = $tgx->call('editMessageReplyMarkup', [
+                        'chat_id'      => (int) $chat,
+                        'message_id'   => (int) $mid,
+                        'reply_markup' => ['inline_keyboard' => []],
+                    ], 5);
+                }
             }
             if ((int) ($r['error_code'] ?? 0) === 429) {
                 break;
@@ -155,12 +297,12 @@ final class AnswerButtons
                 }
                 $rec['vo'] = 1;
                 Store::set(self::NS, $key, $rec);
-                self::setKeyboard($chatId, $mid, self::keyboard(!empty($rec['sr']), false, !empty($rec['ns'])));
+                self::applyKb($chatId, $mid, $rec, false);
                 $voiced = self::voice($chatId, $mid, (string) $rec['a'], $uid);
                 if (!$voiced) {
                     $rec['vo'] = 0;
                     Store::set(self::NS, $key, $rec);
-                    self::setKeyboard($chatId, $mid, self::keyboard(!empty($rec['sr']), true, !empty($rec['ns'])));
+                    self::applyKb($chatId, $mid, $rec, true);
                 }
                 self::unlock($key, 'v');
                 $tg->answer($cq, $voiced ? null : '😕 نتونستم ویس بسازم، یه‌کم دیگه دوباره امتحان کن.');

@@ -85,6 +85,9 @@ final class MessageHandler
             ));
 
         if (!$shouldRespond) {
+            if ($group && $toolReply) {
+                logInfo('reply', 'ignored reply to non-AI bot message ' . $msg['chat']['id'] . ':' . (int) ($msg['reply_to_message']['message_id'] ?? 0));
+            }
             return;
         }
 
@@ -139,7 +142,11 @@ final class MessageHandler
     private static function isReplyToBot(array $msg): bool
     {
         $r = $msg['reply_to_message']['from'] ?? null;
-        return $r && !empty($r['is_bot']) && strcasecmp((string) ($r['username'] ?? ''), App::botUsername()) === 0;
+        if (!$r || empty($r['is_bot'])) {
+            return false;
+        }
+        $id = App::botId();
+        return ($id > 0 && (int) ($r['id'] ?? 0) === $id) || strcasecmp((string) ($r['username'] ?? ''), App::botUsername()) === 0;
     }
 
     private static function command(array $msg, string $text, bool $private): bool

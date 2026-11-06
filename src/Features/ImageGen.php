@@ -72,13 +72,9 @@ final class ImageGen
 
     private static function fail(array $msg, string $text, array $rec): void
     {
-        $r   = App::tg()->reply($msg, $text, ['reply_markup' => AnswerButtons::retryKeyboard()]);
-        $mid = (int) ($r['result']['message_id'] ?? 0);
-        if ($mid > 0) {
-            AnswerButtons::attach((int) $msg['chat']['id'], $mid, $rec + [
-                'k' => 'img', 'u' => (int) ($msg['from']['id'] ?? 0), 'a' => $text, 'o' => (int) ($msg['message_id'] ?? 0), 'f' => 1,
-            ], false);
-        }
+        AnswerButtons::sendFail($msg, $text, $rec + [
+            'k' => 'img', 'u' => (int) ($msg['from']['id'] ?? 0), 'o' => (int) ($msg['message_id'] ?? 0),
+        ]);
     }
 
     public static function retry(array $cq, array $rec): void
@@ -90,7 +86,7 @@ final class ImageGen
         $origId = (int) ($rec['o'] ?? 0) ?: $mid;
         $msg    = ['chat' => ['id' => $chatId, 'type' => (string) ($m['chat']['type'] ?? 'private')], 'message_id' => $origId];
         $live   = new LiveReply($msg, null, '', true, true);
-        $live->adopt($mid);
+        $live->adopt($mid, !empty($rec['rc']));
         $bytes = null;
         $sent  = false;
         try {
@@ -120,7 +116,7 @@ final class ImageGen
                 Store::delete('aibtn', $chatId . ':' . $mid);
             } else {
                 $text = $bytes !== null ? '😕 عکس ساخته شد ولی ارسالش به مشکل خورد؛' . "\n" . 'دوباره امتحان کن.' : self::failText();
-                $tg->editMessage($chatId, $mid, $text, AnswerButtons::retryKeyboard());
+                AnswerButtons::failEdit($chatId, $mid, $text);
             }
         }
     }
