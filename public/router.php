@@ -40,7 +40,7 @@ if ($path === '/health') {
 
 if ($path === '/') {
     header('Content-Type: text/plain; charset=utf-8');
-    echo 'Nullini is running. Open https://t.me/NulliniBot';
+    echo 'Nullini is running. Open https://t.me/NullinBot';
     return true;
 }
 

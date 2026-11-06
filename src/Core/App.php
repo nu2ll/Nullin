@@ -69,15 +69,15 @@ final class App
             return ltrim($u, '@');
         }
         $cached = Store::get('meta', $key);
-        if (!empty($cached['username'])) {
+        if (!empty($cached['username']) && time() - (int) ($cached['_at'] ?? 0) < 86400) {
             return $cached['username'];
         }
         $me = self::tg()->call('getMe');
         if (!empty($me['result']['username'])) {
-            Store::set('meta', $key, $me['result']);
+            Store::set('meta', $key, $me['result'] + ['_at' => time()]);
             return $me['result']['username'];
         }
-        return 'NulliniBot';
+        return !empty($cached['username']) ? $cached['username'] : 'NullinBot';
     }
 
     public static function ngrokUrl(): string

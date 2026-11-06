@@ -2,17 +2,35 @@
 
 final class PriceCard
 {
+    // [کلید فید، نام‌های قابل‌قبول، اسم، واحد، نماد، نوع]
+    // نوع: irr = ریال در فید (تقسیم بر ۱۰ می‌شه تومان)، usd = قیمت دلاری، mesh = مثقال (از گرم ۱۸ عیار)
     private const ASSETS = [
-        'usd'  => ['price_dollar_rl', ['دلار', 'دلار آمریکا', 'دلار امریکا', 'usd', 'dollar', '$'], 'دلار آمریکا', 'واحد', '$'],
-        'eur'  => ['price_eur', ['یورو', 'eur', 'euro'], 'یورو', 'واحد', '€'],
-        'gbp'  => ['price_gbp', ['پوند', 'پوند انگلیس', 'gbp'], 'پوند انگلیس', 'واحد', '£'],
-        'aed'  => ['price_aed', ['درهم', 'درهم امارات', 'aed'], 'درهم امارات', 'واحد', 'AED'],
-        'try'  => ['price_try', ['لیر', 'لیر ترکیه', 'try'], 'لیر ترکیه', 'واحد', '₺'],
-        'cad'  => ['price_cad', ['دلار کانادا', 'cad'], 'دلار کانادا', 'واحد', 'C$'],
-        'cny'  => ['price_cny', ['یوان', 'یوان چین', 'cny'], 'یوان چین', 'واحد', '¥'],
-        'usdt' => ['crypto-tether-irr', ['تتر', 'usdt', 'tether'], 'تتر', 'واحد', '₮'],
-        'coin' => ['sekee', ['سکه', 'سکه امامی'], 'سکه امامی', 'عدد', '◎'],
-        'gold' => ['geram18', ['طلا', 'گرم طلا', 'طلا ۱۸', 'طلای ۱۸', 'طلا 18', 'طلای 18', 'طلای18', 'طلا18'], 'طلای ۱۸ عیار', 'گرم', 'Au'],
+        'usd'  => ['price_dollar_rl', ['دلار', 'دلار آمریکا', 'دلار امریکا', 'usd', 'dollar', '$'], 'دلار آمریکا', 'واحد', '$', 'irr'],
+        'eur'  => ['price_eur', ['یورو', 'eur', 'euro'], 'یورو', 'واحد', '€', 'irr'],
+        'gbp'  => ['price_gbp', ['پوند', 'پوند انگلیس', 'gbp'], 'پوند انگلیس', 'واحد', '£', 'irr'],
+        'aed'  => ['price_aed', ['درهم', 'درهم امارات', 'aed'], 'درهم امارات', 'واحد', 'AED', 'irr'],
+        'try'  => ['price_try', ['لیر', 'لیر ترکیه', 'try'], 'لیر ترکیه', 'واحد', '₺', 'irr'],
+        'chf'  => ['price_chf', ['فرانک', 'فرانک سوئیس', 'فرانک سویس', 'chf'], 'فرانک سوئیس', 'واحد', 'CHF', 'irr'],
+        'cad'  => ['price_cad', ['دلار کانادا', 'cad'], 'دلار کانادا', 'واحد', 'C$', 'irr'],
+        'cny'  => ['price_cny', ['یوان', 'یوان چین', 'cny'], 'یوان چین', 'واحد', '¥', 'irr'],
+        'rub'  => ['price_rub', ['روبل', 'روبل روسیه', 'rub'], 'روبل روسیه', 'واحد', '₽', 'irr'],
+        'inr'  => ['price_inr', ['روپیه', 'روپیه هند', 'inr'], 'روپیه هند', 'واحد', '₹', 'irr'],
+        'iqd'  => ['price_iqd', ['دینار', 'دینار عراق', 'iqd'], 'دینار عراق', 'واحد', 'IQD', 'irr'],
+        'afn'  => ['price_afn', ['افغانی', 'afn'], 'افغانی', 'واحد', 'AFN', 'irr'],
+        'usdt' => ['crypto-tether-irr', ['تتر', 'usdt', 'tether'], 'تتر', 'واحد', '₮', 'irr'],
+        'coin' => ['sekee', ['سکه', 'سکه امامی'], 'سکه امامی', 'عدد', '◎', 'irr'],
+        'gold' => ['geram18', ['طلا', 'گرم طلا', 'طلا ۱۸', 'طلای ۱۸', 'طلا 18', 'طلای 18', 'طلای18', 'طلا18', 'گرم 18', 'گرم ۱۸'], 'طلای ۱۸ عیار', 'گرم', 'Au', 'irr'],
+        'mesh' => ['geram18', ['مثقال', 'مثقال طلا', 'مثقال ۱۸', 'مثقال 18'], 'مثقال طلا', 'عدد', 'Au', 'mesh'],
+        'ons'  => ['ons', ['انس طلا', 'انس جهانی', 'اونس', 'اونس طلا', 'ons', 'ounce'], 'انس جهانی طلا', 'واحد', 'Au', 'usd'],
+        'btc'  => ['crypto-bitcoin', ['بیت کوین', 'بیتکوین', 'btc', 'bitcoin'], 'بیت‌کوین', 'واحد', 'BTC', 'usd'],
+        'eth'  => ['crypto-ethereum', ['اتریوم', 'eth', 'ethereum'], 'اتریوم', 'واحد', 'ETH', 'usd'],
+        'bnb'  => ['crypto-binance-coin', ['بایننس', 'بایننس کوین', 'bnb', 'binance'], 'بایننس کوین', 'واحد', 'BNB', 'usd'],
+        'sol'  => ['crypto-solana', ['سولانا', 'sol', 'solana'], 'سولانا', 'واحد', 'SOL', 'usd'],
+        'ton'  => ['crypto-toncoin', ['تون کوین', 'تونکوین', 'toncoin'], 'تون‌کوین', 'واحد', 'TON', 'usd'],
+        'xrp'  => ['crypto-ripple', ['ریپل', 'xrp', 'ripple'], 'ریپل', 'واحد', 'XRP', 'usd'],
+        'trx'  => ['crypto-tron', ['ترون', 'trx', 'tron'], 'ترون', 'واحد', 'TRX', 'usd'],
+        'doge' => ['crypto-dogecoin', ['دوج', 'دوج کوین', 'دوجکوین', 'doge', 'dogecoin'], 'دوج‌کوین', 'واحد', 'DOGE', 'usd'],
+        'ltc'  => ['crypto-litecoin', ['لایت کوین', 'لایتکوین', 'ltc', 'litecoin'], 'لایت‌کوین', 'واحد', 'LTC', 'usd'],
     ];
 
     private static function norm(string $s): string
@@ -93,18 +111,23 @@ final class PriceCard
                 if ($p === null) {
                     continue;
                 }
-                $d   = self::n($row['d'] ?? null) ?? 0.0;
-                $neg = ($row['dt'] ?? '') === 'low' || str_starts_with(trim((string) ($row['dp'] ?? '')), '-');
-                $h   = self::n($row['h'] ?? null);
-                $l   = self::n($row['l'] ?? null);
+                $div  = $a[5] === 'usd' ? 1.0 : 10.0;
+                $mult = $a[5] === 'mesh' ? 4.3318 : 1.0;
+                $f    = $mult / $div;
+                $d    = self::n($row['d'] ?? null) ?? 0.0;
+                $neg  = ($row['dt'] ?? '') === 'low' || str_starts_with(trim((string) ($row['dp'] ?? '')), '-');
+                $h    = self::n($row['h'] ?? null);
+                $l    = self::n($row['l'] ?? null);
+                $dp      = self::n(str_replace(['%', '+', '-'], '', (string) ($row['dp'] ?? '')));
                 $out[$k] = [
-                    'p' => $p / 10,
-                    'h' => $h !== null ? $h / 10 : null,
-                    'l' => $l !== null ? $l / 10 : null,
-                    'd' => ($neg ? -abs($d) : abs($d)) / 10,
+                    'dp' => $dp !== null ? ($neg ? -abs($dp) : abs($dp)) : null,
+                    'p' => $p * $f,
+                    'h' => $h !== null ? $h * $f : null,
+                    'l' => $l !== null ? $l * $f : null,
+                    'd' => ($neg ? -abs($d) : abs($d)) * $f,
                     't' => (string) ($row['t'] ?? ''),
                 ];
-                self::record($k, $p / 10);
+                self::record($k, $p * $f);
             }
             return $out ?: null;
         });
@@ -115,19 +138,19 @@ final class PriceCard
         Store::update('pricehist', $k, static function ($h) use ($p) {
             $h   = is_array($h) ? $h : [];
             $now = time();
-            if ($h && $now - (int) end($h)[0] < 240) {
+            if ($h && $now - (int) end($h)[0] < 100) {
                 return null;
             }
             $h[] = [$now, $p];
             $h   = array_values(array_filter($h, static fn($r) => $now - (int) $r[0] <= 86400));
-            return array_slice($h, -400);
+            return array_slice($h, -800);
         });
     }
 
     public static function tick(): void
     {
         static $last = 0;
-        if (time() - $last < 300 || !Switches::on('rates')) {
+        if (time() - $last < 120 || !Switches::on('rates')) {
             return;
         }
         $last = time();
@@ -155,6 +178,17 @@ final class PriceCard
     private static function fmt(float $v): string
     {
         return number_format(round($v));
+    }
+
+    private static function fmtU(float $v): string
+    {
+        if (abs($v) >= 1000) {
+            return number_format(round($v));
+        }
+        if (abs($v) >= 1) {
+            return number_format($v, 2);
+        }
+        return rtrim(rtrim(number_format($v, 6, '.', ''), '0'), '.') ?: '0';
     }
 
     private static function amountText(float $a): string
@@ -205,24 +239,32 @@ final class PriceCard
             $tg->reply($msg, "⚠️ الان به منبع قیمت‌ها دسترسی ندارم؛\nچند لحظه دیگه دوباره بزن.");
             return;
         }
-        [, , $noun, $unit, $sym] = self::ASSETS[$m['asset']];
+        [, , $noun, $unit, $sym, $mode] = self::ASSETS[$m['asset']];
+        $isU    = $mode === 'usd';
+        $money  = static fn(float $v): string => $isU ? self::fmtU($v) : self::fmt($v);
+        $cur    = $isU ? 'دلار' : 'تومان';
+        $where  = $isU ? 'بازار جهانی' : 'تهران';
         $amount = (float) $m['amount'];
         $amt    = self::amountText($amount);
         $total  = $q['p'] * $amount;
         $time   = preg_match('/^\d{1,2}:\d{2}(?::\d{2})?$/', $q['t']) === 1 ? $q['t'] : date('H:i:s');
         $title  = "ارزش {$amt} {$unit} {$noun}";
-        $pct    = ($q['p'] - $q['d']) > 0 ? $q['d'] / ($q['p'] - $q['d']) * 100 : 0.0;
+        $pct    = $q['dp'] ?? (($q['p'] - $q['d']) > 0 ? $q['d'] / ($q['p'] - $q['d']) * 100 : 0.0);
+        $usdQ   = $isU ? ((self::quotes() ?? [])['usd']['p'] ?? null) : null;
 
         $l   = [];
-        $l[] = '💵 ' . h(fa($title)) . ' (تهران)';
+        $l[] = '💵 ' . h(fa($title)) . " ({$where})";
         $l[] = '';
-        $l[] = '💰 <b>' . fa(self::fmt($total)) . ' تومان</b>';
+        $l[] = '💰 <b>' . fa($money($total)) . " {$cur}</b>";
+        if ($usdQ !== null) {
+            $l[] = '🇮🇷 معادل: ' . fa(self::fmt($total * $usdQ)) . ' تومان';
+        }
         if ($amount != 1.0) {
-            $l[] = '🏷 هر واحد: ' . fa(self::fmt($q['p'])) . ' تومان';
+            $l[] = '🏷 هر واحد: ' . fa($money($q['p'])) . " {$cur}";
         }
         if ($q['h'] !== null && $q['l'] !== null) {
             $l[] = '';
-            $l[] = '🟢 سقف: ' . fa(self::fmt($q['h'])) . '   🔴 کف: ' . fa(self::fmt($q['l']));
+            $l[] = '🟢 سقف: ' . fa($money($q['h'])) . '   🔴 کف: ' . fa($money($q['l']));
         }
         $l[] = '⌚ ساعت: ' . fa($time);
         $caption = '<blockquote>' . implode("\n", $l) . '</blockquote>';
@@ -230,19 +272,21 @@ final class PriceCard
         $row = [];
         if ($q['h'] !== null && $q['l'] !== null) {
             $row = [
-                copyBtn('🟢 سقف: ' . fa(self::fmt($q['h'])), self::fmt($q['h']), 'success'),
-                copyBtn('🔴 کف: ' . fa(self::fmt($q['l'])), self::fmt($q['l']), 'danger'),
+                copyBtn('🟢 سقف: ' . fa($money($q['h'])), $money($q['h']), 'success'),
+                copyBtn('🔴 کف: ' . fa($money($q['l'])), $money($q['l']), 'danger'),
             ];
         }
-        $kb = ikb([$row, [copyBtn('💰 کپی کل: ' . fa(self::fmt($total)) . ' تومان', self::fmt($total), 'primary')]]);
+        $kb = ikb([$row, [copyBtn('💰 کپی کل: ' . fa($money($total)) . " {$cur}", $money($total), 'primary')]]);
 
         $png = self::render([
-            'title'  => fa($title) . ' — تهران',
-            'unit'   => 'تومان',
-            'value'  => self::fmt($total),
+            'title'  => fa($title) . " — {$where}",
+            'unit'   => $cur,
+            'value'  => $money($total),
             'pct'    => round($pct, 2),
             'points' => array_map(static fn($v) => $v * $amount, self::points($m['asset'], $q)),
+            'dec'    => $isU ? (abs($total) >= 1000 ? 0 : (abs($total) >= 1 ? 2 : 5)) : 0,
             'sym'    => $sym,
+            'tag'    => $isU ? 'USD' : 'IRT',
             'footer' => '@' . App::botUsername(),
         ]);
         if ($png !== null && $tg->sendPhotoCard($chatId, $png, $caption, (int) $msg['message_id'], $kb) !== null) {

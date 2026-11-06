@@ -19,7 +19,7 @@ final class Wiki
                 'action' => 'query', 'format' => 'json', 'formatversion' => 2, 'redirects' => 1, 'generator' => 'search', 'gsrsearch' => $q, 'gsrlimit' => $limit,
                 'prop' => 'extracts|pageimages|info|description', 'exintro' => 1, 'explaintext' => 1, 'exchars' => 1200, 'exlimit' => 'max',
                 'piprop' => 'thumbnail', 'pithumbsize' => 500, 'inprop' => 'url',
-            ]), ['User-Agent: NulliniBot/3.0 (https://t.me/NulliniBot)'], 8);
+            ]), ['User-Agent: NulliniBot/3.0 (https://t.me/NullinBot)'], 8);
             if (!is_array($j)) {
                 return null;
             }

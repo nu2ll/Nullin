@@ -71,7 +71,7 @@ final class MessageHandler
         if ($text !== '' && empty($msg['is_automatic_forward']) && Switches::on('rates')) {
             $pq    = preg_replace('/@' . preg_quote(App::botUsername(), '/') . '\b/iu', '', $text) ?? $text;
             $pq    = preg_replace('/^' . self::TRIGGER . '[\s،,:]*/iu', '', mbTrim($pq)) ?? $pq;
-            $price = PriceCard::match($pq, $private || $mentioned || $startsWithName);
+            $price = PriceCard::match($pq, true);
         }
         $shouldRespond  = $link !== null
             || $price !== null
