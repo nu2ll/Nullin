@@ -396,11 +396,6 @@ final class Assistant
         return $lastId;
     }
 
-    public static function holdDots(int $chatId, int $userId, int $draftId = 0): void
-    {
-        Store::set('rl', 'ai_' . $userId, time());
-    }
-
     public static function handle(array $msg, string $question): void
     {
         if (!Switches::on('ai')) {
@@ -576,7 +571,7 @@ final class Assistant
         }
 
         if ($res['answer'] !== null && !$service && $chatType === 'private' && !App::isAdmin($userId)) {
-            self::holdDots($chatId, $userId, (int) $live?->draftId());
+            Store::set('rl', 'ai_' . $userId, time());
         }
     }
 

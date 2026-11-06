@@ -13,8 +13,6 @@ final class LiveReply
     private int $lastTyping = 0;
     private bool $draft   = false;
     private int $draftId  = 0;
-    private bool $canStop = true;
-    private int $genSaved = 0;
 
     public function __construct(private array $msg, private ?string $imid = null, private string $head = '', private bool $reaction = true, private bool $status = false)
     {
@@ -27,6 +25,14 @@ final class LiveReply
         }
         $tg = App::tg();
         $cid = $this->msg['chat']['id'];
+
+        if (($this->msg['chat']['type'] ?? '') === 'private') {
+            $this->draftId = mt_rand(1, 2147483646);
+            if ($this->sendDraft(self::frame(1))) {
+                $this->draft = true;
+                return;
+            }
+        }
 
         $this->typing();
         $r = $tg->reply($this->msg, self::frame(1));
@@ -44,63 +50,8 @@ final class LiveReply
             'text'       => $html,
             'parse_mode' => 'HTML',
         ];
-        if ($this->canStop) {
-            $p['can_stop'] = true;
-        }
         $r = App::tg()->call('sendMessageDraft', $p, 8);
-        if (empty($r['ok']) && $this->canStop && !$this->draft) {
-            $this->canStop = false;
-            unset($p['can_stop']);
-            $r = App::tg()->call('sendMessageDraft', $p, 8);
-        }
         return !empty($r['ok']);
-    }
-
-    private static function genFile(int|string $chatId): string
-    {
-        return sys_get_temp_dir() . '/nullini_gen_' . $chatId . '.json';
-    }
-
-    private function saveGen(string $text, bool $force = false): void
-    {
-        if (!$force && time() - $this->genSaved < 1) {
-            return;
-        }
-        $this->genSaved = time();
-        @file_put_contents(self::genFile($this->msg['chat']['id']), json_encode(['pid' => getmypid(), 'draft' => $this->draftId, 'text' => $text], JSON_UNESCAPED_UNICODE));
-    }
-
-    private function clearGen(): void
-    {
-        if ($this->draft) {
-            @unlink(self::genFile($this->msg['chat']['id']));
-        }
-    }
-
-    public static function onStop(array $s): void
-    {
-        $cid = $s['chat']['id'] ?? $s['chat_id'] ?? $s['from']['id'] ?? null;
-        if (!$cid) {
-            return;
-        }
-        $f = self::genFile($cid);
-        $d = is_file($f) && time() - (int) @filemtime($f) < 120 ? json_decode((string) @file_get_contents($f), true) : null;
-        if (!is_array($d)) {
-            return;
-        }
-        if (isset($s['draft_id']) && (int) $s['draft_id'] !== (int) ($d['draft'] ?? 0)) {
-            return;
-        }
-        @unlink($f);
-        $pid = (int) ($d['pid'] ?? 0);
-        if ($pid > 1 && $pid !== getmypid() && function_exists('posix_kill')) {
-            @posix_kill($pid, 9);
-        }
-        $text = trim((string) ($d['text'] ?? ''));
-        App::tg()->send($cid, $text !== '' ? AI::toHtml(mb_substr($text, 0, 3900)) : '⛔ متوقف شد.');
-        if (($s['chat']['type'] ?? 'private') === 'private' && !App::isAdmin((int) $cid)) {
-            Assistant::holdDots((int) $cid, (int) $cid, (int) ($d['draft'] ?? 0));
-        }
     }
 
     private static function frame(int $n): string
@@ -138,7 +89,6 @@ final class LiveReply
     {
         if ($this->draft) {
             $ok = $this->sync($answer, true);
-            $this->clearGen();
             if ($ok) {
                 return true;
             }
@@ -185,7 +135,6 @@ final class LiveReply
 
     public function discard(): void
     {
-        $this->clearGen();
         foreach ($this->ids as $id) {
             App::tg()->call('deleteMessage', ['chat_id' => $this->msg['chat']['id'], 'message_id' => $id], 8);
         }
@@ -260,7 +209,6 @@ final class LiveReply
             if (substr_count($text, '```') % 2 === 1) {
                 $text .= "\n```";
             }
-            $this->saveGen($text);
             $this->sendDraft(AI::toHtml($text) . ' ▍');
             return;
         }

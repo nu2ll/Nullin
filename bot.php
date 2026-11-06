@@ -13,7 +13,7 @@ ini_set('memory_limit', '256M');
 define('PID_FILE', NULLINI_DATA . '/bot.pid');
 define('LOCK_FILE', NULLINI_DATA . '/bot.lock');
 define('CHILD_LIMIT', 120);
-define('ALLOWED_UPDATES', ['message', 'inline_query', 'chosen_inline_result', 'callback_query', 'my_chat_member', 'guest_message', 'business_connection', 'business_message', 'edited_business_message', 'deleted_business_messages', 'stopped_message_generation']);
+define('ALLOWED_UPDATES', ['message', 'inline_query', 'chosen_inline_result', 'callback_query', 'my_chat_member', 'guest_message', 'business_connection', 'business_message', 'edited_business_message', 'deleted_business_messages']);
 
 function out(string $line, string $tag = 'boot'): void
 {
