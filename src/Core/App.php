@@ -61,12 +61,6 @@ final class App
         Db::disconnect();
     }
 
-    public static function botId(): int
-    {
-        $token = self::tokens()[self::$bot] ?? (string) self::cfg('bot_token', '');
-        return (int) explode(':', (string) $token)[0];
-    }
-
     public static function botUsername(): string
     {
         $u   = (string) (((array) self::cfg('bot_usernames', []))[self::$bot] ?? '');
