@@ -18,7 +18,17 @@ final class Store {
     public static function update($namespace, $key, $fn): void { self::$writes++; $fn(null); }
 }
 final class Users { public static function hit(...$args): void {} }
-final class LiveReply { public function __construct(...$args) { throw new RuntimeException('Streaming must not start for web or embedded tools'); } }
+final class LiveReply
+{
+    public function __construct(...$args) { throw new RuntimeException('Streaming must not start for web or embedded tools'); }
+    public static function typingOnly(array $msg): self { return (new ReflectionClass(self::class))->newInstanceWithoutConstructor(); }
+    public function start(): void {}
+    public function stop(): void {}
+    public function discard(): void {}
+    public function finish(string $answer): bool { return false; }
+    public function feed(string $s): void {}
+    public function ids(): array { return []; }
+}
 final class Intent {
     public static array $ran = [];
     public static function decide(...$args) { return null; }

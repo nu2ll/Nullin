@@ -21,9 +21,17 @@ final class LiveReply
     private bool $armed   = false;
     private bool $adopted = false;
     private bool $inTick  = false;
+    private bool $typingOnly = false;
 
     public function __construct(private array $msg, private ?string $imid = null, private string $head = '', private bool $reaction = true, private bool $status = false, private bool $hold = false)
     {
+    }
+
+    public static function typingOnly(array $msg): self
+    {
+        $l             = new self($msg, null, '', false, true);
+        $l->typingOnly = true;
+        return $l;
     }
 
     public function watch(bool $now = false): void
@@ -72,6 +80,16 @@ final class LiveReply
         if (!$this->armed || $this->inTick || $this->mode === 'live') {
             return;
         }
+        if ($this->typingOnly) {
+            $this->inTick = true;
+            try {
+                $this->typing();
+            } catch (Throwable) {
+            } finally {
+                $this->inTick = false;
+            }
+            return;
+        }
         $n    = (int) floor(microtime(true) - $this->t0);
         if ($n < $this->shown + 1) {
             return;
@@ -100,6 +118,11 @@ final class LiveReply
     public function start(): void
     {
         if (!$this->status || $this->imid !== null || $this->ids !== [] || $this->draft) {
+            return;
+        }
+        if ($this->typingOnly) {
+            $this->typing();
+            $this->arm();
             return;
         }
         $tg = App::tg();
@@ -185,7 +208,7 @@ final class LiveReply
 
     public function feed(string $raw): void
     {
-        if ($this->mode === 'silent') {
+        if ($this->typingOnly || $this->mode === 'silent') {
             return;
         }
         $this->typing();
@@ -208,6 +231,9 @@ final class LiveReply
     public function finish(string $answer): bool
     {
         $this->disarm();
+        if ($this->typingOnly) {
+            return false;
+        }
         if ($this->draft) {
             $this->waitDraft(0, $this->frame(0));
             $ok = $this->sync($answer, true);

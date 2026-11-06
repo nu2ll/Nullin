@@ -501,9 +501,9 @@ final class Assistant
 
         $history = $service ? [] : self::history($chatId, $userId);
         $voiceIn = isset($msg['voice']) && !$service;
-        $live    = App::cfg('ai_stream', true) ? new LiveReply($msg, null, '', true, true, $voiceIn) : null;
-        $live?->start();
-        $opt     = ['max_len' => PHP_INT_MAX] + ($live ? ['on_text' => $live->feed(...)] : []);
+        $live    = LiveReply::typingOnly($msg);
+        $live->start();
+        $opt     = ['max_len' => PHP_INT_MAX];
         $res     = AI::reply($content, $ctx, $history, $opt);
         if (!$voiceIn) {
             $live?->stop();
@@ -629,7 +629,7 @@ final class Assistant
         $history = $service ? [] : self::history($chatId, $uid);
         $live    = new LiveReply($origMsg, null, '', true, true, $voiceIn);
         $live->adopt($mid);
-        $opt     = ['max_len' => PHP_INT_MAX] + (App::cfg('ai_stream', true) ? ['on_text' => $live->feed(...)] : []);
+        $opt     = ['max_len' => PHP_INT_MAX];
 
         $settled = false;
         try {
@@ -789,7 +789,6 @@ final class Assistant
             $searched = AI::$searched;
             $answer = !empty($res['image']) || !empty($res['image_partial']) ? null : ($res['answer'] ?? null);
             if ($answer === null) {
-                $tg->reply(['chat' => ['id' => $chatId], 'message_id' => $mid], AI::FAIL_TEXT);
                 return;
             }
 
@@ -833,6 +832,7 @@ final class Assistant
             if (!$done) {
                 $tg->call('editMessageReplyMarkup', ['chat_id' => $chatId, 'message_id' => $mid, 'reply_markup' => $restore], 8);
             }
+            $tg->answer($cq, $done ? null : AI::FAIL_TEXT);
         }
     }
 

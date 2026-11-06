@@ -106,6 +106,7 @@ final class ImageGen
 final class LiveReply
 {
     public const DRAWING = 'drawing';
+    public const THINKING = 'thinking';
     public static int $instances = 0;
     public function __construct(...$args) { self::$instances++; }
     public function feed(string $s): void {}

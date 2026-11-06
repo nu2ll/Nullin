@@ -118,8 +118,14 @@ final class AnswerButtons
         $key    = $chatId . ':' . $mid;
         $rec    = Store::getToday(self::NS, $key);
 
-        $tg->answer($cq);
+        $late = $act === 'v' || $act === 's';
+        if (!$late) {
+            $tg->answer($cq);
+        }
         if (!is_array($rec) || trim((string) ($rec['a'] ?? '')) === '') {
+            if ($late) {
+                $tg->answer($cq);
+            }
             $tg->call('editMessageReplyMarkup', ['chat_id' => $chatId, 'message_id' => $mid, 'reply_markup' => ['inline_keyboard' => []]], 8);
             return;
         }
@@ -144,22 +150,26 @@ final class AnswerButtons
             case 'v':
                 $owner = (int) ($rec['u'] ?? 0);
                 if (($owner !== 0 && $owner !== $uid) || !empty($rec['vo']) || !self::lock($key, 'v')) {
+                    $tg->answer($cq);
                     return;
                 }
                 $rec['vo'] = 1;
                 Store::set(self::NS, $key, $rec);
                 self::setKeyboard($chatId, $mid, self::keyboard(!empty($rec['sr']), false, !empty($rec['ns'])));
-                if (!self::voice($chatId, $mid, (string) $rec['a'], $uid)) {
+                $voiced = self::voice($chatId, $mid, (string) $rec['a'], $uid);
+                if (!$voiced) {
                     $rec['vo'] = 0;
                     Store::set(self::NS, $key, $rec);
                     self::setKeyboard($chatId, $mid, self::keyboard(!empty($rec['sr']), true, !empty($rec['ns'])));
                 }
                 self::unlock($key, 'v');
+                $tg->answer($cq, $voiced ? null : '😕 نتونستم ویس بسازم، یه‌کم دیگه دوباره امتحان کن.');
                 return;
 
             case 's':
                 $owner = (int) ($rec['u'] ?? 0);
                 if (($owner !== 0 && $owner !== $uid) || !empty($rec['ns']) || !WebSearch::available() || !empty($rec['sr']) || !self::lock($key, 's')) {
+                    $tg->answer($cq);
                     return;
                 }
                 try {
@@ -300,9 +310,6 @@ final class AnswerButtons
         $tg->action($chatId, 'record_voice');
         $file = AI::speak(mb_substr(self::plain($answer), 0, self::VOICE_MAX), null, 'ogg', VoicePick::get($uid));
         if ($file === null) {
-            $tg->send($chatId, '😕 نتونستم ویس بسازم، یه‌کم دیگه دوباره امتحان کن.', [
-                'reply_parameters' => ['message_id' => $mid, 'allow_sending_without_reply' => true],
-            ]);
             return false;
         }
         $r = $tg->call('sendVoice', [

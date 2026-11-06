@@ -47,7 +47,7 @@ final class GuestHandler
         }
 
         $voiceIn = isset($msg['voice']);
-        $imid    = $voiceIn ? null : self::send($qid, '🧠 نالینی داره فکر می‌کنه...');
+        $imid    = $voiceIn ? null : self::send($qid, LiveReply::THINKING . "\n\u{061C}0s");
 
         $parts = [];
         $notes = [];
@@ -114,7 +114,7 @@ final class GuestHandler
         }
 
         if (!empty($res['image'])) {
-            $imid ??= self::send($qid, '🧠 نالینی داره فکر می‌کنه...');
+            $imid ??= self::send($qid, LiveReply::THINKING . "\n\u{061C}0s");
             self::image($imid, $qid, (string) $res['image'], (int) ($from['id'] ?? 0));
             return;
         }
