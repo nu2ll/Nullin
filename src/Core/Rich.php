@@ -33,7 +33,7 @@ final class Rich
         }
         $o = '';
         foreach ($bits as $i => $b) {
-            $o .= $i % 2 === 1 ? $b : (preg_replace('/([\\\\`*_~#|<>\[\]()$^&])/u', '\\\\$1', $b) ?? $b);
+            $o .= $i % 2 === 1 ? $b : (preg_replace('/([\\\\<$])/u', '\\\\$1', $b) ?? $b);
         }
         return self::breaks($o);
     }
@@ -45,7 +45,7 @@ final class Rich
         for ($i = 0; $i < $n - 1; $i++) {
             $cur  = rtrim($lines[$i]);
             $next = ltrim($lines[$i + 1]);
-            if ($cur === '' || $next === '' || preg_match('/^(?:[-+*]|\d+[.)])\s/u', $next) === 1 || preg_match('/^(?:[-*_]\s*){3,}$/', $next) === 1) {
+            if ($cur === '' || $next === '' || preg_match('/^\s*(?:#{1,6}\s|\||>)/u', $cur) === 1 || preg_match('/^(?:#{1,6}\s|\||>)/u', $next) === 1 || preg_match('/^(?:[-+*]|\d+[.)])\s/u', $next) === 1 || preg_match('/^(?:[-*_]\s*){3,}$/', $next) === 1) {
                 continue;
             }
             $lines[$i] = $cur . '\\';

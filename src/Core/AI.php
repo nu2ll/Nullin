@@ -693,7 +693,6 @@ final class AI
         $l[] = "تو «نالینی» (Nullini)، دستیار هوشمند، باحال و خودمونی داخل تلگرام ({$bot}) هستی و سازنده‌ت «{$creator}» است. هیچ‌وقت نگو مدل زبانیِ شرکت دیگه‌ای هستی.";
         $l[] = "الان {$date} به وقت ایرانه.";
         $l[] = 'به زبان خود کاربر جواب بده (پیش‌فرض فارسی محاوره‌ای)؛ کوتاه و مفید، مگر توضیح کامل خواسته بشه. دقیق و صادق باش؛ اگه مطمئن نیستی بگو و از خودت اطلاعات نساز. برای سؤال فنی، ریاضی، برنامه‌نویسی و استدلالی قدم‌به‌قدم و درست فکر کن ولی فقط نتیجه‌ی تمیز رو بنویس؛ کد رو کامل و درست بنویس.';
-        $l[] = 'فرمت: متن ساده‌ی تلگرام، بدون ** یا # یا جدول مارک‌داون؛ برای لیست «-» یا ایموجی اول خط؛ کد داخل ```.';
         $l[] = 'پیام‌های قبلی فقط زمینه‌ان؛ فقط به آخرین پیام کاربر جواب بده مگه خودش به قبلی‌ها اشاره کنه. سؤال اضافه نپرس؛ اگه مبهم بود بهترین برداشت رو بکن.';
         $cu = (string) App::cfg('creator_username', '');
         $ch = (string) App::cfg('channel_url', '');
@@ -943,9 +942,93 @@ final class AI
         }
         $out = '';
         foreach ($parts as $i => $part) {
-            $out .= $i % 2 === 1 ? '<pre>' . h(rtrim($part)) . '</pre>' : (preg_replace('/\[([^\]\n]{1,100})\]\((https?:\/\/[^)\s]+)\)/u', '<a href="$2">$1</a>', h($part)) ?? h($part));
+            $out .= $i % 2 === 1 ? '<pre>' . h(rtrim($part)) . '</pre>' : self::inlineHtml($part);
         }
-        return preg_replace('/`([^`\n]{1,200})`/u', '<code>$1</code>', $out) ?? $out;
+        return $out;
+    }
+
+    private static function inlineHtml(string $s): string
+    {
+        $bits = preg_split('/(`[^`\n]{1,200}`)/u', $s, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if ($bits === false) {
+            return h($s);
+        }
+        $plain = '';
+        $codes = [];
+        foreach ($bits as $i => $b) {
+            if ($i % 2 === 1) {
+                $codes[] = '<code>' . h(substr($b, 1, -1)) . '</code>';
+                $plain  .= "\u{E000}" . (count($codes) - 1) . "\u{E001}";
+            } else {
+                $plain .= $b;
+            }
+        }
+        $html = self::mdLines(h($plain));
+        foreach ($codes as $n => $c) {
+            $html = str_replace("\u{E000}" . $n . "\u{E001}", $c, $html);
+        }
+        return $html;
+    }
+
+    private static function mdLines(string $t): string
+    {
+        $lines = explode("\n", $t);
+        $n     = count($lines);
+        $o     = [];
+        for ($i = 0; $i < $n; $i++) {
+            $l = $lines[$i];
+            if (preg_match('/^\s*\|.*\|\s*$/u', $l) === 1) {
+                $rows = [];
+                while ($i < $n && preg_match('/^\s*\|.*\|\s*$/u', $lines[$i]) === 1) {
+                    $rows[] = $lines[$i];
+                    $i++;
+                }
+                $i--;
+                $o[] = self::mdTable($rows);
+                continue;
+            }
+            if (preg_match('/^\s*([-*_])(?:\s*\1){2,}\s*$/u', $l) === 1) {
+                continue;
+            }
+            if (preg_match('/^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/u', $l, $m) === 1) {
+                $o[] = '<b>' . str_replace(['**', '__'], '', $m[1]) . '</b>';
+                continue;
+            }
+            if (preg_match('/^\s*&gt;\s?(.*)$/u', $l, $m) === 1) {
+                $q = [$m[1]];
+                while ($i + 1 < $n && preg_match('/^\s*&gt;\s?(.*)$/u', $lines[$i + 1], $m2) === 1) {
+                    $q[] = $m2[1];
+                    $i++;
+                }
+                $o[] = '<blockquote>' . implode("\n", $q) . '</blockquote>';
+                continue;
+            }
+            $o[] = preg_replace('/^(\s*)[*+]\s+/u', '$1• ', $l) ?? $l;
+        }
+        $t = implode("\n", $o);
+        $t = preg_replace('/\*\*(?=\S)(.+?)(?<=\S)\*\*/u', '<b>$1</b>', $t) ?? $t;
+        $t = preg_replace('/(?<!\w)__(?=\S)(.+?)(?<=\S)__(?!\w)/u', '<b>$1</b>', $t) ?? $t;
+        $t = preg_replace('/~~(?=\S)(.+?)(?<=\S)~~/u', '<s>$1</s>', $t) ?? $t;
+        $t = preg_replace('/(?<![\w*])\*(?=[^\s*])(.+?)(?<=[^\s*])\*(?![\w*])/u', '<i>$1</i>', $t) ?? $t;
+        return preg_replace('/\[([^\]\n]{1,100})\]\((https?:\/\/[^)\s]+)\)/u', '<a href="$2">$1</a>', $t) ?? $t;
+    }
+
+    private static function mdTable(array $rows): string
+    {
+        $data = [];
+        foreach ($rows as $r) {
+            $cells = array_map('trim', explode('|', trim(trim($r), '|')));
+            if (array_filter($cells, static fn ($c) => preg_match('/^:?-+:?$/', $c) !== 1) === []) {
+                continue;
+            }
+            $data[] = $cells;
+        }
+        $out = [];
+        foreach ($data as $k => $cells) {
+            $line  = implode(' | ', $cells);
+            $out[] = $k === 0 && count($data) > 1 ? '<b>' . str_replace(['**', '__'], '', $line) . '</b>' : $line;
+        }
+        return implode("\n", $out);
     }
 
     public static function translate(string $text, string $target = 'auto', ?float $deadline = null): ?string

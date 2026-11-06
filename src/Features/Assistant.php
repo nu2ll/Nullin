@@ -382,11 +382,11 @@ final class Assistant
     {
         $tg     = App::tg();
         $lastId = 0;
-        $chunks = AI::chunks($answer);
-        if (count($chunks) === 1 && ($rid = Rich::reply($msg, $chunks[0])) !== null) {
+        if (($rid = Rich::reply($msg, $answer)) !== null) {
             AI::markMsg($msg['chat']['id'], $rid);
             return $rid;
         }
+        $chunks = AI::chunks($answer);
         foreach ($chunks as $part) {
             $r = $tg->reply($msg, AI::toHtml($part));
             if (empty($r['ok'])) {

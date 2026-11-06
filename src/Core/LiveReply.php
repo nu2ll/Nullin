@@ -19,6 +19,7 @@ final class LiveReply
     private float $t0     = 0.0;
     private int $shown    = 0;
     private bool $armed   = false;
+    private bool $adopted = false;
     private bool $inTick  = false;
 
     public function __construct(private array $msg, private ?string $imid = null, private string $head = '', private bool $reaction = true, private bool $status = false, private bool $hold = false)
@@ -38,6 +39,7 @@ final class LiveReply
 
     public function adopt(int $mid): void
     {
+        $this->adopted = true;
         $this->ids[0] = $mid;
         App::tg()->editMessage($this->msg['chat']['id'], $mid, $this->frame(0));
         $this->arm();
@@ -370,8 +372,12 @@ final class LiveReply
         $parts = AI::chunks($text);
         $last  = count($parts) - 1;
 
-        if ($final && $last === 0 && !isset($this->ids[0]) && ($rid = Rich::reply($this->msg, $parts[0])) !== null) {
-            $this->ids[0] = $rid;
+        if ($final && !$this->adopted && ($rid = Rich::reply($this->msg, substr_count($text, '```') % 2 === 1 ? $text . "\n```" : $text)) !== null) {
+            foreach ($this->ids as $old) {
+                $tg->call('deleteMessage', ['chat_id' => $this->msg['chat']['id'], 'message_id' => $old], 8);
+            }
+            $this->ids  = [0 => $rid];
+            $this->sent = [];
             return true;
         }
 
