@@ -110,7 +110,7 @@ final class MessageHandler
         }
 
         if (is_array($msg['dice'] ?? null)) {
-            App::tg()->reply($msg, Ui::diceHello((string) ($msg['dice']['emoji'] ?? '🎲'), (int) ($msg['dice']['value'] ?? 0)), ['reply_markup' => ikb([[btn('Nullini', 'noop', null)]])]);
+            Rich::replyWithButton($msg, Ui::diceHello((string) ($msg['dice']['emoji'] ?? '🎲'), (int) ($msg['dice']['value'] ?? 0)), 'Nullin', 'noop', null);
             return;
         }
 
@@ -208,7 +208,7 @@ final class MessageHandler
             case 'ping':
                 $t0 = microtime(true);
                 $tg->call('getMe', [], 10);
-                $tg->reply($msg, Ui::ping((int) round((microtime(true) - $t0) * 1000)), ['reply_markup' => ikb([[btn('Nullini', 'noop', null)]])]);
+                Rich::replyWithButton($msg, Ui::ping((int) round((microtime(true) - $t0) * 1000)), 'Nullin', 'noop', null);
                 return true;
 
             case 'help':

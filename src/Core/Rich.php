@@ -27,6 +27,19 @@ final class Rich
         return $id > 0 ? $id : null;
     }
 
+    public static function replyWithButton(array $msg, string $text, string $label = 'Nullin', string $data = 'noop', ?string $style = null): ?int
+    {
+        $btn = '<tg-button-row><tg-button type="callback_data"' . ($style !== null ? ' style="' . $style . '"' : '') . ' data="' . h($data) . '">' . h($label) . '</tg-button></tg-button-row>';
+        $r   = App::tg()->replyRich($msg, self::markdown($text) . "\n\n" . $btn);
+        $id  = empty($r['ok']) ? 0 : (int) ($r['result']['message_id'] ?? 0);
+        if ($id > 0) {
+            self::mark((int) $msg['chat']['id'], $id);
+            return $id;
+        }
+        App::tg()->reply($msg, $text);
+        return null;
+    }
+
     public static function markdown(string $text): string
     {
         $parts = preg_split('/(```.*?```)/su', $text, -1, PREG_SPLIT_DELIM_CAPTURE);

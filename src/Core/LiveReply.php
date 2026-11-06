@@ -206,7 +206,7 @@ final class LiveReply
     private function frame(int $n): string
     {
         $label = $this->head !== '' ? $this->head . self::WAIT_TEXT : self::THINKING;
-        return $label . "\n\u{061C}" . $n . 's';
+        return $label . " \u{061C}" . $n . 's';
     }
 
     private function typing(): void
