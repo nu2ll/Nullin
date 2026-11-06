@@ -4,13 +4,83 @@ final class LiveReply
 {
     public const DRAWING = '🎨 دارم می‌کشمش، چند لحظه صبر کن...';
 
+    private const STEPS = ['session initialized', 'context loaded', 'runtime prepared', 'processing request'];
+    private const STEP_DELAY_US = 300000;
+
     private array $ids    = [];
     private array $sent   = [];
     private string $mode  = 'wait';
     private int $lastLen  = 0;
+    private int $lastTyping = 0;
+    private bool $draft   = false;
+    private int $draftId  = 0;
 
-    public function __construct(private array $msg, private ?string $imid = null, private string $head = '', private bool $reaction = true)
+    public function __construct(private array $msg, private ?string $imid = null, private string $head = '', private bool $reaction = true, private bool $status = false)
     {
+    }
+
+    public function start(): void
+    {
+        if (!$this->status || $this->imid !== null || $this->ids !== [] || $this->draft) {
+            return;
+        }
+        $tg = App::tg();
+        $cid = $this->msg['chat']['id'];
+
+        if (($this->msg['chat']['type'] ?? '') === 'private') {
+            $this->draftId = mt_rand(1, 2147483646);
+            if ($this->sendDraft(self::frame(1))) {
+                $this->draft = true;
+                for ($i = 2; $i <= count(self::STEPS); $i++) {
+                    usleep(self::STEP_DELAY_US);
+                    $this->sendDraft(self::frame($i));
+                }
+                return;
+            }
+        }
+
+        $this->typing();
+        $r = $tg->reply($this->msg, self::frame(1));
+        if (empty($r['ok']) || !isset($r['result']['message_id'])) {
+            return;
+        }
+        $this->ids[0] = (int) $r['result']['message_id'];
+        for ($i = 2; $i <= count(self::STEPS); $i++) {
+            usleep(self::STEP_DELAY_US);
+            $this->typing();
+            $tg->editMessage($cid, $this->ids[0], self::frame($i));
+        }
+    }
+
+    private function sendDraft(string $html): bool
+    {
+        $r = App::tg()->call('sendMessageDraft', [
+            'chat_id'    => $this->msg['chat']['id'],
+            'draft_id'   => $this->draftId,
+            'text'       => $html,
+            'parse_mode' => 'HTML',
+        ], 8);
+        return !empty($r['ok']);
+    }
+
+    private static function frame(int $n): string
+    {
+        $lines = [];
+        foreach (self::STEPS as $i => $label) {
+            if ($i + 1 > $n) {
+                break;
+            }
+            $lines[] = '<code>' . $label . ' ' . ($i + 1 < $n ? '[+]' : '[>]') . '</code>';
+        }
+        return '⚡ <b>در حال پردازش...</b>' . "\n" . implode("\n", $lines);
+    }
+
+    private function typing(): void
+    {
+        if ($this->status && !$this->draft && time() - $this->lastTyping >= 4) {
+            $this->lastTyping = time();
+            App::tg()->action($this->msg['chat']['id'], 'typing');
+        }
     }
 
     public function feed(string $raw): void
@@ -18,6 +88,7 @@ final class LiveReply
         if ($this->mode === 'silent') {
             return;
         }
+        $this->typing();
         $body = $this->body($raw, false);
         if ($body === false) {
             $this->mode = 'silent';
@@ -32,6 +103,13 @@ final class LiveReply
 
     public function finish(string $answer): bool
     {
+        if ($this->draft) {
+            if ($this->sync($answer, true)) {
+                return true;
+            }
+            $this->discard();
+            return false;
+        }
         if ($this->ids === []) {
             return false;
         }
@@ -133,6 +211,17 @@ final class LiveReply
             return;
         }
         $this->lastLen = $len;
+
+        if ($this->draft) {
+            if ($len > 3500) {
+                $text = mb_substr($text, -3500);
+            }
+            if (substr_count($text, '```') % 2 === 1) {
+                $text .= "\n```";
+            }
+            $this->sendDraft(AI::toHtml($text) . ' ▍');
+            return;
+        }
 
         if ($chunked) {
             $this->sync($text, false);

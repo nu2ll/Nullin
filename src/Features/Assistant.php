@@ -409,7 +409,9 @@ final class Assistant
         $service  = AI::isServiceSender($from, $msg['sender_chat'] ?? null);
 
         if (!$service && AI::busy($userId)) {
-            $tg->reply($msg, AI::BUSY_TEXT);
+            if ($chatType !== 'private') {
+                $tg->reply($msg, AI::BUSY_TEXT);
+            }
             return;
         }
 
@@ -493,7 +495,8 @@ final class Assistant
 
         $history = $service ? [] : self::history($chatId, $userId);
         $voiceIn = isset($msg['voice']) && !$service;
-        $live    = App::cfg('ai_stream', true) && !$voiceIn ? new LiveReply($msg) : null;
+        $live    = App::cfg('ai_stream', true) && !$voiceIn ? new LiveReply($msg, null, '', true, true) : null;
+        $live?->start();
         $opt     = ['max_len' => PHP_INT_MAX] + ($live ? ['on_text' => $live->feed(...)] : []);
         $res     = AI::reply($content, $ctx, $history, $opt);
 
