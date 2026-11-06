@@ -52,6 +52,97 @@ def font(size, bold=False):
     return ImageFont.load_default()
 
 
+SYMFONTS = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+]
+
+
+def symfont(size):
+    for p in SYMFONTS:
+        if os.path.isfile(p):
+            try:
+                return ImageFont.truetype(p, int(size * S))
+            except Exception:
+                continue
+    return font(size, True)
+
+
+def fit_symbol(d, t, maxw, start=150):
+    size = start
+    while size > 24:
+        f = symfont(size)
+        if d.textlength(t, font=f) <= maxw * S:
+            return f
+        size -= 4
+    return symfont(24)
+
+
+def draw_logo(d, key, cx, cy, u, fill, hole):
+    def P(x, y):
+        return ((cx + x * u) * S, (cy + y * u) * S)
+
+    def poly(pts, color=None):
+        d.polygon([P(x, y) for x, y in pts], fill=color or fill)
+
+    def line(pts, w, color=None):
+        d.line([P(x, y) for x, y in pts], fill=color or fill, width=max(1, int(w * u * S)), joint="curve")
+
+    if key == "eth":
+        poly([(0, -1), (0.62, 0.05), (0, 0.32), (-0.62, 0.05)])
+        poly([(0, 0.48), (0.62, 0.18), (0, 1), (-0.62, 0.18)])
+    elif key == "sol":
+        poly([(-0.62, -0.78), (0.9, -0.78), (0.62, -0.48), (-0.9, -0.48)])
+        poly([(-0.9, -0.15), (0.62, -0.15), (0.9, 0.15), (-0.62, 0.15)])
+        poly([(-0.62, 0.48), (0.9, 0.48), (0.62, 0.78), (-0.9, 0.78)])
+    elif key == "bnb":
+        for x, y, r in ((0, 0, 0.2), (0, -0.55, 0.2), (0, 0.55, 0.2), (-0.55, 0, 0.2), (0.55, 0, 0.2)):
+            poly([(x, y - r * 1.4), (x + r * 1.4, y), (x, y + r * 1.4), (x - r * 1.4, y)])
+    elif key == "trx":
+        poly([(-0.92, -0.85), (0.98, -0.42), (0.08, 0.98)])
+        line([(-0.5, -0.52), (0.62, -0.28), (0.05, 0.6), (-0.5, -0.52)], 0.07, hole)
+        line([(-0.5, -0.52), (0.05, 0.6)], 0.07, hole)
+        line([(-0.5, -0.52), (0.62, -0.28)], 0.07, hole)
+    elif key == "ton":
+        poly([(-0.85, -0.78), (0.85, -0.78), (0, 0.95)])
+        line([(0, -0.78), (0, 0.95)], 0.12, hole)
+        poly([(-0.55, -0.52), (-0.08, -0.52), (-0.08, 0.28)], hole)
+        poly([(0.55, -0.52), (0.08, -0.52), (0.08, 0.28)], hole)
+    elif key == "xrp":
+        line([(-0.85, -0.85), (0, -0.05), (0.85, -0.85)], 0.2)
+        line([(-0.85, 0.85), (0, 0.05), (0.85, 0.85)], 0.2)
+    elif key == "usdt":
+        poly([(-0.85, -0.85), (0.85, -0.85), (0.85, -0.5), (-0.85, -0.5)])
+        poly([(-0.17, -0.5), (0.17, -0.5), (0.17, 0.95), (-0.17, 0.95)])
+        d.ellipse((P(-0.7, -0.22)[0], P(-0.7, -0.22)[1], P(0.7, 0.18)[0], P(0.7, 0.18)[1]), outline=fill, width=max(1, int(0.1 * u * S)))
+    elif key in ("gold", "mesh", "ons"):
+        poly([(-0.95, 0.75), (-0.65, 0.05), (0.65, 0.05), (0.95, 0.75)])
+        poly([(-0.55, -0.02), (-0.33, -0.62), (0.33, -0.62), (0.55, -0.02)])
+        poly([(-0.18, -0.7), (-0.04, -1.0), (0.18, -1.0), (0.04, -0.7)])
+    elif key == "aed":
+        f = symfont(max(10, u * 1.9))
+        d.text((cx * S, cy * S), "D", font=f, fill=fill, anchor="mm")
+        for y in (-0.18, 0.12):
+            d.rectangle((P(-0.95, y)[0], P(-0.95, y)[1], P(0.75, y + 0.1)[0], P(0.75, y + 0.1)[1]), fill=fill)
+    else:
+        return False
+    return True
+
+
+def draw_symbol(d, cx, cy, r, t, fill, key="", hole=(0, 0, 0, 0)):
+    if key and draw_logo(d, key, cx, cy, r * 0.62, fill, hole):
+        return
+    if t == "₿":
+        f = symfont(150)
+        d.text((cx * S, cy * S), "B", font=f, fill=fill, anchor="mm")
+        for dx in (-16, 12):
+            d.rectangle(((cx + dx - 3) * S, (cy - 86) * S, (cx + dx + 3) * S, (cy - 62) * S), fill=fill)
+            d.rectangle(((cx + dx - 3) * S, (cy + 62) * S, (cx + dx + 3) * S, (cy + 86) * S), fill=fill)
+        return
+    f = fit_symbol(d, t, r * 1.5)
+    d.text((cx * S, cy * S), t, font=f, fill=fill, anchor="mm")
+
+
 def has_rtl(t):
     return any("\u0600" <= c <= "\u06ff" for c in t)
 
@@ -111,7 +202,8 @@ def main():
     up = pct >= 0
     sym = str(p.get("sym", "$")) or "$"
     dec = int(p.get("dec", 0))
-    gl = sym if len(sym) == 1 else sym[0]
+    gl = sym
+    icon = str(p.get("icon", ""))
 
     if up:
         c1, c2 = (30, 142, 70), (8, 78, 38)
@@ -128,10 +220,9 @@ def main():
     deco = [(28, 48, 112, False), (994, 112, 100, True), (64, 548, 104, False), (962, 528, 98, True)]
     layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
     ld = ImageDraw.Draw(layer)
-    gf = font(150, True)
     for cx, cy, r, dark in deco:
         ld.ellipse(((cx - r) * S, (cy - r) * S, (cx + r) * S, (cy + r) * S), fill=(255, 255, 255, 40))
-        ld.text((cx * S, cy * S), gl, font=gf, fill=dark_g if dark else (255, 255, 255, 95), anchor="mm")
+        draw_symbol(ld, cx, cy, r, gl, dark_g if dark else (255, 255, 255, 95), icon, (255, 255, 255, 40))
     img = Image.alpha_composite(img, layer)
 
     # سایه‌ی کارت
@@ -151,7 +242,9 @@ def main():
     d.ellipse(((bx - br) * S, (by - br) * S, (bx + br) * S, (by + br) * S), fill=(20, 120, 60) if up else (190, 40, 48))
     for a in range(0, 360, 24):
         d.arc(((bx - br + 4) * S, (by - br + 4) * S, (bx + br - 4) * S, (by + br - 4) * S), a, a + 14, fill=(255, 255, 255, 255), width=2 * S)
-    text(d, (bx, by + 1), sym, font({1: 25, 2: 18, 3: 14}.get(len(sym), 11), True), (255, 255, 255, 255), "mm")
+    bcol = (20, 120, 60) if up else (190, 40, 48)
+    if not draw_logo(d, icon, bx, by + 1, 13, (255, 255, 255, 255), bcol):
+        d.text((bx * S, (by + 1) * S), sym.replace("₿", "B"), font=symfont({1: 25, 2: 18, 3: 14}.get(len(sym), 11)), fill=(255, 255, 255, 255), anchor="mm")
     text(d, (bx - br - 14, 122), p.get("title", ""), font(28, True), ink, "rm")
 
     # برچسب IRT / USD

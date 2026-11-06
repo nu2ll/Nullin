@@ -22,15 +22,15 @@ final class PriceCard
         'gold' => ['geram18', ['طلا', 'گرم طلا', 'طلا ۱۸', 'طلای ۱۸', 'طلا 18', 'طلای 18', 'طلای18', 'طلا18', 'گرم 18', 'گرم ۱۸'], 'طلای ۱۸ عیار', 'گرم', 'Au', 'irr'],
         'mesh' => ['geram18', ['مثقال', 'مثقال طلا', 'مثقال ۱۸', 'مثقال 18'], 'مثقال طلا', 'عدد', 'Au', 'mesh'],
         'ons'  => ['ons', ['انس طلا', 'انس جهانی', 'اونس', 'اونس طلا', 'ons', 'ounce'], 'انس جهانی طلا', 'واحد', 'Au', 'usd'],
-        'btc'  => ['crypto-bitcoin', ['بیت کوین', 'بیتکوین', 'btc', 'bitcoin'], 'بیت‌کوین', 'واحد', 'BTC', 'usd'],
-        'eth'  => ['crypto-ethereum', ['اتریوم', 'eth', 'ethereum'], 'اتریوم', 'واحد', 'ETH', 'usd'],
+        'btc'  => ['crypto-bitcoin', ['بیت کوین', 'بیتکوین', 'btc', 'bitcoin'], 'بیت‌کوین', 'واحد', '₿', 'usd'],
+        'eth'  => ['crypto-ethereum', ['اتریوم', 'eth', 'ethereum'], 'اتریوم', 'واحد', 'Ξ', 'usd'],
         'bnb'  => ['crypto-binance-coin', ['بایننس', 'بایننس کوین', 'bnb', 'binance'], 'بایننس کوین', 'واحد', 'BNB', 'usd'],
         'sol'  => ['crypto-solana', ['سولانا', 'sol', 'solana'], 'سولانا', 'واحد', 'SOL', 'usd'],
         'ton'  => ['crypto-toncoin', ['تون کوین', 'تونکوین', 'toncoin'], 'تون‌کوین', 'واحد', 'TON', 'usd'],
         'xrp'  => ['crypto-ripple', ['ریپل', 'xrp', 'ripple'], 'ریپل', 'واحد', 'XRP', 'usd'],
         'trx'  => ['crypto-tron', ['ترون', 'trx', 'tron'], 'ترون', 'واحد', 'TRX', 'usd'],
-        'doge' => ['crypto-dogecoin', ['دوج', 'دوج کوین', 'دوجکوین', 'doge', 'dogecoin'], 'دوج‌کوین', 'واحد', 'DOGE', 'usd'],
-        'ltc'  => ['crypto-litecoin', ['لایت کوین', 'لایتکوین', 'ltc', 'litecoin'], 'لایت‌کوین', 'واحد', 'LTC', 'usd'],
+        'doge' => ['crypto-dogecoin', ['دوج', 'دوج کوین', 'دوجکوین', 'doge', 'dogecoin'], 'دوج‌کوین', 'واحد', 'Ð', 'usd'],
+        'ltc'  => ['crypto-litecoin', ['لایت کوین', 'لایتکوین', 'ltc', 'litecoin'], 'لایت‌کوین', 'واحد', 'Ł', 'usd'],
     ];
 
     private static function norm(string $s): string
@@ -133,7 +133,7 @@ final class PriceCard
             return $fq;
         }
         $last  = $c[count($c) - 1][4];
-        $first = $c[0][4];
+        $first = $c[0][1];
         $hi = max(max(array_column($c, 2)), $last);
         $lo = min(min(array_column($c, 3)), $last);
         $p  = $last;
@@ -145,13 +145,30 @@ final class PriceCard
             'd'   => $p - $first,
             't'   => $fq['t'] ?? '',
             'f'   => $fq['f'] ?? 1.0,
-            'pts' => array_column($c, 4),
+            'pts' => self::path($c),
         ];
+    }
+
+    private static function path(array $c): array
+    {
+        $out = [$c[0][1]];
+        foreach ($c as $x) {
+            $seq = $x[4] >= $x[1] ? [$x[3], $x[2], $x[4]] : [$x[2], $x[3], $x[4]];
+            foreach ($seq as $v) {
+                if (abs($v - $out[count($out) - 1]) > 1e-12) {
+                    $out[] = $v;
+                }
+            }
+        }
+        if (count($out) < 2) {
+            $out[] = $out[0];
+        }
+        return $out;
     }
 
     private static function points(string $k, array $q): array
     {
-        if (is_array($q['pts'] ?? null) && count($q['pts']) >= 6) {
+        if (is_array($q['pts'] ?? null) && count($q['pts']) >= 2) {
             return $q['pts'];
         }
         $pts = self::history((string) self::ASSETS[$k][0], (float) ($q['f'] ?? 1.0), (float) $q['p']);
@@ -340,6 +357,10 @@ final class PriceCard
         $where  = $isU ? 'بازار جهانی' : 'تهران';
         $amount = (float) $m['amount'];
         $amt    = self::amountText($amount);
+        if ($q['h'] !== null && $q['l'] !== null) {
+            $q['h'] *= $amount;
+            $q['l'] *= $amount;
+        }
         $total  = $q['p'] * $amount;
         $time   = preg_match('/^\d{1,2}:\d{2}(?::\d{2})?$/', $q['t']) === 1 ? $q['t'] : date('H:i:s');
         $title  = "ارزش {$amt} {$unit} {$noun}";
@@ -353,10 +374,11 @@ final class PriceCard
             $g1[] = '🇮🇷 معادل: ' . fa(self::fmt($total * $usdQ)) . ' تومان';
         }
         $g2 = [];
+        $line = '';
         if ($q['h'] !== null && $q['l'] !== null) {
-            $g2[] = '🟢 سقف: ' . fa($money($q['h'])) . '   🔴 کف: ' . fa($money($q['l']));
+            $line = '🟢 سقف: ' . fa($money($q['h'])) . '   🔴 کف: ' . fa($money($q['l'])) . '   ';
         }
-        $g2[] = '⌚ ساعت: ' . fa($time);
+        $g2[] = $line . '⌚ ساعت: ' . fa($time);
         $btn = static fn(string $label, string $copy, string $style): string
             => '<tg-button type="copy_text" text="' . h($copy) . '" style="' . $style . '">' . h($label) . '</tg-button>';
         $rich = '<img src="tg://photo?id=card"/>'
@@ -380,6 +402,7 @@ final class PriceCard
             'points' => array_map(static fn($v) => $v * $amount, self::points($m['asset'], $q)),
             'dec'    => $isU ? (abs($total) >= 1000 ? 0 : (abs($total) >= 1 ? 2 : 5)) : 0,
             'sym'    => $sym,
+            'icon'   => $m['asset'],
             'tag'    => $isU ? 'USD' : 'IRT',
             'footer' => '@' . App::botUsername(),
         ]);
