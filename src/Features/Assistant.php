@@ -759,14 +759,8 @@ final class Assistant
 
         $voiceLeft = empty($rec['vo']);
         $rich      = !empty($rec['rc']);
-        $restore   = AnswerButtons::keyboard(!empty($rec['sr']), $voiceLeft);
-        if (!$rich || !AnswerButtons::editRich($chatId, $mid, $old, AnswerButtons::rows(true, $voiceLeft))) {
+        if ($rich && !AnswerButtons::editRich($chatId, $mid, $old, AnswerButtons::rows(true, $voiceLeft))) {
             $rich = false;
-            $tg->call('editMessageReplyMarkup', [
-                'chat_id'      => $chatId,
-                'message_id'   => $mid,
-                'reply_markup' => AnswerButtons::keyboard(true, $voiceLeft),
-            ], 8);
         }
         $tg->action($chatId, 'typing');
 
@@ -800,30 +794,17 @@ final class Assistant
             }
 
             $chunks = AI::chunks($answer);
-            $kb     = AnswerButtons::keyboard($searched, $voiceLeft);
             $newMid = $mid;
             $edited = false;
             $isRich = false;
             if ($rich && AnswerButtons::editRich($chatId, $mid, $answer, AnswerButtons::rows($searched, $voiceLeft))) {
                 $edited = true;
                 $isRich = true;
-            } elseif (count($chunks) === 1 && (int) ($rec['n'] ?? 1) === 1) {
-                $r = $tg->editMessage($chatId, $mid, AI::toHtml($chunks[0]), $kb);
-                if (empty($r['ok']) && stripos((string) ($r['description'] ?? ''), 'not modified') === false) {
-                    $r = $tg->call('editMessageText', [
-                        'chat_id'      => $chatId,
-                        'message_id'   => $mid,
-                        'text'         => mb_substr($chunks[0], 0, 4096),
-                        'reply_markup' => $kb,
-                    ]);
-                }
-                $edited = !empty($r['ok']) || stripos((string) ($r['description'] ?? ''), 'not modified') !== false;
             }
             if (!$edited) {
                 if ($rich) {
                     AnswerButtons::editRich($chatId, $mid, $old, '');
                 }
-                $tg->call('editMessageReplyMarkup', ['chat_id' => $chatId, 'message_id' => $mid, 'reply_markup' => ['inline_keyboard' => []]], 8);
                 $newMid = self::send(['chat' => ['id' => $chatId], 'message_id' => $origId], $answer);
             }
             $done = true;
@@ -845,8 +826,8 @@ final class Assistant
             }
         } finally {
             if (!$done) {
-                if (!$rich || !AnswerButtons::editRich($chatId, $mid, $old, AnswerButtons::rows(!empty($rec['sr']), $voiceLeft))) {
-                    $tg->call('editMessageReplyMarkup', ['chat_id' => $chatId, 'message_id' => $mid, 'reply_markup' => $restore], 8);
+                if ($rich) {
+                    AnswerButtons::editRich($chatId, $mid, $old, AnswerButtons::rows(!empty($rec['sr']), $voiceLeft));
                 }
             }
             $tg->answer($cq, $done ? null : AI::FAIL_TEXT);
