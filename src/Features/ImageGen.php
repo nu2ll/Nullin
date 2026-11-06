@@ -70,6 +70,61 @@ final class ImageGen
         return self::cloudflare($prompt, $tick);
     }
 
+    private static function fail(array $msg, string $text, array $rec): void
+    {
+        $r   = App::tg()->reply($msg, $text, ['reply_markup' => AnswerButtons::retryKeyboard()]);
+        $mid = (int) ($r['result']['message_id'] ?? 0);
+        if ($mid > 0) {
+            AnswerButtons::attach((int) $msg['chat']['id'], $mid, $rec + [
+                'k' => 'img', 'u' => (int) ($msg['from']['id'] ?? 0), 'a' => $text, 'o' => (int) ($msg['message_id'] ?? 0), 'f' => 1,
+            ], false);
+        }
+    }
+
+    public static function retry(array $cq, array $rec): void
+    {
+        $tg     = App::tg();
+        $m      = $cq['message'];
+        $chatId = (int) $m['chat']['id'];
+        $mid    = (int) $m['message_id'];
+        $origId = (int) ($rec['o'] ?? 0) ?: $mid;
+        $msg    = ['chat' => ['id' => $chatId, 'type' => (string) ($m['chat']['type'] ?? 'private')], 'message_id' => $origId];
+        $live   = new LiveReply($msg, null, '', true, true);
+        $live->adopt($mid);
+        $bytes = null;
+        $sent  = false;
+        try {
+            $tg->action($chatId, 'upload_photo');
+            $prompt  = (string) ($rec['p'] ?? '');
+            $caption = $rec['c'] ?? null;
+            if ($prompt === '') {
+                $request = (string) ($rec['q'] ?? '');
+                $prompt  = (string) AI::googleTranslate($request, 'English');
+                if ($prompt === '') {
+                    $plan    = AI::imagePrompt($request);
+                    $prompt  = (string) ($plan['prompt'] ?? '');
+                    $caption = $plan['caption'] ?? null;
+                }
+            }
+            if ($prompt !== '') {
+                $bytes = self::generate($prompt, static fn() => $tg->action($chatId, 'upload_photo'));
+            }
+            if ($bytes !== null) {
+                $captions = ['🎨 بفرما، اینم عکست!', '🖼 اینم از این، امیدوارم خوشت بیاد!', '✨ تازه از زیر قلمم دراومده!'];
+                $sent     = $tg->sendPhotoBytes($chatId, $bytes, h($caption ?? $captions[array_rand($captions)]), $origId, true);
+            }
+        } finally {
+            $live->stop();
+            if ($sent) {
+                $live->discard();
+                Store::delete('aibtn', $chatId . ':' . $mid);
+            } else {
+                $text = $bytes !== null ? '😕 عکس ساخته شد ولی ارسالش به مشکل خورد؛' . "\n" . 'دوباره امتحان کن.' : self::failText();
+                $tg->editMessage($chatId, $mid, $text, AnswerButtons::retryKeyboard());
+            }
+        }
+    }
+
     private static function status(array $msg): ?int
     {
         $r = App::tg()->reply($msg, LiveReply::DRAWING);
@@ -102,7 +157,7 @@ final class ImageGen
         $plan = AI::imagePrompt($request);
         if ($plan === null) {
             self::clear($chatId, null, $statusId);
-            $tg->reply($msg, '😕 الان نتونستم درخواستت رو بفهمم؛' . "\n" . 'یه‌کم دیگه دوباره بگو.');
+            self::fail($msg, '😕 الان نتونستم درخواستت رو بفهمم؛' . "\n" . 'یه‌کم دیگه دوباره بگو.', ['q' => $request]);
             return;
         }
         self::draw($msg, $plan['prompt'], $plan['caption'] ?? null, null, $statusId);
@@ -119,7 +174,7 @@ final class ImageGen
         $bytes = self::generate($prompt, static fn() => $tg->action($chatId, 'upload_photo'));
         if ($bytes === null) {
             self::clear($chatId, $live, $statusId);
-            $tg->reply($msg, self::failText());
+            self::fail($msg, self::failText(), ['p' => $prompt, 'c' => $caption, 'q' => $prompt]);
             return false;
         }
         $captions = ['🎨 بفرما، اینم عکست!', '🖼 اینم از این، امیدوارم خوشت بیاد!', '✨ تازه از زیر قلمم دراومده!'];
@@ -127,7 +182,7 @@ final class ImageGen
         $sent = $tg->sendPhotoBytes($chatId, $bytes, $cap, $msg['message_id'] ?? null, true);
         self::clear($chatId, $live, $statusId);
         if (!$sent) {
-            $tg->reply($msg, '😕 عکس ساخته شد ولی ارسالش به مشکل خورد؛' . "\n" . 'دوباره امتحان کن.');
+            self::fail($msg, '😕 عکس ساخته شد ولی ارسالش به مشکل خورد؛' . "\n" . 'دوباره امتحان کن.', ['p' => $prompt, 'c' => $caption, 'q' => $prompt]);
             return false;
         }
         return true;

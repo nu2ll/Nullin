@@ -43,6 +43,21 @@ final class Http
         ];
     }
 
+    public static $tick = null;
+
+    private static function progress(): array
+    {
+        return [
+            CURLOPT_NOPROGRESS       => false,
+            CURLOPT_PROGRESSFUNCTION => static function (): int {
+                if (self::$tick !== null) {
+                    (self::$tick)();
+                }
+                return 0;
+            },
+        ];
+    }
+
     public static function request(string $method, string $url, array $opt = []): array
     {
         if (!empty($opt['impersonate']) && ($viaPy = self::impersonated($method, $url, $opt)) !== null) {
@@ -73,6 +88,9 @@ final class Http
                 $buf .= $data;
                 return strlen($buf) > $max ? 0 : strlen($data);
             };
+        }
+        if (self::$tick !== null) {
+            $set += self::progress();
         }
         curl_setopt_array($ch, $set);
 
@@ -114,7 +132,8 @@ final class Http
     {
         $err = '';
         $ch  = curl_init($url);
-        curl_setopt_array($ch, [
+        $set = self::$tick !== null ? self::progress() : [];
+        curl_setopt_array($ch, $set + [
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),
             CURLOPT_HTTPHEADER     => array_merge(['Content-Type: application/json', 'Accept: text/event-stream'], $headers),

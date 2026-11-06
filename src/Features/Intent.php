@@ -84,10 +84,13 @@ final class Intent
             ], 30);
             return !empty($r['ok']);
         }
-        $tg->reply($msg, $o['text'], array_filter([
+        $sent = $tg->reply($msg, $o['text'], array_filter([
             'reply_markup'         => $o['kb'] ?? null,
             'link_preview_options' => $o['preview'] ?? null,
         ]));
+        if (!empty($o['retry']) && ($rmid = (int) ($sent['result']['message_id'] ?? 0)) > 0) {
+            AnswerButtons::attach((int) $chat, $rmid, $o['retry'] + ['o' => (int) $msg['message_id']], false);
+        }
         foreach ($o['more'] ?? [] as $part) {
             $tg->reply($msg, $part);
         }
@@ -111,7 +114,13 @@ final class Intent
                 }
                 $target = preg_match('/^[A-Za-z ]{2,20}$/', $to) && strtolower($to) !== 'auto' ? ucfirst(strtolower($to)) : 'auto';
                 $out    = AI::translate($source, $target);
-                return ['text' => $out ? "🌐 <b>ترجمه:</b>\n\n" . h($out) : AI::FAIL_TEXT];
+                if ($out) {
+                    return ['text' => "🌐 <b>ترجمه:</b>\n\n" . h($out)];
+                }
+                return ['text' => AI::FAIL_TEXT, 'kb' => AnswerButtons::retryKeyboard(), 'retry' => [
+                    'k' => 'tr', 'u' => (int) ($msg['from']['id'] ?? 0), 'q' => $source, 't' => $target,
+                    'a' => AI::FAIL_TEXT, 'h' => "🌐 <b>ترجمه:</b>\n\n", 'f' => 1,
+                ]];
 
             case 'wiki':
                 if ($arg === '') {

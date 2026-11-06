@@ -360,11 +360,12 @@ final class Assistant
         usleep((int) ($seconds * 1_000_000));
     }
 
-    private static function voiceReply(array $msg, string $answer): void
+    private static function voiceReply(array $msg, string $answer, ?LiveReply $live = null): void
     {
         $tg = App::tg();
         $tg->action($msg['chat']['id'], 'record_voice');
         $file = AI::speak($answer, null, 'ogg', VoicePick::get((int) ($msg['from']['id'] ?? 0)));
+        $live?->stop();
         if ($file === null) {
             return;
         }
@@ -407,6 +408,7 @@ final class Assistant
         $from     = $msg['from'] ?? [];
         $userId   = (int) ($from['id'] ?? 0);
         $service  = AI::isServiceSender($from, $msg['sender_chat'] ?? null);
+        $autoPost = !empty($msg['is_automatic_forward']);
 
         if (!$service && AI::busy($userId)) {
             $tg->reply($msg, AI::BUSY_TEXT);
@@ -455,7 +457,8 @@ final class Assistant
         if ($reply && count($notes) > $n0) {
             $notes[$n0] = self::withAlbum($notes[$n0], $reply);
         }
-        $n1 = count($notes);
+        $n1         = count($notes);
+        $replyMedia = count($parts);
 
         if (self::hasMedia($msg)) {
             $media = self::mediaPart($msg);
@@ -493,10 +496,13 @@ final class Assistant
 
         $history = $service ? [] : self::history($chatId, $userId);
         $voiceIn = isset($msg['voice']) && !$service;
-        $live    = App::cfg('ai_stream', true) ? new LiveReply($msg, null, '', true, true) : null;
+        $live    = App::cfg('ai_stream', true) ? new LiveReply($msg, null, '', true, true, $voiceIn) : null;
         $live?->start();
         $opt     = ['max_len' => PHP_INT_MAX] + ($live ? ['on_text' => $live->feed(...)] : []);
         $res     = AI::reply($content, $ctx, $history, $opt);
+        if (!$voiceIn) {
+            $live?->stop();
+        }
 
         if ($res['reaction'] !== null) {
             $tg->react($chatId, (int) $msg['message_id'], $res['reaction']);
@@ -535,7 +541,7 @@ final class Assistant
         $answer = $res['answer'] ?? AI::FAIL_TEXT;
 
         if ($res['answer'] !== null && $voiceIn) {
-            self::voiceReply($msg, $res['answer']);
+            self::voiceReply($msg, $res['answer'], $live);
         }
 
         $lastId = 0;
@@ -553,7 +559,7 @@ final class Assistant
             $lastId = (int) end($ids);
         }
 
-        if ($res['answer'] !== null && $lastId > 0) {
+        if ($lastId > 0 && ($res['answer'] !== null || $replyMedia === 0)) {
             AnswerButtons::attach($chatId, $lastId, [
                 'u'  => $service ? 0 : $userId,
                 'q'  => $text,
@@ -563,6 +569,8 @@ final class Assistant
                 'o'  => (int) $msg['message_id'],
                 'sr' => $searched ? 1 : 0,
                 'vo' => $voiceIn ? 1 : 0,
+                'f'  => $res['answer'] === null ? 1 : 0,
+                'ns' => $autoPost ? 1 : 0,
             ]);
         }
 
@@ -572,6 +580,148 @@ final class Assistant
 
         if ($res['answer'] !== null && !$service && $chatType === 'private' && !App::isAdmin($userId)) {
             Store::set('rl', 'ai_' . $userId, time());
+        }
+    }
+
+    public static function retry(array $cq, array $rec): void
+    {
+        $tg       = App::tg();
+        $m        = $cq['message'];
+        $chatId   = (int) $m['chat']['id'];
+        $mid      = (int) $m['message_id'];
+        $uid      = (int) ($cq['from']['id'] ?? 0);
+        $chatType = (string) ($m['chat']['type'] ?? 'private');
+        $service  = (int) ($rec['u'] ?? 0) === 0;
+        $origId   = (int) ($rec['o'] ?? 0) ?: $mid;
+        $orig     = is_array($m['reply_to_message'] ?? null) ? $m['reply_to_message'] : [];
+        $origMsg  = ['chat' => ['id' => $chatId, 'type' => $chatType], 'message_id' => $origId, 'from' => $orig['from'] ?? ['id' => $uid]];
+
+        $media = [];
+        if ((int) ($rec['mc'] ?? 0) > 0) {
+            if ($orig && self::hasMedia($orig) && ($p = self::mediaPart($orig))) {
+                $media[] = $p;
+            }
+            if (count($media) < (int) $rec['mc']) {
+                $tg->call('editMessageReplyMarkup', ['chat_id' => $chatId, 'message_id' => $mid, 'reply_markup' => ['inline_keyboard' => []]], 8);
+                return;
+            }
+        }
+
+        $voiceIn = !empty($rec['vo']) && !$service;
+        $text    = (string) $rec['q'];
+        $content = $media ? array_merge($media, [['type' => 'text', 'text' => $text]]) : $text;
+
+        $ctx = ['user_name' => $service ? '' : userName($cq['from'] ?? []), 'service' => $service, 'chat_type' => $chatType];
+        if (in_array($chatType, ['group', 'supergroup'], true)) {
+            $info              = self::chatInfo($chatId);
+            $ctx['chat_title'] = $info['title'];
+            $ctx['chat_bio']   = mb_substr((string) $info['bio'], 0, 300);
+            if (!$service && $uid) {
+                $ctx['user_role'] = self::role($chatId, $uid);
+            }
+        }
+
+        $history = $service ? [] : self::history($chatId, $uid);
+        $live    = new LiveReply($origMsg, null, '', true, true, $voiceIn);
+        $live->adopt($mid);
+        $opt     = ['max_len' => PHP_INT_MAX] + (App::cfg('ai_stream', true) ? ['on_text' => $live->feed(...)] : []);
+
+        $settled = false;
+        try {
+            $res = AI::reply($content, $ctx, $history, $opt);
+            if (!empty($res['action'])) {
+                $res = AI::reply($content, ['no_action' => true] + $ctx, $history, $opt);
+            }
+            if ($res['reaction'] !== null) {
+                $tg->react($chatId, $origId, $res['reaction']);
+            }
+            $searched = AI::$searched;
+
+            if (!empty($res['image']) || !empty($res['image_partial'])) {
+                $settled = true;
+                if (!Switches::on('image')) {
+                    $live->discard();
+                    return;
+                }
+                Users::hit('image');
+                $caption = null;
+                if (!empty($res['image_partial'])) {
+                    $plan         = AI::imagePrompt($text);
+                    $res['image'] = $plan['prompt'] ?? (AI::googleTranslate($text, 'English') ?? $text);
+                    $caption      = $plan['caption'] ?? null;
+                }
+                if (ImageGen::draw($origMsg, $res['image'], $caption, $live) && !$service) {
+                    self::remember($chatId, $uid, $text, '[[image | ' . mb_substr($res['image'], 0, 200) . ']]');
+                }
+                return;
+            }
+
+            $failed = $res['answer'] === null;
+            $answer = $res['answer'] ?? AI::FAIL_TEXT;
+
+            if (!$failed && $voiceIn) {
+                self::voiceReply($origMsg, $res['answer'], $live);
+            }
+
+            $lastId = 0;
+            $chunks = 1;
+            if (!$live->finish($answer)) {
+                $chunks = count(AI::chunks($answer));
+                $lastId = self::send($origMsg, $answer);
+            } else {
+                $ids    = $live->ids();
+                $chunks = max(1, count($ids));
+                foreach ($ids as $id) {
+                    AI::markMsg($chatId, $id);
+                }
+                $lastId = (int) end($ids);
+            }
+            $settled = true;
+
+            if ($lastId > 0) {
+                AnswerButtons::attach($chatId, $lastId, [
+                    'u'  => (int) ($rec['u'] ?? 0),
+                    'q'  => $text,
+                    'a'  => $answer,
+                    'mc' => (int) ($rec['mc'] ?? 0),
+                    'n'  => $chunks,
+                    'o'  => $origId,
+                    'sr' => $searched ? 1 : 0,
+                    'vo' => $voiceIn ? 1 : 0,
+                    'f'  => $failed ? 1 : 0,
+                    'ns' => !empty($rec['ns']) ? 1 : 0,
+                ]);
+            }
+            if (!$failed && !$service) {
+                self::remember($chatId, $uid, $text, preg_replace('/\n\n🔗 منابع:.*$/su', '', $answer) ?? $answer);
+            }
+        } finally {
+            $live->stop();
+            if (!$settled) {
+                $tg->editMessage($chatId, $mid, AI::toHtml(AI::FAIL_TEXT), AnswerButtons::retryKeyboard());
+            }
+        }
+    }
+
+    public static function retryTranslate(array $cq, array $rec): void
+    {
+        $tg     = App::tg();
+        $m      = $cq['message'];
+        $chatId = (int) $m['chat']['id'];
+        $mid    = (int) $m['message_id'];
+        $live   = new LiveReply(['chat' => ['id' => $chatId, 'type' => (string) ($m['chat']['type'] ?? 'private')], 'message_id' => (int) ($rec['o'] ?? 0) ?: $mid], null, '', true, true);
+        $live->adopt($mid);
+        $out = null;
+        try {
+            $out = AI::translateFast((string) $rec['q'], (string) ($rec['t'] ?? 'auto'));
+        } finally {
+            $live->stop();
+            if ($out !== null && $out !== '') {
+                $tg->editMessage($chatId, $mid, (string) ($rec['h'] ?? '') . h($out));
+                Store::delete('aibtn', $chatId . ':' . $mid);
+            } else {
+                $tg->editMessage($chatId, $mid, AI::toHtml(AI::FAIL_TEXT), AnswerButtons::retryKeyboard());
+            }
         }
     }
 
@@ -720,6 +870,17 @@ final class Assistant
         }
         $tg->action($msg['chat']['id'], 'typing');
         $out = AI::translateFast($source, $target !== '' ? $target : 'auto');
-        $tg->reply($msg, $out ? "🌐 <b>ترجمه:</b>\n\n" . h($out) : AI::FAIL_TEXT);
+        if ($out) {
+            $tg->reply($msg, "🌐 <b>ترجمه:</b>\n\n" . h($out));
+            return;
+        }
+        $r   = $tg->reply($msg, AI::FAIL_TEXT, ['reply_markup' => AnswerButtons::retryKeyboard()]);
+        $mid = (int) ($r['result']['message_id'] ?? 0);
+        if ($mid > 0) {
+            AnswerButtons::attach((int) $msg['chat']['id'], $mid, [
+                'k' => 'tr', 'u' => (int) ($msg['from']['id'] ?? 0), 'q' => $source, 't' => $target !== '' ? $target : 'auto',
+                'a' => AI::FAIL_TEXT, 'h' => "🌐 <b>ترجمه:</b>\n\n", 'o' => (int) $msg['message_id'], 'f' => 1,
+            ], false);
+        }
     }
 }

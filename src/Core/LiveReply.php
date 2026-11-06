@@ -6,6 +6,8 @@ final class LiveReply
 
     public const THINKING = '🧠 نالینی داره فکر می‌کنه';
 
+    private const WAIT_TEXT = 'نالینی داره فکر می‌کنه';
+
     private array $ids    = [];
     private array $sent   = [];
     private string $mode  = 'wait';
@@ -13,9 +15,83 @@ final class LiveReply
     private int $lastTyping = 0;
     private bool $draft   = false;
     private int $draftId  = 0;
+    private float $t0     = 0.0;
+    private int $shown    = 0;
+    private bool $armed   = false;
+    private bool $inTick  = false;
 
-    public function __construct(private array $msg, private ?string $imid = null, private string $head = '', private bool $reaction = true, private bool $status = false)
+    public function __construct(private array $msg, private ?string $imid = null, private string $head = '', private bool $reaction = true, private bool $status = false, private bool $hold = false)
     {
+    }
+
+    public function watch(bool $now = false): void
+    {
+        if ($this->imid === null || $this->armed) {
+            return;
+        }
+        if ($now) {
+            App::tg()->editInline($this->imid, $this->frame(0));
+        }
+        $this->arm();
+    }
+
+    public function adopt(int $mid): void
+    {
+        $this->ids[0] = $mid;
+        App::tg()->editMessage($this->msg['chat']['id'], $mid, $this->frame(0));
+        $this->arm();
+    }
+
+    public function stop(): void
+    {
+        $this->disarm();
+    }
+
+    private function arm(): void
+    {
+        $this->armed = true;
+        $this->t0    = microtime(true);
+        $this->shown = 0;
+        Http::$tick  = $this->tick(...);
+    }
+
+    private function disarm(): void
+    {
+        if (!$this->armed) {
+            return;
+        }
+        $this->armed = false;
+        Http::$tick  = null;
+    }
+
+    public function tick(): void
+    {
+        if (!$this->armed || $this->inTick || $this->mode === 'live') {
+            return;
+        }
+        $n    = (int) floor(microtime(true) - $this->t0);
+        if ($n < $this->shown + 1) {
+            return;
+        }
+        $this->inTick = true;
+        $this->shown  = $n;
+        try {
+            $html = $this->frame($n);
+            $r    = null;
+            if ($this->draft) {
+                $this->sendDraft($html);
+            } elseif ($this->imid !== null) {
+                $r = App::tg()->editInline($this->imid, $html);
+            } elseif (isset($this->ids[0])) {
+                $r = App::tg()->editMessage($this->msg['chat']['id'], $this->ids[0], $html);
+            }
+            if ((int) ($r['error_code'] ?? 0) === 429) {
+                $this->disarm();
+            }
+        } catch (Throwable) {
+        } finally {
+            $this->inTick = false;
+        }
     }
 
     public function start(): void
@@ -24,22 +100,23 @@ final class LiveReply
             return;
         }
         $tg = App::tg();
-        $cid = $this->msg['chat']['id'];
 
         if (($this->msg['chat']['type'] ?? '') === 'private') {
             $this->draftId = mt_rand(1, 2147483646);
-            if ($this->sendDraft(self::frame(1))) {
+            if ($this->sendDraft($this->frame(0))) {
                 $this->draft = true;
+                $this->arm();
                 return;
             }
         }
 
         $this->typing();
-        $r = $tg->reply($this->msg, self::frame(1));
+        $r = $tg->reply($this->msg, $this->frame(0));
         if (empty($r['ok']) || !isset($r['result']['message_id'])) {
             return;
         }
         $this->ids[0] = (int) $r['result']['message_id'];
+        $this->arm();
     }
 
     private function sendDraft(string $html): bool
@@ -54,9 +131,10 @@ final class LiveReply
         return !empty($r['ok']);
     }
 
-    private static function frame(int $n): string
+    private function frame(int $n): string
     {
-        return self::THINKING;
+        $label = $this->head !== '' ? $this->head . self::WAIT_TEXT : self::THINKING;
+        return $label . "\n" . $n . 's';
     }
 
     private function typing(): void
@@ -81,12 +159,17 @@ final class LiveReply
         if ($body === null) {
             return;
         }
+        if ($this->hold && $body !== self::DRAWING) {
+            return;
+        }
         $this->mode = 'live';
+        $this->disarm();
         $this->show($body);
     }
 
     public function finish(string $answer): bool
     {
+        $this->disarm();
         if ($this->draft) {
             $ok = $this->sync($answer, true);
             if ($ok) {
@@ -107,6 +190,7 @@ final class LiveReply
 
     public function finishHtml(string $html): bool
     {
+        $this->disarm();
         if (!isset($this->ids[0])) {
             return false;
         }
@@ -135,6 +219,9 @@ final class LiveReply
 
     public function discard(): void
     {
+        if (!$this->draft) {
+            $this->disarm();
+        }
         foreach ($this->ids as $id) {
             App::tg()->call('deleteMessage', ['chat_id' => $this->msg['chat']['id'], 'message_id' => $id], 8);
         }

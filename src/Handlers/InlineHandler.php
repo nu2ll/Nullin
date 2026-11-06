@@ -153,6 +153,8 @@ final class InlineHandler
         self::answer([$r]);
     }
 
+    private static ?array $failKb = null;
+
     public static function resolveDeferred(string $token, string $imid): void
     {
         $job = Store::update('inline_ai', $token, static fn($j) => (is_array($j) && empty($j['done'])) ? ['done' => true] + $j : null);
@@ -167,9 +169,10 @@ final class InlineHandler
         if ($job['kind'] === 'ai' && is_array($job['from'] ?? null) && self::smart((string) $job['q'], (array) $job['from'], $imid)) {
             return;
         }
-        $text = self::deferredText((string) $job['kind'], (string) $job['q'], (string) ($job['name'] ?? ''), $imid);
-        if (empty($tg->editInline($imid, $text)['ok'])) {
-            $tg->editInline($imid, strip_tags($text), null, false);
+        self::$failKb = null;
+        $text = self::deferredText((string) $job['kind'], (string) $job['q'], (string) ($job['name'] ?? ''), $imid, (int) ($job['from']['id'] ?? 0));
+        if (empty($tg->editInline($imid, $text, self::$failKb)['ok'])) {
+            $tg->editInline($imid, strip_tags($text), self::$failKb, false);
         }
     }
 
@@ -181,8 +184,10 @@ final class InlineHandler
         }
         $ctx  = ['user_name' => userName($from), 'chat_type' => 'guest'];
         $live = App::cfg('ai_stream', true) ? new LiveReply(['chat' => ['id' => 0, 'type' => 'inline'], 'message_id' => 0], $imid, self::aiHead($q), false) : null;
+        $live?->watch();
         $opt  = ['reaction' => false] + ($live ? ['on_text' => $live->feed(...)] : []);
         $res  = AI::reply($q, $ctx, [], $opt);
+        $live?->stop();
         if (!empty($res['action'])) {
             [$act, $arg] = $res['action'];
             Users::hit('intent:' . $act);
@@ -198,7 +203,7 @@ final class InlineHandler
             $res = AI::reply($q, ['no_action' => true] + $ctx, [], $opt);
         }
         if (!empty($res['image'])) {
-            GuestHandler::image($imid, null, (string) $res['image']);
+            GuestHandler::image($imid, null, (string) $res['image'], (int) ($from['id'] ?? 0));
             return true;
         }
         if ($res['answer'] === null) {
@@ -220,16 +225,27 @@ final class InlineHandler
         return '❓ <b>' . h(mb_substr($q, 0, 256)) . "</b>\n\n🧠 ";
     }
 
-    private static function deferredText(string $kind, string $q, string $name, string $imid): string
+    private static function deferredText(string $kind, string $q, string $name, string $imid, int $uid = 0): string
     {
         if ($kind === 'ai') {
             $live   = App::cfg('ai_stream', true) ? new LiveReply(['chat' => ['id' => 0, 'type' => 'inline'], 'message_id' => 0], $imid, self::aiHead($q), false) : null;
+            $live?->watch();
             $res    = AI::reply($q, ['user_name' => $name, 'chat_type' => 'inline'], [], ['reaction' => false] + ($live ? ['on_text' => $live->feed(...)] : []));
+            $live?->stop();
             $answer = $res['answer'] ?? AI::FAIL_TEXT;
+            if ($res['answer'] === null) {
+                self::$failKb = AnswerButtons::retryKeyboard();
+                AnswerButtons::attachInline($imid, ['u' => $uid, 'q' => $q, 'a' => $answer, 'h' => self::aiHead($q), 'f' => 1]);
+            }
             $text   = self::aiHead($q) . AI::toHtml(AI::fit($answer, self::aiHead($q)));
         } else {
             $out  = AI::translateFast($q);
-            $text = h(mb_substr($q, 0, 256)) . "\n\n🌐 " . ($out !== null ? h($out) : AI::FAIL_TEXT);
+            $pre  = h(mb_substr($q, 0, 256)) . "\n\n🌐 ";
+            $text = $pre . ($out !== null ? h($out) : AI::FAIL_TEXT);
+            if ($out === null) {
+                self::$failKb = AnswerButtons::retryKeyboard();
+                AnswerButtons::attachInline($imid, ['k' => 'tr', 'u' => $uid, 'q' => $q, 'a' => AI::FAIL_TEXT, 'h' => $pre, 'x' => $pre, 'f' => 1]);
+            }
         }
         return $text;
     }

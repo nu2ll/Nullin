@@ -87,8 +87,10 @@ final class GuestHandler
 
         $ctx  = ['user_name' => userName($from), 'chat_type' => 'guest'];
         $live = $imid !== null && App::cfg('ai_stream', true) ? new LiveReply($msg, $imid, '', false) : null;
+        $live?->watch();
         $opt  = ['reaction' => false] + ($live ? ['on_text' => $live->feed(...)] : []);
         $res  = AI::reply($content, $ctx, [], $opt);
+        $live?->stop();
 
         if (!empty($res['action'])) {
             [$act, $arg] = $res['action'];
@@ -113,7 +115,7 @@ final class GuestHandler
 
         if (!empty($res['image'])) {
             $imid ??= self::send($qid, '🧠 نالینی داره فکر می‌کنه...');
-            self::image($imid, $qid, (string) $res['image']);
+            self::image($imid, $qid, (string) $res['image'], (int) ($from['id'] ?? 0));
             return;
         }
 
@@ -126,6 +128,10 @@ final class GuestHandler
         $kb     = null;
         if ($res['answer'] !== null && $imid !== null && !$parts && !AI::$searched && trim($body) !== '' && ($kb = AnswerButtons::searchOnly()) !== null) {
             AnswerButtons::attachInline($imid, ['u' => (int) ($from['id'] ?? 0), 'q' => $body, 'a' => $answer, 'h' => '']);
+        }
+        if ($res['answer'] === null && $imid !== null && !$parts && trim($body) !== '') {
+            $kb = AnswerButtons::retryKeyboard();
+            AnswerButtons::attachInline($imid, ['u' => (int) ($from['id'] ?? 0), 'q' => $body, 'a' => $answer, 'h' => '', 'f' => 1]);
         }
         self::edit($imid, $qid, $html, $answer, $kb);
     }
@@ -162,12 +168,22 @@ final class GuestHandler
         return !empty($r['ok']);
     }
 
-    public static function image(?string $imid, ?string $qid, string $prompt): void
+    private static function failImage(?string $imid, ?string $qid, string $text, string $prompt, int $uid): void
+    {
+        if ($imid !== null && $prompt !== '') {
+            AnswerButtons::attachInline($imid, ['u' => $uid, 'q' => $prompt, 'a' => $text, 'h' => '', 'f' => 1, 'k' => 'img']);
+            self::edit($imid, $qid, $text, null, AnswerButtons::retryKeyboard());
+            return;
+        }
+        self::edit($imid, $qid, $text);
+    }
+
+    public static function image(?string $imid, ?string $qid, string $prompt, int $uid = 0): void
     {
         self::edit($imid, null, LiveReply::DRAWING);
         $bytes = ImageGen::generate($prompt, static function () {});
         if ($bytes === null) {
-            self::edit($imid, $qid, ImageGen::failText());
+            self::failImage($imid, $qid, ImageGen::failText(), $prompt, $uid);
             return;
         }
         if ($imid === null) {
@@ -175,7 +191,7 @@ final class GuestHandler
         }
         $media = ImageGen::fileId($bytes);
         if ($media === null) {
-            self::edit($imid, $qid, "😕 سرویس ساخت عکس الان جواب نمی‌ده؛\nچند دقیقه دیگه امتحان کن.");
+            self::failImage($imid, $qid, "😕 سرویس ساخت عکس الان جواب نمی‌ده؛\nچند دقیقه دیگه امتحان کن.", $prompt, $uid);
             return;
         }
         $tg = App::tg();
@@ -184,13 +200,16 @@ final class GuestHandler
             'media'             => ['type' => 'photo', 'media' => $media, 'caption' => '🎨 بفرما، اینم عکست!', 'parse_mode' => 'HTML'],
         ], 60);
         if (empty($r['ok'])) {
-            self::edit($imid, $qid, '😕 عکس ساخته شد ولی ارسالش به مشکل خورد؛' . "\n" . 'دوباره امتحان کن.');
+            self::failImage($imid, $qid, '😕 عکس ساخته شد ولی ارسالش به مشکل خورد؛' . "\n" . 'دوباره امتحان کن.', $prompt, $uid);
         }
     }
 
     public static function show(?string $imid, string $qid, array $o): void
     {
         $tg = App::tg();
+        if ($imid !== null && !empty($o['retry'])) {
+            AnswerButtons::attachInline($imid, $o['retry'] + ['q' => (string) ($o['retry']['q'] ?? '')]);
+        }
         if ($imid === null) {
             self::send($qid, $o['text'], $o['kb'] ?? null);
             return;

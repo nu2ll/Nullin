@@ -10,10 +10,10 @@ final class AnswerButtons
         return trim((string) preg_replace('/\n\n🔗 منابع:.*$/su', '', $answer));
     }
 
-    public static function keyboard(bool $searched, bool $voice = true): array
+    public static function keyboard(bool $searched, bool $voice = true, bool $noSearch = false): array
     {
         $row = [];
-        if (!$searched && WebSearch::available()) {
+        if (!$searched && !$noSearch && WebSearch::available()) {
             $row[] = btn('🔎', 'ab:s', null);
         }
         if ($voice) {
@@ -21,6 +21,11 @@ final class AnswerButtons
         }
 
         return ['inline_keyboard' => $row ? [$row] : []];
+    }
+
+    public static function retryKeyboard(): array
+    {
+        return ['inline_keyboard' => [[btn('🔄', 'ab:r', null)]]];
     }
 
     public static function searchOnly(): ?array
@@ -53,7 +58,7 @@ final class AnswerButtons
             App::tg()->call('editMessageReplyMarkup', [
                 'chat_id'      => $chatId,
                 'message_id'   => $mid,
-                'reply_markup' => self::keyboard(!empty($rec['sr']), empty($rec['vo'])),
+                'reply_markup' => !empty($rec['f']) ? self::retryKeyboard() : self::keyboard(!empty($rec['sr']), empty($rec['vo']), !empty($rec['ns'])),
             ], 8);
         }
     }
@@ -120,6 +125,22 @@ final class AnswerButtons
         }
 
         switch ($act) {
+            case 'r':
+                $owner = (int) ($rec['u'] ?? 0);
+                if (($owner !== 0 && $owner !== $uid) || empty($rec['f']) || !self::lock($key, 'r')) {
+                    return;
+                }
+                try {
+                    match ((string) ($rec['k'] ?? '')) {
+                        'tr'    => Assistant::retryTranslate($cq, $rec),
+                        'img'   => ImageGen::retry($cq, $rec),
+                        default => Assistant::retry($cq, $rec),
+                    };
+                } finally {
+                    self::unlock($key, 'r');
+                }
+                return;
+
             case 'v':
                 $owner = (int) ($rec['u'] ?? 0);
                 if (($owner !== 0 && $owner !== $uid) || !empty($rec['vo']) || !self::lock($key, 'v')) {
@@ -127,18 +148,18 @@ final class AnswerButtons
                 }
                 $rec['vo'] = 1;
                 Store::set(self::NS, $key, $rec);
-                self::setKeyboard($chatId, $mid, self::keyboard(!empty($rec['sr']), false));
+                self::setKeyboard($chatId, $mid, self::keyboard(!empty($rec['sr']), false, !empty($rec['ns'])));
                 if (!self::voice($chatId, $mid, (string) $rec['a'], $uid)) {
                     $rec['vo'] = 0;
                     Store::set(self::NS, $key, $rec);
-                    self::setKeyboard($chatId, $mid, self::keyboard(!empty($rec['sr']), true));
+                    self::setKeyboard($chatId, $mid, self::keyboard(!empty($rec['sr']), true, !empty($rec['ns'])));
                 }
                 self::unlock($key, 'v');
                 return;
 
             case 's':
                 $owner = (int) ($rec['u'] ?? 0);
-                if (($owner !== 0 && $owner !== $uid) || !WebSearch::available() || !empty($rec['sr']) || !self::lock($key, 's')) {
+                if (($owner !== 0 && $owner !== $uid) || !empty($rec['ns']) || !WebSearch::available() || !empty($rec['sr']) || !self::lock($key, 's')) {
                     return;
                 }
                 try {
@@ -152,12 +173,14 @@ final class AnswerButtons
 
     private static function onInline(array $cq, string $imid): void
     {
-        $tg  = App::tg();
-        $key = 'i:' . $imid;
-        $rec = Store::getToday(self::NS, $key);
-        $rm  = static fn() => $tg->call('editMessageReplyMarkup', ['inline_message_id' => $imid, 'reply_markup' => ['inline_keyboard' => []]], 8);
+        $tg    = App::tg();
+        $key   = 'i:' . $imid;
+        $rec   = Store::getToday(self::NS, $key);
+        $rm    = static fn() => $tg->call('editMessageReplyMarkup', ['inline_message_id' => $imid, 'reply_markup' => ['inline_keyboard' => []]], 8);
+        $data  = (string) ($cq['data'] ?? '');
+        $retry = $data === 'ab:r';
 
-        if (!Switches::on('ai') || ($cq['data'] ?? '') !== 'ab:s') {
+        if (!Switches::on('ai') || ($data !== 'ab:s' && !$retry)) {
             $tg->answer($cq);
             return;
         }
@@ -168,22 +191,66 @@ final class AnswerButtons
         }
         $owner = (int) ($rec['u'] ?? 0);
         $uid   = (int) ($cq['from']['id'] ?? 0);
-        if (($owner !== 0 && $owner !== $uid) || !WebSearch::available() || !self::lock($key, 's')) {
+        $act   = $retry ? 'r' : 's';
+        if (($owner !== 0 && $owner !== $uid) || ($retry ? empty($rec['f']) : !WebSearch::available()) || !self::lock($key, $act)) {
             $tg->answer($cq);
             return;
         }
 
-        $rm();
+        $kind = (string) ($rec['k'] ?? '');
+        if ($retry && $kind === 'img') {
+            $tg->answer($cq);
+            Store::delete(self::NS, $key);
+            try {
+                GuestHandler::image($imid, null, (string) $rec['q'], $owner);
+            } finally {
+                self::unlock($key, $act);
+            }
+            return;
+        }
+        if ($retry && $kind === 'tr') {
+            $tg->answer($cq);
+            $tl = new LiveReply(['chat' => ['id' => 0, 'type' => 'inline'], 'message_id' => 0], $imid, '', false);
+            $tl->watch(true);
+            try {
+                $out = AI::translateFast((string) $rec['q'], (string) ($rec['t'] ?? 'auto'));
+            } finally {
+                $tl->stop();
+            }
+            if ($out !== null && $out !== '') {
+                Store::delete(self::NS, $key);
+                $tg->editInline($imid, (string) ($rec['h'] ?? '') . h($out));
+            } else {
+                $tg->editInline($imid, (string) ($rec['x'] ?? '') . AI::toHtml(AI::FAIL_TEXT), self::retryKeyboard());
+            }
+            self::unlock($key, $act);
+            return;
+        }
+
+        $head = (string) ($rec['h'] ?? '');
+        $live = null;
+        if ($retry) {
+            $tg->answer($cq);
+            $live = new LiveReply(['chat' => ['id' => 0, 'type' => 'inline'], 'message_id' => 0], $imid, $head, false);
+            $live->watch(true);
+        } else {
+            $rm();
+        }
         $done = false;
         try {
-            $head = (string) ($rec['h'] ?? '');
-            $ctx  = ['user_name' => userName($cq['from'] ?? []), 'chat_type' => 'guest'];
-            $q    = (string) $rec['q'] . "\n\n[دستور سیستم: این بار حتماً قبل از جواب دادن با ابزار web_search توی وب سرچ کن و جوابت رو بر اساس نتایج به‌روز بنویس.]";
-            $opt  = ['max_len' => PHP_INT_MAX, 'reaction' => false, 'force_search' => true];
-            $res  = AI::reply($q, $ctx, [], $opt);
+            $ctx = ['user_name' => userName($cq['from'] ?? []), 'chat_type' => 'guest'];
+            if ($retry) {
+                $q   = (string) $rec['q'];
+                $opt = ['max_len' => PHP_INT_MAX, 'reaction' => false] + ($live && App::cfg('ai_stream', true) ? ['on_text' => $live->feed(...)] : []);
+            } else {
+                $q   = (string) $rec['q'] . "\n\n[دستور سیستم: این بار حتماً قبل از جواب دادن با ابزار web_search توی وب سرچ کن و جوابت رو بر اساس نتایج به‌روز بنویس.]";
+                $opt = ['max_len' => PHP_INT_MAX, 'reaction' => false, 'force_search' => true];
+            }
+            $res = AI::reply($q, $ctx, [], $opt);
             if (!empty($res['action'])) {
                 $res = AI::reply($q, ['no_action' => true] + $ctx, [], $opt);
             }
+            $live?->stop();
             $searched = AI::$searched;
             $answer   = !empty($res['image']) || !empty($res['image_partial']) ? null : ($res['answer'] ?? null);
             if ($answer === null) {
@@ -203,14 +270,22 @@ final class AnswerButtons
                 Store::delete(self::NS, $key);
             } else {
                 $rec['a'] = $answer;
+                unset($rec['f']);
                 Store::set(self::NS, $key, $rec);
             }
         } finally {
-            $tg->answer($cq, $done ? null : AI::FAIL_TEXT);
-            if (!$done) {
-                $tg->call('editMessageReplyMarkup', ['inline_message_id' => $imid, 'reply_markup' => self::searchOnly() ?? ['inline_keyboard' => []]], 8);
+            $live?->stop();
+            if ($retry) {
+                if (!$done) {
+                    $tg->editInline($imid, $head . AI::toHtml(AI::FAIL_TEXT), self::retryKeyboard());
+                }
+            } else {
+                $tg->answer($cq, $done ? null : AI::FAIL_TEXT);
+                if (!$done) {
+                    $tg->call('editMessageReplyMarkup', ['inline_message_id' => $imid, 'reply_markup' => self::searchOnly() ?? ['inline_keyboard' => []]], 8);
+                }
             }
-            self::unlock($key, 's');
+            self::unlock($key, $act);
         }
     }
 

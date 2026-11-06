@@ -109,6 +109,8 @@ final class LiveReply
     public static int $instances = 0;
     public function __construct(...$args) { self::$instances++; }
     public function feed(string $s): void {}
+    public function watch(bool $now = false): void {}
+    public function stop(): void {}
 }
 
 require __DIR__ . '/../src/helpers.php';
