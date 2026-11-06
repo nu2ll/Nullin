@@ -382,8 +382,13 @@ final class Assistant
     {
         $tg     = App::tg();
         $lastId = 0;
-        foreach (AI::chunks($answer) as $part) {
-            $r = $tg->reply($msg, AI::wide(AI::toHtml($part)));
+        $chunks = AI::chunks($answer);
+        if (count($chunks) === 1 && ($rid = Rich::reply($msg, $chunks[0])) !== null) {
+            AI::markMsg($msg['chat']['id'], $rid);
+            return $rid;
+        }
+        foreach ($chunks as $part) {
+            $r = $tg->reply($msg, AI::toHtml($part));
             if (empty($r['ok'])) {
                 $r = $tg->call('sendMessage', [
                     'chat_id'          => $msg['chat']['id'],
@@ -793,7 +798,7 @@ final class Assistant
             $newMid = $mid;
             $edited = false;
             if (count($chunks) === 1 && (int) ($rec['n'] ?? 1) === 1) {
-                $r = $tg->editMessage($chatId, $mid, AI::wide(AI::toHtml($chunks[0])), $kb);
+                $r = $tg->editMessage($chatId, $mid, AI::toHtml($chunks[0]), $kb);
                 if (empty($r['ok']) && stripos((string) ($r['description'] ?? ''), 'not modified') === false) {
                     $r = $tg->call('editMessageText', [
                         'chat_id'      => $chatId,

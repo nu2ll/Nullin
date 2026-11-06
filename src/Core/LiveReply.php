@@ -330,11 +330,16 @@ final class LiveReply
         $parts = AI::chunks($text);
         $last  = count($parts) - 1;
 
+        if ($final && $last === 0 && !isset($this->ids[0]) && ($rid = Rich::reply($this->msg, $parts[0])) !== null) {
+            $this->ids[0] = $rid;
+            return true;
+        }
+
         foreach ($parts as $i => $part) {
             if (substr_count($part, '```') % 2 === 1) {
                 $part .= "\n```";
             }
-            $html = AI::wide(AI::toHtml($part) . ($i === $last && !$final && mb_strlen($part) <= 4094 ? ' ▍' : ''));
+            $html = AI::toHtml($part) . ($i === $last && !$final && mb_strlen($part) <= 4094 ? ' ▍' : '');
             if (($this->sent[$i] ?? null) === $html) {
                 continue;
             }

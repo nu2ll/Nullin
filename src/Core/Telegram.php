@@ -149,6 +149,15 @@ final class Telegram
         ]);
     }
 
+    public function replyRich(array $msg, string $markdown): ?array
+    {
+        return $this->call('sendRichMessage', [
+            'chat_id'          => $msg['chat']['id'],
+            'rich_message'     => ['markdown' => $markdown],
+            'reply_parameters' => ['message_id' => $msg['message_id'], 'allow_sending_without_reply' => true],
+        ]);
+    }
+
     public function editInline(string $inlineId, string $text, ?array $markup = null, bool $html = true): ?array
     {
         return $this->call('editMessageText', [
