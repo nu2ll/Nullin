@@ -396,18 +396,11 @@ final class Assistant
         return $lastId;
     }
 
-    private static function holdDots(int $chatId, int $userId): void
+    public static function holdDots(int $chatId, int $userId): void
     {
-        $left = AI::busyLeft($userId);
-        if ($left <= 0) {
-            return;
-        }
-        $first = Store::update('rl', 'aiw_' . $userId, static fn($at) => (is_int($at) && time() - $at < AI::WAIT) ? null : time());
-        if ($first === null) {
-            return;
-        }
-        $id  = mt_rand(1, 2147483646);
-        $end = time() + $left;
+        $end = time() + AI::WAIT;
+        Store::set('rl', 'ai_' . $userId, time());
+        $id = mt_rand(1, 2147483646);
         while (time() < $end) {
             App::tg()->call('sendMessageDraft', ['chat_id' => $chatId, 'draft_id' => $id, 'text' => '...'], 8);
             sleep((int) min(5, max(1, $end - time())));
@@ -429,8 +422,6 @@ final class Assistant
         if (!$service && AI::busy($userId)) {
             if ($chatType !== 'private') {
                 $tg->reply($msg, AI::BUSY_TEXT);
-            } else {
-                self::holdDots($chatId, $userId);
             }
             return;
         }
@@ -589,6 +580,10 @@ final class Assistant
 
         if ($res['answer'] !== null && !$service) {
             self::remember($chatId, $userId, $log, preg_replace('/\n\n🔗 منابع:.*$/su', '', $res['answer']) ?? $res['answer']);
+        }
+
+        if ($res['answer'] !== null && !$service && $chatType === 'private' && !App::isAdmin($userId)) {
+            self::holdDots($chatId, $userId);
         }
     }
 

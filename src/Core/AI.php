@@ -125,12 +125,6 @@ final class AI
         return (int) $messageId > 0 && Store::get('aimsg', $chatId . ':' . (int) $messageId) !== null;
     }
 
-    public static function busyLeft(int $uid): int
-    {
-        $at = Store::get('rl', 'ai_' . $uid);
-        return is_int($at) ? max(0, self::WAIT - (time() - $at)) : 0;
-    }
-
     public static function busy(int $uid): bool
     {
         if ($uid <= 0 || App::isAdmin($uid)) {

@@ -107,6 +107,9 @@ final class LiveReply
         }
         $text = trim((string) ($d['text'] ?? ''));
         App::tg()->send($cid, $text !== '' ? AI::toHtml(mb_substr($text, 0, 3900)) : '⛔ متوقف شد.');
+        if (($s['chat']['type'] ?? 'private') === 'private' && !App::isAdmin((int) $cid)) {
+            Assistant::holdDots((int) $cid, (int) $cid);
+        }
     }
 
     private static function frame(int $n): string
