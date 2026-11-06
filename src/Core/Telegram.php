@@ -316,6 +316,34 @@ final class Telegram
         return !empty($r['ok']) ? (int) ($r['result']['message_id'] ?? 0) : null;
     }
 
+    // Rich Message (Bot API 10.3): عکس + نقل‌قول تو در تو + دکمه‌های داخل پیام، همه تو یه حباب
+    public function sendRichCard(int|string $chatId, string $bytes, string $html, ?int $replyTo = null): ?int
+    {
+        $tmp = tempnam(sys_get_temp_dir(), 'nl_rich_');
+        if ($tmp === false || file_put_contents($tmp, $bytes) === false) {
+            return null;
+        }
+        try {
+            $r = $this->call('sendRichMessage', [
+                'chat_id'          => $chatId,
+                'rich_message'     => [
+                    'html'   => $html,
+                    'is_rtl' => true,
+                    'media'  => [['id' => 'card', 'media' => ['type' => 'photo', 'media' => 'attach://cardfile']]],
+                ],
+                'cardfile'         => new CURLFile($tmp, 'image/png', 'card.png'),
+                'reply_parameters' => $replyTo ? ['message_id' => $replyTo, 'allow_sending_without_reply' => true] : null,
+            ], 90);
+        } finally {
+            @unlink($tmp);
+        }
+        if (empty($r['ok'])) {
+            logWarn('rich', mb_substr((string) ($r['description'] ?? 'no response'), 0, 200));
+            return null;
+        }
+        return (int) ($r['result']['message_id'] ?? 0);
+    }
+
     public function sendAnimationBytes(int|string $chatId, string $bytes, string $caption = '', ?int $replyTo = null): bool
     {
         $tmp = tempnam(sys_get_temp_dir(), 'nl_gif_');

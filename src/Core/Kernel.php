@@ -12,7 +12,6 @@ final class Kernel
         'weather_pending' => 2 * 86400,
         'ai_memory'       => 2 * 86400,
         'cache'           => 3 * 86400,
-        'pricehist'       => 2 * 86400,
         'join'            => 86400,
         'inline_ai'       => 86400,
         'dl'              => 2 * 86400,
@@ -72,7 +71,6 @@ final class Kernel
     {
         try {
             MathDuel::tick();
-            PriceCard::tick();
         } catch (\Throwable $e) {
             logError('tick', $e->getMessage());
         }
