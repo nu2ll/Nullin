@@ -40,6 +40,8 @@ final class Kernel
             }
             if (isset($update['message'])) {
                 MessageHandler::handle($update['message']);
+            } elseif (isset($update['stopped_message_generation'])) {
+                LiveReply::onStop($update['stopped_message_generation']);
             } elseif (isset($update['inline_query'])) {
                 InlineHandler::handle($update['inline_query']);
             } elseif (isset($update['chosen_inline_result'])) {

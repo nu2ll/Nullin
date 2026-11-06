@@ -396,6 +396,24 @@ final class Assistant
         return $lastId;
     }
 
+    private static function holdDots(int $chatId, int $userId): void
+    {
+        $left = AI::busyLeft($userId);
+        if ($left <= 0) {
+            return;
+        }
+        $first = Store::update('rl', 'aiw_' . $userId, static fn($at) => (is_int($at) && time() - $at < AI::WAIT) ? null : time());
+        if ($first === null) {
+            return;
+        }
+        $id  = mt_rand(1, 2147483646);
+        $end = time() + $left;
+        while (time() < $end) {
+            App::tg()->call('sendMessageDraft', ['chat_id' => $chatId, 'draft_id' => $id, 'text' => '...'], 8);
+            sleep((int) min(5, max(1, $end - time())));
+        }
+    }
+
     public static function handle(array $msg, string $question): void
     {
         if (!Switches::on('ai')) {
@@ -411,6 +429,8 @@ final class Assistant
         if (!$service && AI::busy($userId)) {
             if ($chatType !== 'private') {
                 $tg->reply($msg, AI::BUSY_TEXT);
+            } else {
+                self::holdDots($chatId, $userId);
             }
             return;
         }
