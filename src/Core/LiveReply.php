@@ -4,7 +4,7 @@ final class LiveReply
 {
     public const DRAWING = '🎨 دارم می‌کشمش، چند لحظه صبر کن...';
 
-    public const THINKING = '🧠 نالینی داره فکر می‌کنه...';
+    public const THINKING = '🧠 نالینی داره فکر می‌کنه';
 
     private array $ids    = [];
     private array $sent   = [];

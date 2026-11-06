@@ -95,7 +95,7 @@ final class MessageHandler
         }
 
         if (is_array($msg['dice'] ?? null)) {
-            App::tg()->reply($msg, Ui::diceHello((string) ($msg['dice']['emoji'] ?? '🎲'), (int) ($msg['dice']['value'] ?? 0)));
+            App::tg()->reply($msg, Ui::diceHello((string) ($msg['dice']['emoji'] ?? '🎲'), (int) ($msg['dice']['value'] ?? 0)), ['reply_markup' => ikb([[btn('Nullini', 'noop', null)]])]);
             return;
         }
 
