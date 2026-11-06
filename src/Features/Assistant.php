@@ -398,16 +398,7 @@ final class Assistant
 
     public static function holdDots(int $chatId, int $userId, int $draftId = 0): void
     {
-        $end = time() + AI::WAIT;
         Store::set('rl', 'ai_' . $userId, time());
-        $id = $draftId > 0 ? $draftId : mt_rand(1, 2147483646);
-        while (time() < $end) {
-            $r = App::tg()->call('sendMessageDraft', ['chat_id' => $chatId, 'draft_id' => $id, 'text' => ''], 8);
-            if (empty($r['ok'])) {
-                App::tg()->call('sendMessageDraft', ['chat_id' => $chatId, 'draft_id' => $id, 'text' => '‎'], 8);
-            }
-            sleep((int) min(5, max(1, $end - time())));
-        }
     }
 
     public static function handle(array $msg, string $question): void

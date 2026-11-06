@@ -28,15 +28,6 @@ final class LiveReply
         $tg = App::tg();
         $cid = $this->msg['chat']['id'];
 
-        if (($this->msg['chat']['type'] ?? '') === 'private') {
-            $this->draftId = mt_rand(1, 2147483646);
-            if ($this->sendDraft(self::frame(1))) {
-                $this->draft = true;
-                $this->saveGen('', true);
-                return;
-            }
-        }
-
         $this->typing();
         $r = $tg->reply($this->msg, self::frame(1));
         if (empty($r['ok']) || !isset($r['result']['message_id'])) {
