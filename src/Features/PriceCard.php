@@ -97,57 +97,70 @@ final class PriceCard
         return is_numeric($c) ? (float) $c : null;
     }
 
-    // بدون هیچ کشی: هر درخواست مستقیم از API می‌خونه
-    private static function quotes(): ?array
+    private static function feedQuote(string $k, $row): ?array
     {
-        $feed = Currency::feed();
-        if ($feed === null) {
+        $a = self::ASSETS[$k];
+        $p = is_array($row) ? self::n($row['p'] ?? null) : null;
+        if ($p === null) {
             return null;
         }
-        $out = [];
-        foreach (self::ASSETS as $k => $a) {
-            $row = $feed[$a[0]] ?? null;
-            $p   = is_array($row) ? self::n($row['p'] ?? null) : null;
-            if ($p === null) {
-                continue;
-            }
-            $div  = $a[5] === 'usd' ? 1.0 : 10.0;
-            $mult = $a[5] === 'mesh' ? 4.3318 : 1.0;
-            $f    = $mult / $div;
-            $dpRaw = (string) ($row['dp'] ?? '');
-            $neg  = ($row['dt'] ?? '') === 'low' || str_contains($dpRaw, '-');
-            $d    = self::n($row['d'] ?? null) ?? 0.0;
-            $h    = self::n($row['h'] ?? null);
-            $l    = self::n($row['l'] ?? null);
-            $dp   = preg_match('/\d+(?:\.\d+)?/', str_replace(['٫', ','], ['.', ''], $dpRaw), $mm) === 1 ? (float) $mm[0] : null;
-            $out[$k] = [
-                'dp' => $dp !== null ? ($neg ? -abs($dp) : abs($dp)) : null,
-                'p'  => $p * $f,
-                'h'  => $h !== null ? $h * $f : null,
-                'l'  => $l !== null ? $l * $f : null,
-                'd'  => ($neg ? -abs($d) : abs($d)) * $f,
-                't'  => (string) ($row['t'] ?? ''),
-                'f'  => $f,
-            ];
-        }
-        return $out ?: null;
+        $div   = $a[5] === 'usd' ? 1.0 : 10.0;
+        $mult  = $a[5] === 'mesh' ? 4.3318 : 1.0;
+        $f     = $mult / $div;
+        $dpRaw = (string) ($row['dp'] ?? '');
+        $neg   = ($row['dt'] ?? '') === 'low' || str_contains($dpRaw, '-');
+        $d     = self::n($row['d'] ?? null) ?? 0.0;
+        $h     = self::n($row['h'] ?? null);
+        $l     = self::n($row['l'] ?? null);
+        $dp    = preg_match('/\d+(?:\.\d+)?/', str_replace(['٫', ','], ['.', ''], $dpRaw), $mm) === 1 ? (float) $mm[0] : null;
+        return [
+            'dp'  => $dp !== null ? ($neg ? -abs($dp) : abs($dp)) : null,
+            'p'   => $p * $f,
+            'h'   => $h !== null ? $h * $f : null,
+            'l'   => $l !== null ? $l * $f : null,
+            'd'   => ($neg ? -abs($d) : abs($d)) * $f,
+            't'   => (string) ($row['t'] ?? ''),
+            'f'   => $f,
+            'pts' => null,
+        ];
     }
 
-    // نمودار: اول کندل‌های ساعتی EZRate (۲۴ ساعت اخیر)؛ اگه کلید نبود یا نیومد، نمودار ۳۰ روزه‌ی tgju؛
-    // اگه اون هم نیومد، خط ساده‌ی «قبلی ← الان»
+    private static function quote(string $k, ?array $feed): ?array
+    {
+        $fq = $feed !== null ? self::feedQuote($k, $feed[self::ASSETS[$k][0]] ?? null) : null;
+        $c  = self::candles($k);
+        if (count($c) < 6) {
+            return $fq;
+        }
+        $last  = $c[count($c) - 1][4];
+        $first = $c[0][4];
+        $hi = max(max(array_column($c, 2)), $last);
+        $lo = min(min(array_column($c, 3)), $last);
+        $p  = $last;
+        return [
+            'dp'  => ($last / $first - 1) * 100,
+            'p'   => $p,
+            'h'   => $hi,
+            'l'   => $lo,
+            'd'   => $p - $first,
+            't'   => $fq['t'] ?? '',
+            'f'   => $fq['f'] ?? 1.0,
+            'pts' => array_column($c, 4),
+        ];
+    }
+
     private static function points(string $k, array $q): array
     {
-        $pts = self::ezrate($k, (float) $q['p']);
-        if (count($pts) < 6) {
-            $pts = self::history((string) self::ASSETS[$k][0], (float) ($q['f'] ?? 1.0), (float) $q['p']);
+        if (is_array($q['pts'] ?? null) && count($q['pts']) >= 6) {
+            return $q['pts'];
         }
+        $pts = self::history((string) self::ASSETS[$k][0], (float) ($q['f'] ?? 1.0), (float) $q['p']);
         if (count($pts) < 3) {
             return [$q['p'] - $q['d'], $q['p']];
         }
         return $pts;
     }
 
-    // نام دارایی تو EZRate (دارایی‌هایی که اینجا نیستن مستقیم می‌رن سراغ نمودار ۳۰ روزه)
     private const EZ = [
         'usd' => 'usd', 'eur' => 'eur', 'gbp' => 'gbp', 'aed' => 'aed', 'try' => 'try', 'cny' => 'cny',
         'cad' => 'cad', 'rub' => 'rub', 'iqd' => 'iqd', 'afn' => 'afn', 'usdt' => 'usdt', 'inr' => 'inr',
@@ -156,14 +169,16 @@ final class PriceCard
         'bnb' => 'bnb', 'sol' => 'sol', 'xrp' => 'xrp', 'doge' => 'doge', 'ltc' => 'ltc',
     ];
 
-    // کندل ساعتی EZRate؛ کلید از متغیر محیطی EZRATE_KEY. خروجی: حداکثر ۲۴ نقطه، قدیمی ← جدید، یا [] اگه نشد.
-    // واحد (تومان یا دلار) هرچی باشه، نمودار طوری مقیاس می‌شه که آخرین نقطه با قیمت زنده‌ی کارت یکی باشه.
-    private static function ezrate(string $k, float $cur): array
+    private static function candles(string $k): array
     {
+        static $cache = [];
+        if (isset($cache[$k])) {
+            return $cache[$k];
+        }
         $sym = self::EZ[$k] ?? null;
         $key = trim((string) env('EZRATE_KEY', ''));
-        if ($sym === null || $key === '' || $cur <= 0) {
-            return [];
+        if ($sym === null || $key === '') {
+            return $cache[$k] = [];
         }
         try {
             $url  = 'https://api.ezrate.me/v1/history/' . $sym . '?interval=1h&from=' . gmdate('Y-m-d', time() - 2 * 86400)
@@ -171,29 +186,44 @@ final class PriceCard
             $j    = Http::getJson($url, ['X-API-Key: ' . $key], 8);
             $rows = is_array($j) ? ($j['data'] ?? null) : null;
             if (!is_array($rows)) {
-                return [];
+                return $cache[$k] = [];
             }
             $c = [];
             foreach ($rows as $r) {
                 $v = is_array($r) ? self::n($r['c'] ?? null) : null;
-                if ($v !== null && $v > 0) {
-                    $c[] = [(string) ($r['t'] ?? ''), $v];
+                if ($v === null || $v <= 0) {
+                    continue;
                 }
+                $o = self::n($r['o'] ?? null);
+                $h = self::n($r['h'] ?? null);
+                $l = self::n($r['l'] ?? null);
+                $c[] = [(string) ($r['t'] ?? ''), $o !== null && $o > 0 ? $o : $v, $h !== null && $h > 0 ? $h : $v, $l !== null && $l > 0 ? $l : $v, $v];
             }
-            usort($c, static fn($a, $b) => strcmp($a[0], $b[0]));
+            usort($c, static fn($x, $y) => strcmp($x[0], $y[0]));
             $c = array_slice($c, -24);
-            if (count($c) < 6) {
-                return [];
+            if (self::ASSETS[$k][5] === 'usd' && strtoupper((string) ($j['meta']['quote'] ?? '')) === 'IRT') {
+                $u = [];
+                foreach (self::candles('usd') as $x) {
+                    $u[$x[0]] = $x[4];
+                }
+                if ($u === []) {
+                    return $cache[$k] = [];
+                }
+                ksort($u);
+                $c = array_map(static function ($x) use ($u) {
+                    $r = reset($u);
+                    foreach ($u as $t => $v) {
+                        if (strcmp((string) $t, $x[0]) > 0) {
+                            break;
+                        }
+                        $r = $v;
+                    }
+                    return [$x[0], $x[1] / $r, $x[2] / $r, $x[3] / $r, $x[4] / $r];
+                }, $c);
             }
-            $scale = $cur / $c[count($c) - 1][1];
-            if (self::ASSETS[$k][5] !== 'usd' && ($scale < 0.8 || $scale > 1.25)) {
-                return [];                       // قیمت EZRate با قیمت کارت جور نیست؛ به نمودار ۳۰ روزه برگرد
-            }
-            $out = array_map(static fn($x) => $x[1] * $scale, $c);
-            $out[count($out) - 1] = $cur;
-            return $out;
+            return $cache[$k] = $c;
         } catch (\Throwable $e) {
-            return [];
+            return $cache[$k] = [];
         }
     }
 
@@ -297,8 +327,8 @@ final class PriceCard
         $chatId = $msg['chat']['id'];
         $tg->action($chatId, 'upload_photo');
 
-        $all = self::quotes() ?? [];
-        $q   = $all[$m['asset']] ?? null;
+        $feed = Currency::feed();
+        $q    = self::quote($m['asset'], $feed);
         if ($q === null) {
             $tg->reply($msg, "⚠️ الان به منبع قیمت‌ها دسترسی ندارم؛\nچند لحظه دیگه دوباره بزن.");
             return;
@@ -314,7 +344,7 @@ final class PriceCard
         $time   = preg_match('/^\d{1,2}:\d{2}(?::\d{2})?$/', $q['t']) === 1 ? $q['t'] : date('H:i:s');
         $title  = "ارزش {$amt} {$unit} {$noun}";
         $pct    = $q['dp'] ?? (($q['p'] - $q['d']) > 0 ? $q['d'] / ($q['p'] - $q['d']) * 100 : 0.0);
-        $usdQ   = $isU ? ($all['usd']['p'] ?? null) : null;
+        $usdQ   = $isU ? (self::quote('usd', $feed)['p'] ?? null) : null;
 
         $head = '💵 ' . h(fa($title)) . " ({$where})";
         $g1   = [];
@@ -327,21 +357,6 @@ final class PriceCard
             $g2[] = '🟢 سقف: ' . fa($money($q['h'])) . '   🔴 کف: ' . fa($money($q['l']));
         }
         $g2[] = '⌚ ساعت: ' . fa($time);
-        // کپشن تو در تو (نقل قول داخل نقل قول)؛ اگه تلگرام قبول نکرد، نسخه‌ی ساده می‌ره
-        $nested  = '<blockquote>' . $head . "\n<blockquote>" . implode("\n", $g1) . "</blockquote>\n<blockquote>"
-                 . implode("\n", $g2) . '</blockquote></blockquote>';
-        $caption = '<blockquote>' . $head . "\n\n" . implode("\n", $g1) . "\n\n" . implode("\n", $g2) . '</blockquote>';
-
-        $row = [];
-        if ($q['h'] !== null && $q['l'] !== null) {
-            $row = [
-                copyBtn('🟢 سقف: ' . fa($money($q['h'])), $money($q['h']), 'success'),
-                copyBtn('🔴 کف: ' . fa($money($q['l'])), $money($q['l']), 'danger'),
-            ];
-        }
-        $kb = ikb([$row, [copyBtn('💰 کپی کل: ' . fa($money($total)) . " {$cur}", $money($total), 'primary')]]);
-
-        // نسخه‌ی Rich: نقل‌قول سه‌لایه + دکمه‌های داخل پیام (مثل ربات مایکل)
         $btn = static fn(string $label, string $copy, string $style): string
             => '<tg-button type="copy_text" text="' . h($copy) . '" style="' . $style . '">' . h($label) . '</tg-button>';
         $rich = '<img src="tg://photo?id=card"/>'
@@ -369,14 +384,7 @@ final class PriceCard
             'footer' => '@' . App::botUsername(),
         ]);
         if ($png !== null) {
-            if ($tg->sendRichCard($chatId, $png, $rich, (int) $msg['message_id']) !== null) {
-                return;
-            }
-            if ($tg->sendPhotoCard($chatId, $png, $nested, (int) $msg['message_id'], $kb) !== null
-                || $tg->sendPhotoCard($chatId, $png, $caption, (int) $msg['message_id'], $kb) !== null) {
-                return;
-            }
+            $tg->sendRichCard($chatId, $png, $rich, (int) $msg['message_id']);
         }
-        $tg->reply($msg, $caption, ['reply_markup' => $kb]);
     }
 }
