@@ -493,7 +493,7 @@ final class Assistant
 
         $history = $service ? [] : self::history($chatId, $userId);
         $voiceIn = isset($msg['voice']) && !$service;
-        $live    = App::cfg('ai_stream', true) && !$voiceIn ? new LiveReply($msg, null, '', true, true) : null;
+        $live    = App::cfg('ai_stream', true) ? new LiveReply($msg, null, '', true, true) : null;
         $live?->start();
         $opt     = ['max_len' => PHP_INT_MAX] + ($live ? ['on_text' => $live->feed(...)] : []);
         $res     = AI::reply($content, $ctx, $history, $opt);
