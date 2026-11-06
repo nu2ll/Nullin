@@ -121,7 +121,8 @@ final class AnswerButtons
 
         switch ($act) {
             case 'v':
-                if (!empty($rec['vo']) || !self::lock($key, 'v')) {
+                $owner = (int) ($rec['u'] ?? 0);
+                if (($owner !== 0 && $owner !== $uid) || !empty($rec['vo']) || !self::lock($key, 'v')) {
                     return;
                 }
                 $rec['vo'] = 1;

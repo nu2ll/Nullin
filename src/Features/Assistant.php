@@ -414,9 +414,7 @@ final class Assistant
         $service  = AI::isServiceSender($from, $msg['sender_chat'] ?? null);
 
         if (!$service && AI::busy($userId)) {
-            if ($chatType !== 'private') {
-                $tg->reply($msg, AI::BUSY_TEXT);
-            }
+            $tg->reply($msg, AI::BUSY_TEXT);
             return;
         }
 

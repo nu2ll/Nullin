@@ -24,6 +24,10 @@ final class GuestHandler
             return;
         }
 
+        if (Downloader::isIgStory($q . ' ' . $rt)) {
+            return;
+        }
+
         $link = $q !== '' ? Downloader::match($q) : ($rt !== '' ? Downloader::match($rt) : null);
         if (($link !== null && !Switches::on('download')) || ($link === null && !Switches::on('ai'))) {
             return;

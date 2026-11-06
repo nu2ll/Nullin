@@ -49,6 +49,10 @@ final class MessageHandler
             return;
         }
 
+        if ($text !== '' && Downloader::isIgStory($text)) {
+            return;
+        }
+
         $startsWithName = preg_match('/^' . self::TRIGGER . '(?:[\s،,:!؟?.]|$)/u', $text) === 1;
         $mentioned      = self::mentionsBot($text);
         $link = null;

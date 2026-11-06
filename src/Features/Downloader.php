@@ -96,9 +96,17 @@ final class Downloader
         return $opts;
     }
 
+    public static function isIgStory(string $text): bool
+    {
+        return preg_match('#(?:instagram\.com|instagr\.am)/stories/#i', $text) === 1;
+    }
+
     public static function match(string $text): ?array
     {
         $text = mbTrim($text);
+        if (self::isIgStory($text)) {
+            return null;
+        }
         if ($text === '' || mb_strlen($text) > 600) {
             return null;
         }
