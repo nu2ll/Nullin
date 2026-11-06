@@ -3,16 +3,16 @@
 final class PriceCard
 {
     private const ASSETS = [
-        'usd'  => ['price_dollar_rl', ['دلار', 'دلار آمریکا', 'دلار امریکا', 'usd', 'dollar', '$'], 'دلار آمریکا', 'واحد'],
-        'eur'  => ['price_eur', ['یورو', 'eur', 'euro'], 'یورو', 'واحد'],
-        'gbp'  => ['price_gbp', ['پوند', 'پوند انگلیس', 'gbp'], 'پوند انگلیس', 'واحد'],
-        'aed'  => ['price_aed', ['درهم', 'درهم امارات', 'aed'], 'درهم امارات', 'واحد'],
-        'try'  => ['price_try', ['لیر', 'لیر ترکیه', 'try'], 'لیر ترکیه', 'واحد'],
-        'cad'  => ['price_cad', ['دلار کانادا', 'cad'], 'دلار کانادا', 'واحد'],
-        'cny'  => ['price_cny', ['یوان', 'یوان چین', 'cny'], 'یوان چین', 'واحد'],
-        'usdt' => ['crypto-tether-irr', ['تتر', 'usdt', 'tether'], 'تتر', 'واحد'],
-        'coin' => ['sekee', ['سکه', 'سکه امامی'], 'سکه امامی', 'عدد'],
-        'gold' => ['geram18', ['طلا', 'گرم طلا', 'طلا ۱۸', 'طلای ۱۸', 'طلا 18', 'طلای 18', 'طلای18', 'طلا18'], 'طلای ۱۸ عیار', 'گرم'],
+        'usd'  => ['price_dollar_rl', ['دلار', 'دلار آمریکا', 'دلار امریکا', 'usd', 'dollar', '$'], 'دلار آمریکا', 'واحد', '$'],
+        'eur'  => ['price_eur', ['یورو', 'eur', 'euro'], 'یورو', 'واحد', '€'],
+        'gbp'  => ['price_gbp', ['پوند', 'پوند انگلیس', 'gbp'], 'پوند انگلیس', 'واحد', '£'],
+        'aed'  => ['price_aed', ['درهم', 'درهم امارات', 'aed'], 'درهم امارات', 'واحد', 'AED'],
+        'try'  => ['price_try', ['لیر', 'لیر ترکیه', 'try'], 'لیر ترکیه', 'واحد', '₺'],
+        'cad'  => ['price_cad', ['دلار کانادا', 'cad'], 'دلار کانادا', 'واحد', 'C$'],
+        'cny'  => ['price_cny', ['یوان', 'یوان چین', 'cny'], 'یوان چین', 'واحد', '¥'],
+        'usdt' => ['crypto-tether-irr', ['تتر', 'usdt', 'tether'], 'تتر', 'واحد', '₮'],
+        'coin' => ['sekee', ['سکه', 'سکه امامی'], 'سکه امامی', 'عدد', '◎'],
+        'gold' => ['geram18', ['طلا', 'گرم طلا', 'طلا ۱۸', 'طلای ۱۸', 'طلا 18', 'طلای 18', 'طلای18', 'طلا18'], 'طلای ۱۸ عیار', 'گرم', 'Au'],
     ];
 
     private static function norm(string $s): string
@@ -205,7 +205,7 @@ final class PriceCard
             $tg->reply($msg, "⚠️ الان به منبع قیمت‌ها دسترسی ندارم؛\nچند لحظه دیگه دوباره بزن.");
             return;
         }
-        [, , $noun, $unit] = self::ASSETS[$m['asset']];
+        [, , $noun, $unit, $sym] = self::ASSETS[$m['asset']];
         $amount = (float) $m['amount'];
         $amt    = self::amountText($amount);
         $total  = $q['p'] * $amount;
@@ -242,6 +242,7 @@ final class PriceCard
             'value'  => self::fmt($total),
             'pct'    => round($pct, 2),
             'points' => array_map(static fn($v) => $v * $amount, self::points($m['asset'], $q)),
+            'sym'    => $sym,
             'footer' => '@' . App::botUsername(),
         ]);
         if ($png !== null && $tg->sendPhotoCard($chatId, $png, $caption, (int) $msg['message_id'], $kb) !== null) {

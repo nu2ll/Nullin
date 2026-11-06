@@ -13,8 +13,15 @@ except Exception:
 
 RAQM = features.check("raqm")
 
+# چیدمان حروف فارسی:
+#  - اگه Raqm هست خودش اتصال حروف و راست‌به‌چپ رو درست می‌کنه (متن خام می‌دیم)
+#  - اگه Raqm نیست، با arabic_reshaper + bidi خودمون آماده می‌کنیم و فونت رو BASIC می‌گیریم
+# قبلاً هر دو با هم اعمال می‌شد و متن دوباره برعکس می‌شد.
+MODE = "raqm" if RAQM else ("shaper" if SHAPER else "plain")
+
 FONTS = [
     "/usr/share/fonts/truetype/vazirmatn/Vazirmatn-Regular.ttf",
+    "/usr/share/fonts/truetype/vazirmatn/Vazirmatn[wght].ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "/usr/share/fonts/dejavu/DejaVuSans.ttf",
 ]
@@ -29,10 +36,17 @@ W, H = 1000, 660
 
 def font(size, bold=False):
     for p in (BOLDS if bold else FONTS):
-        if os.path.isfile(p):
-            if SHAPER and "Vazirmatn" in p:
-                continue
+        if not os.path.isfile(p):
+            continue
+        is_vazir = "azirmatn" in p
+        if is_vazir and MODE != "raqm":
+            continue
+        try:
+            if MODE == "shaper":
+                return ImageFont.truetype(p, int(size * S), layout_engine=ImageFont.Layout.BASIC)
             return ImageFont.truetype(p, int(size * S))
+        except Exception:
+            continue
     return ImageFont.load_default()
 
 
@@ -40,18 +54,25 @@ def has_rtl(t):
     return any("\u0600" <= c <= "\u06ff" for c in t)
 
 
-def shape(t):
-    if SHAPER and has_rtl(t):
+def prep(t):
+    if MODE == "shaper" and has_rtl(t):
         return get_display(arabic_reshaper.reshape(t))
     return t
 
 
+def kw_for(t):
+    if MODE == "raqm" and has_rtl(t):
+        return {"direction": "rtl", "language": "fa"}
+    return {}
+
+
 def text(d, xy, t, f, fill, anchor="la"):
     x, y = xy
-    kw = {}
-    if not SHAPER and RAQM and has_rtl(t):
-        kw = {"direction": "rtl", "language": "fa"}
-    d.text((x * S, y * S), shape(t), font=f, fill=fill, anchor=anchor, **kw)
+    d.text((x * S, y * S), prep(t), font=f, fill=fill, anchor=anchor, **kw_for(t))
+
+
+def tlen(d, t, f):
+    return d.textlength(prep(t), font=f, **kw_for(t)) / S
 
 
 def gradient(w, h, c1, c2):
@@ -59,34 +80,74 @@ def gradient(w, h, c1, c2):
     return Image.composite(Image.new("RGB", (w, h), c2), Image.new("RGB", (w, h), c1), m)
 
 
+def glyph_layer(size, sym, px, rot, alpha):
+    f = font(px, True)
+    tmp = Image.new("RGBA", (int(px * 2.2 * S), int(px * 2.2 * S)), (0, 0, 0, 0))
+    ImageDraw.Draw(tmp).text((tmp.width // 2, tmp.height // 2), sym, font=f, fill=(255, 255, 255, alpha), anchor="mm")
+    return tmp.rotate(rot, resample=Image.BICUBIC, expand=False)
+
+
 def main():
     p = json.load(sys.stdin)
     pts = [float(v) for v in p.get("points", [])]
     pct = float(p.get("pct", 0))
     up = pct >= 0
+    sym = str(p.get("sym", "$")) or "$"
     c1, c2 = ((30, 150, 70), (14, 100, 48)) if up else ((200, 60, 60), (140, 32, 40))
     line = (22, 163, 100) if up else (220, 70, 70)
+    soft = (214, 240, 226, 255) if up else (250, 220, 220, 255)
 
     img = gradient(W * S, H * S, c1, c2).convert("RGBA")
+
+    # نمادهای تزئینی کمرنگ پشت کارت
+    deco = [(-10, -20, 210, -14), (W - 190, 40, 190, 16), (W - 160, H - 230, 230, 10), (-20, H - 210, 170, -12)]
+    for x, y, px, rot in deco:
+        g = glyph_layer(S, sym if len(sym) == 1 else sym[0], px, rot, 46)
+        img.alpha_composite(g, (int(x * S), int(y * S)))
+
     d = ImageDraw.Draw(img)
     d.rounded_rectangle((40 * S, 40 * S, (W - 40) * S, (H - 70) * S), radius=40 * S, fill=(248, 249, 248, 255))
 
     ink, mute = (22, 24, 30), (120, 126, 136)
-    text(d, (W - 80, 72), p.get("title", ""), font(27, True), ink, "ra")
-    text(d, (80, 76), p.get("tag", "IRT"), font(20, True), mute, "la")
 
-    text(d, (W - 80, 192), p.get("unit", "تومان"), font(28), mute, "rs")
-    big = font(76, True)
-    uw = d.textlength(shape(p.get("unit", "تومان")), font=font(28)) / S
-    text(d, (W - 80 - uw - 16, 192), p.get("value", ""), big, ink, "rs")
+    # آیکن گرد نماد ارز کنار عنوان
+    bx, by, br = W - 80 - 24, 86, 24
+    d.ellipse(((bx - br) * S, (by - br) * S, (bx + br) * S, (by + br) * S), fill=line)
+    d.ellipse(((bx - br + 4) * S, (by - br + 4) * S, (bx + br - 4) * S, (by + br - 4) * S), outline=(255, 255, 255, 255), width=2 * S)
+    text(d, (bx, by + 1), sym, font(22 if len(sym) == 1 else 15, True), (255, 255, 255, 255), "mm")
 
+    text(d, (W - 80 - 2 * br - 16, 86), p.get("title", ""), font(27, True), ink, "rm")
+
+    # برچسب IRT
+    tf0 = font(19, True)
+    tag = p.get("tag", "IRT")
+    tw0 = tlen(d, tag, tf0) + 36
+    d.rounded_rectangle((80 * S, 66 * S, (80 + tw0) * S, 106 * S), radius=20 * S, fill=(236, 238, 240, 255))
+    text(d, (80 + tw0 / 2, 86), tag, tf0, mute, "mm")
+
+    unit = p.get("unit", "تومان")
+    uf = font(28)
+    uw = tlen(d, unit, uf)
+    text(d, (W - 80, 192), unit, uf, mute, "rs")
+    text(d, (W - 80 - uw - 16, 192), p.get("value", ""), font(76, True), ink, "rs")
+
+    # درصد تغییر: کپسول درصد + کپسول فلش
     pill = f"{'+' if up else '-'}{abs(pct):.2f}%"
     pf = font(24, True)
-    pw = d.textlength(pill, font=pf) / S + 60
+    pw = tlen(d, pill, pf) + 44
     px1 = W - 80
-    d.rounded_rectangle(((px1 - pw) * S, 215 * S, px1 * S, 258 * S), radius=22 * S, fill=(214, 240, 226, 255) if up else (250, 220, 220, 255))
-    text(d, (px1 - 18, 236), pill, pf, line, "rm")
-    d.polygon([((px1 - pw + 22) * S, (244 if up else 228) * S), ((px1 - pw + 34) * S, (230 if up else 244) * S), ((px1 - pw + 46) * S, (244 if up else 228) * S)], fill=line)
+    d.rounded_rectangle(((px1 - pw) * S, 215 * S, px1 * S, 258 * S), radius=22 * S, fill=soft)
+    text(d, (px1 - pw / 2, 237), pill, pf, line, "mm")
+    ax1 = px1 - pw - 10
+    d.rounded_rectangle(((ax1 - 46) * S, 215 * S, ax1 * S, 258 * S), radius=22 * S, fill=soft)
+    acx = ax1 - 23
+    for dy in (-7, 5):
+        y0 = 237 + dy
+        if up:
+            pts_a = [((acx - 9) * S, (y0 + 5) * S), (acx * S, (y0 - 4) * S), ((acx + 9) * S, (y0 + 5) * S)]
+        else:
+            pts_a = [((acx - 9) * S, (y0 - 5) * S), (acx * S, (y0 + 4) * S), ((acx + 9) * S, (y0 - 5) * S)]
+        d.line(pts_a, fill=line, width=3 * S, joint="curve")
 
     cx0, cx1, cy0, cy1 = 190, W - 90, 300, H - 130
     if len(pts) < 2:
@@ -98,7 +159,7 @@ def main():
     lo, hi = lo - pad, hi + pad
     xy = [(cx0 + (cx1 - cx0) * i / (len(pts) - 1), cy1 - (cy1 - cy0) * (v - lo) / (hi - lo)) for i, v in enumerate(pts)]
 
-    lf = font(15)
+    lf = font(15, True)
     for i in range(5):
         v = hi - (hi - lo) * i / 4
         y = cy0 + (cy1 - cy0) * i / 4
@@ -114,13 +175,17 @@ def main():
     ex, ey = xy[-1]
     d.ellipse(((ex - 8) * S, (ey - 8) * S, (ex + 8) * S, (ey + 8) * S), fill=line, outline=(255, 255, 255, 255), width=3 * S)
 
-    tag = p.get("footer", "")
-    if tag:
-        tf = font(19, True)
-        tw = d.textlength(tag, font=tf) / S + 50
+    foot = p.get("footer", "")
+    if foot:
+        ff = font(19, True)
+        tw = tlen(d, foot, ff) + 50 + 34
         x0 = (W - tw) / 2
-        d.rounded_rectangle((x0 * S, (H - 62) * S, (x0 + tw) * S, (H - 24) * S), radius=19 * S, fill=(20, 80, 45, 200))
-        text(d, (W / 2, H - 43), tag, tf, (255, 255, 255, 255), "mm")
+        shade = (20, 60, 38, 215) if up else (90, 24, 30, 215)
+        d.rounded_rectangle((x0 * S, (H - 62) * S, (x0 + tw) * S, (H - 24) * S), radius=19 * S, fill=shade)
+        lx, ly = x0 + 26, H - 43
+        d.ellipse(((lx - 12) * S, (ly - 12) * S, (lx + 12) * S, (ly + 12) * S), fill=(41, 171, 238, 255))
+        d.polygon([((lx - 6) * S, (ly + 0) * S), ((lx + 6) * S, (ly - 6) * S), ((lx + 3) * S, (ly + 7) * S), ((lx - 0.5) * S, (ly + 2.5) * S)], fill=(255, 255, 255, 255))
+        text(d, (lx + 20, ly), foot, ff, (255, 255, 255, 255), "lm")
 
     img = img.convert("RGB").resize((W, H), Image.LANCZOS)
     img.save(p["out"], "PNG", optimize=True)
