@@ -14,10 +14,10 @@ final class AnswerButtons
     {
         $row = [];
         if (!$searched && !$noSearch && WebSearch::available()) {
-            $row[] = btn('🔎', 'ab:s', null);
+            $row[] = btn('🔎', 'ab:s', 'primary');
         }
         if ($voice) {
-            $row[] = btn('🔊', 'ab:v', null);
+            $row[] = btn('🔊', 'ab:v', 'success');
         }
 
         return ['inline_keyboard' => $row ? [$row] : []];
@@ -25,12 +25,12 @@ final class AnswerButtons
 
     public static function retryKeyboard(): array
     {
-        return ['inline_keyboard' => [[btn('🔄', 'ab:r', null)]]];
+        return ['inline_keyboard' => [[btn('🔄', 'ab:r', 'danger')]]];
     }
 
     public static function searchOnly(): ?array
     {
-        return WebSearch::available() ? ['inline_keyboard' => [[btn('🔎', 'ab:s', null)]]] : null;
+        return WebSearch::available() ? ['inline_keyboard' => [[btn('🔎', 'ab:s', 'primary')]]] : null;
     }
 
     public static function attachInline(string $imid, array $rec): void
