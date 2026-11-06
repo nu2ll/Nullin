@@ -182,7 +182,7 @@ final class Downloader
             $tg->reply($msg, $stop);
             return;
         }
-        $sent = $tg->reply($msg, '🔎 دارم لینک ' . $link['name'] . ' رو بررسی می‌کنم...');
+        $sent = Rich::sendHtml($msg['chat']['id'], '🔎 دارم لینک ' . $link['name'] . ' رو بررسی می‌کنم...', (int) $msg['message_id']);
         $mid  = (int) ($sent['result']['message_id'] ?? 0);
         if (!$mid) {
             return;
@@ -241,14 +241,7 @@ final class Downloader
             return;
         }
         if (!empty($t['card'])) {
-            $tg->call('editMessageText', [
-                'chat_id'              => $t['chat'],
-                'message_id'           => (int) $t['card'],
-                'text'                 => $text,
-                'parse_mode'           => 'HTML',
-                'reply_markup'         => $kb,
-                'link_preview_options' => $preview ?? ['is_disabled' => true],
-            ]);
+            Rich::editHtml($t['chat'], (int) $t['card'], $text, $kb, (string) ($preview['url'] ?? ''));
         }
     }
 
@@ -772,7 +765,7 @@ final class Downloader
         if (!empty($job['imid'])) {
             self::show($job, self::stageText($job, '⏳ آماده‌ی دانلود...'));
         } elseif (!$job['card']) {
-            $r = $tg->send($job['chat'], self::stageText($job, '⏳ آماده‌ی دانلود...'));
+            $r = Rich::sendHtml($job['chat'], self::stageText($job, '⏳ آماده‌ی دانلود...'));
             $card = (int) ($r['result']['message_id'] ?? 0);
             if (!$card) {
                 Store::delete('dl_busy', (string) $uid);

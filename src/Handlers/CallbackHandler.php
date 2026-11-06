@@ -148,7 +148,8 @@ final class CallbackHandler
                 $tg->alert($cq, '⏳ هنوز عضو نشدی! اول عضو شو بعد دکمه رو بزن.');
                 return;
             }
-            $tg->editMessage($chatId, $msgId, Ui::startText($cq['from']), Ui::startKeyboard());
+            $tg->call('deleteMessage', ['chat_id' => $chatId, 'message_id' => $msgId], 8);
+            $tg->send($chatId, Ui::startText($cq['from']), ['reply_markup' => Ui::startKeyboard()]);
             $tg->answer($cq, '✅ خوش اومدی!');
             return;
         }

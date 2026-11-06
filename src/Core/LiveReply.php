@@ -140,17 +140,11 @@ final class LiveReply
 
         if (($this->msg['chat']['type'] ?? '') === 'private') {
             $this->draftId = mt_rand(1, 2147483646);
-            if ($this->sendThinking(0)) {
-                $this->rich  = true;
-                $this->draft = true;
-                $this->arm();
-                return;
-            }
-            if ($this->sendDraft($this->frame(0))) {
-                $this->draft = true;
-                $this->arm();
-                return;
-            }
+            $this->sendThinking(0);
+            $this->rich  = true;
+            $this->draft = true;
+            $this->arm();
+            return;
         }
 
         $this->typing();
@@ -184,23 +178,7 @@ final class LiveReply
 
     private function waitDraft(int $n, string $html): void
     {
-        if ($this->rich && $this->sendThinking($n)) {
-            return;
-        }
-        $this->rich = false;
-        $this->sendDraft($html);
-    }
-
-    private function sendDraft(string $html): bool
-    {
-        $p = [
-            'chat_id'    => $this->msg['chat']['id'],
-            'draft_id'   => $this->draftId,
-            'text'       => $html,
-            'parse_mode' => 'HTML',
-        ];
-        $r = App::tg()->call('sendMessageDraft', $p, 8);
-        return !empty($r['ok']);
+        $this->sendThinking($n);
     }
 
     private function frame(int $n): string
@@ -372,11 +350,7 @@ final class LiveReply
             if (substr_count($text, '```') % 2 === 1) {
                 $text .= "\n```";
             }
-            if ($this->rich && $this->sendRichText($text)) {
-                return;
-            }
-            $this->rich = false;
-            $this->sendDraft(AI::toHtml($text) . ' ▍');
+            $this->sendRichText($text);
             return;
         }
 
@@ -422,9 +396,14 @@ final class LiveReply
                 $this->sent = [];
                 return true;
             }
+            return false;
         }
 
-        if ($final && !$this->adopted && ($rid = Rich::reply($this->msg, substr_count($text, '```') % 2 === 1 ? $text . "\n```" : $text)) !== null) {
+        if ($final && !$this->adopted) {
+            $rid = Rich::reply($this->msg, substr_count($text, '```') % 2 === 1 ? $text . "\n```" : $text);
+            if ($rid === null) {
+                return false;
+            }
             foreach ($this->ids as $old) {
                 $tg->call('deleteMessage', ['chat_id' => $this->msg['chat']['id'], 'message_id' => $old], 8);
             }

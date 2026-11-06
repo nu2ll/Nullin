@@ -380,26 +380,12 @@ final class Assistant
 
     private static function send(array $msg, string $answer): int
     {
-        $tg     = App::tg();
-        $lastId = 0;
-        if (($rid = Rich::reply($msg, $answer)) !== null) {
-            AI::markMsg($msg['chat']['id'], $rid);
-            return $rid;
+        $rid = Rich::reply($msg, $answer);
+        if ($rid === null) {
+            return 0;
         }
-        $chunks = AI::chunks($answer);
-        foreach ($chunks as $part) {
-            $r = $tg->reply($msg, AI::toHtml($part));
-            if (empty($r['ok'])) {
-                $r = $tg->call('sendMessage', [
-                    'chat_id'          => $msg['chat']['id'],
-                    'text'             => mb_substr($part, 0, 4096),
-                    'reply_parameters' => ['message_id' => $msg['message_id'], 'allow_sending_without_reply' => true],
-                ]);
-            }
-            $lastId = (int) ($r['result']['message_id'] ?? 0);
-            AI::markMsg($msg['chat']['id'], $lastId);
-        }
-        return $lastId;
+        AI::markMsg($msg['chat']['id'], $rid);
+        return $rid;
     }
 
     public static function handle(array $msg, string $question): void
@@ -723,7 +709,9 @@ final class Assistant
             $live->stop();
             if ($out !== null && $out !== '') {
                 $html = (string) ($rec['h'] ?? '') . h($out);
-                if (empty($rec['rc']) || !AnswerButtons::okEditPublic(AnswerButtons::editHtmlRich($chatId, $mid, $html))) {
+                if (!empty($rec['rc'])) {
+                    AnswerButtons::editHtmlRich($chatId, $mid, $html);
+                } else {
                     $tg->editMessage($chatId, $mid, $html);
                 }
                 Store::delete('aibtn', $chatId . ':' . $mid);
@@ -759,8 +747,8 @@ final class Assistant
 
         $voiceLeft = empty($rec['vo']);
         $rich      = !empty($rec['rc']);
-        if ($rich && !AnswerButtons::editRich($chatId, $mid, $old, AnswerButtons::rows(true, $voiceLeft))) {
-            $rich = false;
+        if ($rich) {
+            AnswerButtons::editRich($chatId, $mid, $old, AnswerButtons::rows(true, $voiceLeft));
         }
         $tg->action($chatId, 'typing');
 
@@ -797,15 +785,13 @@ final class Assistant
             $newMid = $mid;
             $edited = false;
             $isRich = false;
-            if ($rich && AnswerButtons::editRich($chatId, $mid, $answer, AnswerButtons::rows($searched, $voiceLeft))) {
+            if ($rich) {
+                AnswerButtons::editRich($chatId, $mid, $answer, AnswerButtons::rows($searched, $voiceLeft));
                 $edited = true;
                 $isRich = true;
             }
             if (!$edited) {
-                if ($rich) {
-                    AnswerButtons::editRich($chatId, $mid, $old, '');
-                }
-                $newMid = self::send(['chat' => ['id' => $chatId], 'message_id' => $origId], $answer);
+                $newMid = self::send(['chat' => ['id' => $chatId, 'type' => $chatType], 'message_id' => $origId], $answer);
             }
             $done = true;
 

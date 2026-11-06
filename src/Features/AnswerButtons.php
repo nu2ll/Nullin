@@ -102,40 +102,29 @@ final class AnswerButtons
     {
         $tg     = App::tg();
         $chatId = (int) $msg['chat']['id'];
-        $rich   = false;
-        $r      = null;
-        if (in_array($msg['chat']['type'] ?? '', ['private', 'group', 'supergroup'], true)) {
-            $r    = $tg->call('sendRichMessage', [
-                'chat_id'          => $chatId,
-                'rich_message'     => ['html' => self::failBody($plain)],
-                'reply_parameters' => ['message_id' => $msg['message_id'], 'allow_sending_without_reply' => true],
-            ]);
-            $rich = !empty($r['ok']);
-        }
-        if (!$rich) {
-            $r = $tg->reply($msg, $plain);
-        }
+        $r      = $tg->call('sendRichMessage', [
+            'chat_id'          => $chatId,
+            'rich_message'     => ['html' => self::failBody($plain)],
+            'reply_parameters' => ['message_id' => $msg['message_id'], 'allow_sending_without_reply' => true],
+        ]);
         $mid = (int) ($r['result']['message_id'] ?? 0);
         if ($mid > 0) {
-            self::attach($chatId, $mid, $rec + ['a' => $plain, 'f' => 1, 'rc' => $rich ? 1 : 0], false);
+            self::attach($chatId, $mid, $rec + ['a' => $plain, 'f' => 1, 'rc' => 1], false);
         }
     }
 
     public static function failEdit(int $chatId, int $mid, string $plain): void
     {
         $tg   = App::tg();
-        $rich = self::okEdit($tg->call('editMessageText', [
+        $tg->call('editMessageText', [
             'chat_id'      => $chatId,
             'message_id'   => $mid,
             'rich_message' => ['html' => self::failBody($plain)],
-        ], 10));
-        if (!$rich) {
-            $tg->editMessage($chatId, $mid, h($plain));
-        }
+        ], 10);
         $key = $chatId . ':' . $mid;
         $rec = Store::get(self::NS, $key);
         if (is_array($rec)) {
-            $rec['rc'] = $rich ? 1 : 0;
+            $rec['rc'] = 1;
             Store::set(self::NS, $key, $rec);
         }
     }
@@ -209,11 +198,9 @@ final class AnswerButtons
                 ], 5);
             } else {
                 [$chat, $mid] = array_pad(explode(':', (string) $k, 2), 2, '0');
-                $r = null;
                 if (is_array($rec) && !empty($rec['rc']) && trim((string) ($rec['a'] ?? '')) !== '') {
                     $r = self::richEdit($tgx, (int) $chat, (int) $mid, (string) $rec['a'], '');
-                }
-                if (!is_array($r) || (empty($r['ok']) && (int) ($r['error_code'] ?? 0) !== 429 && stripos((string) ($r['description'] ?? ''), 'not modified') === false)) {
+                } else {
                     $r = $tgx->call('editMessageReplyMarkup', [
                         'chat_id'      => (int) $chat,
                         'message_id'   => (int) $mid,

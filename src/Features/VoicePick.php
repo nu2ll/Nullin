@@ -124,6 +124,6 @@ final class VoicePick
         }
 
         [$text, $kb] = self::panel($uid, $page);
-        $tg->editMessage((int) $m['chat']['id'], (int) $m['message_id'], $text, $kb);
+        Rich::edit((int) $m['chat']['id'], (int) $m['message_id'], $text, $kb);
     }
 }

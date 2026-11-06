@@ -94,7 +94,7 @@ final class MessageHandler
         if ($private) {
             $missing = Membership::missing($userId);
             if ($missing) {
-                App::tg()->send($msg['chat']['id'], Membership::text(), ['reply_markup' => Membership::keyboard($missing)]);
+                Rich::sendHtml($msg['chat']['id'], Membership::text(), null, Membership::keyboard($missing));
                 return;
             }
         }
@@ -172,7 +172,7 @@ final class MessageHandler
                 if ($private) {
                     $missing = Membership::missing((int) $from['id']);
                     if ($missing) {
-                        $tg->send($chatId, Membership::text(), ['reply_markup' => Membership::keyboard($missing)]);
+                        Rich::sendHtml($chatId, Membership::text(), null, Membership::keyboard($missing));
                         return true;
                     }
                 }
@@ -217,7 +217,7 @@ final class MessageHandler
 
             case 'voice':
                 [$vt, $vk] = VoicePick::panel((int) $from['id']);
-                $tg->reply($msg, $vt, ['reply_markup' => $vk]);
+                Rich::sendHtml($chatId, $vt, (int) $msg['message_id'], $vk);
                 return true;
 
             case 'wk':

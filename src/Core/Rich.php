@@ -34,10 +34,60 @@ final class Rich
         $id  = empty($r['ok']) ? 0 : (int) ($r['result']['message_id'] ?? 0);
         if ($id > 0) {
             self::mark((int) $msg['chat']['id'], $id);
-            return $id;
         }
-        App::tg()->reply($msg, $text);
-        return null;
+        return $id > 0 ? $id : null;
+    }
+
+    public static function buttonsHtml(?array $kb): string
+    {
+        $out = '';
+        foreach ((array) ($kb['inline_keyboard'] ?? []) as $row) {
+            $r = '';
+            foreach ((array) $row as $b) {
+                $style = isset($b['style']) ? ' style="' . h((string) $b['style']) . '"' : '';
+                $label = h((string) ($b['text'] ?? ''));
+                if (isset($b['callback_data'])) {
+                    $r .= '<tg-button type="callback_data"' . $style . ' data="' . h((string) $b['callback_data']) . '">' . $label . '</tg-button>';
+                } elseif (isset($b['url'])) {
+                    $r .= '<tg-button type="url"' . $style . ' url="' . h((string) $b['url']) . '">' . $label . '</tg-button>';
+                } elseif (isset($b['copy_text']['text'])) {
+                    $r .= '<tg-button type="copy_text"' . $style . ' text="' . h((string) $b['copy_text']['text']) . '">' . $label . '</tg-button>';
+                }
+            }
+            if ($r !== '') {
+                $out .= '<tg-button-row>' . $r . '</tg-button-row>';
+            }
+        }
+        return $out;
+    }
+
+    private static function payload(string $html, ?array $kb, ?string $img): array
+    {
+        $body = '<p>' . str_replace("\n", '<br>', $html) . '</p>' . self::buttonsHtml($kb);
+        if ($img !== null && preg_match('#^https://#', $img)) {
+            return ['html' => '<img src="tg://photo?id=thumb"/>' . $body, 'is_rtl' => true, 'media' => [['id' => 'thumb', 'media' => ['type' => 'photo', 'media' => $img]]]];
+        }
+        return ['html' => $body, 'is_rtl' => true];
+    }
+
+    public static function editHtml(int|string $chatId, int $mid, string $html, ?array $kb = null, ?string $img = null): bool
+    {
+        $r = App::tg()->call('editMessageText', ['chat_id' => $chatId, 'message_id' => $mid, 'rich_message' => self::payload($html, $kb, $img)], 10);
+        return !empty($r['ok']) || stripos((string) ($r['description'] ?? ''), 'not modified') !== false;
+    }
+
+    public static function edit(int|string $chatId, int $mid, string $html, ?array $kb = null, ?string $img = null): void
+    {
+        self::editHtml($chatId, $mid, $html, $kb, $img);
+    }
+
+    public static function sendHtml(int|string $chatId, string $html, ?int $replyTo = null, ?array $kb = null, ?string $img = null): ?array
+    {
+        return App::tg()->call('sendRichMessage', [
+            'chat_id'          => $chatId,
+            'rich_message'     => self::payload($html, $kb, $img),
+            'reply_parameters' => $replyTo ? ['message_id' => $replyTo, 'allow_sending_without_reply' => true] : null,
+        ], 10);
     }
 
     public static function markdown(string $text): string
