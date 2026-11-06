@@ -48,6 +48,11 @@ final class Currency
         return null;
     }
 
+    public static function feed(): ?array
+    {
+        return self::fetchFeed();
+    }
+
     private static function num(array $feed, string $key): ?float
     {
         $raw = $feed[$key]['p'] ?? null;

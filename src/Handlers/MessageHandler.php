@@ -67,7 +67,14 @@ final class MessageHandler
         if ($link !== null && !Switches::on('download')) {
             return;
         }
+        $price = null;
+        if ($text !== '' && empty($msg['is_automatic_forward']) && Switches::on('rates')) {
+            $pq    = preg_replace('/@' . preg_quote(App::botUsername(), '/') . '\b/iu', '', $text) ?? $text;
+            $pq    = preg_replace('/^' . self::TRIGGER . '[\s،,:]*/iu', '', mbTrim($pq)) ?? $pq;
+            $price = PriceCard::match($pq, $private || $mentioned || $startsWithName);
+        }
         $shouldRespond  = $link !== null
+            || $price !== null
             || (!$toolReply && (
                 $private
                 || ($group && !empty($msg['is_automatic_forward']))
@@ -87,6 +94,11 @@ final class MessageHandler
                 App::tg()->send($msg['chat']['id'], Membership::text(), ['reply_markup' => Membership::keyboard($missing)]);
                 return;
             }
+        }
+
+        if ($price !== null && $link === null) {
+            PriceCard::send($msg, $price);
+            return;
         }
 
         if ($link !== null) {

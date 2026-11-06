@@ -89,6 +89,15 @@ function urlBtn(string $text, string $url, ?string $style = 'primary'): array
     return $b;
 }
 
+function copyBtn(string $text, string $copy, ?string $style = 'primary'): array
+{
+    $b = ['text' => $text, 'copy_text' => ['text' => mb_substr($copy, 0, 256)]];
+    if ($style !== null) {
+        $b['style'] = $style;
+    }
+    return $b;
+}
+
 function ikb(array $rows): array
 {
     return ['inline_keyboard' => array_values(array_filter($rows, static fn($r) => !empty($r)))];

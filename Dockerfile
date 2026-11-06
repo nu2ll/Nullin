@@ -6,8 +6,8 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ffmpeg python3 python3-pip curl unzip ca-certificates \
- && python3 -m pip install -U --no-cache-dir --break-system-packages "yt-dlp[default,curl-cffi]" gallery-dl pysocks telethon \
+ && apt-get install -y --no-install-recommends ffmpeg python3 python3-pip curl unzip ca-certificates fonts-dejavu-core \
+ && python3 -m pip install -U --no-cache-dir --break-system-packages "yt-dlp[default,curl-cffi]" gallery-dl pysocks telethon pillow arabic-reshaper python-bidi \
  && (python3 -m pip install --no-cache-dir --break-system-packages --only-binary=:all: cryptg || true) \
  && ARCH="$(uname -m)" && case "$ARCH" in aarch64|arm64) D=aarch64 ;; *) D=x86_64 ;; esac \
  && curl -fsSL -o /tmp/deno.zip "https://github.com/denoland/deno/releases/latest/download/deno-${D}-unknown-linux-gnu.zip" \

@@ -182,7 +182,7 @@ foreach (array_keys(Ui::GUIDES) as $g) {
 }
 check('start text', str_contains(Ui::startText(['id' => 1, 'first_name' => '<b>x</b>']), '&lt;b&gt;'), true);
 check('icon url', str_starts_with(Ui::icon('chess'), 'https://raw.githubusercontent.com/'), true);
-check('calc done', Calculator::render('8', true), "<b>🧮 ماشین‌حساب نالینی</b>\n\n= <b>8</b>");
+check('calc done', Calculator::render('8', true), "<b>🧮 ماشین‌حساب نالین</b>\n\n= <b>8</b>");
 check('calc typing no preview', str_contains(Calculator::render('2+3'), '='), false);
 check('commands admin', count(Ui::commands('admin')), 21);
 check('commands private', count(Ui::commands('private')), 11);
