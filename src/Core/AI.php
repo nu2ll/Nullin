@@ -909,8 +909,20 @@ final class AI
         return mb_strlen($text) > $room ? mb_substr($text, 0, $room - 1) . '…' : $text;
     }
 
-    public static function chunks(string $text, int $limit = 4096): array
+    public static function widePad(): int
     {
+        return max(0, min(200, (int) App::cfg('ai_wide_pad', 0)));
+    }
+
+    public static function wide(string $html): string
+    {
+        $n = self::widePad();
+        return $n > 0 ? $html . "\n" . str_repeat("\u{2800}", $n) : $html;
+    }
+
+    public static function chunks(string $text, ?int $limit = null): array
+    {
+        $limit ??= 4096 - (self::widePad() > 0 ? self::widePad() + 1 : 0);
         $out  = [];
         $rest = $text;
         while (mb_strlen($rest) > $limit) {

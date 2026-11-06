@@ -134,7 +134,7 @@ final class LiveReply
     private function frame(int $n): string
     {
         $label = $this->head !== '' ? $this->head . self::WAIT_TEXT : self::THINKING;
-        return $label . "\n" . $n . 's';
+        return $label . "\n\u{061C}" . $n . 's';
     }
 
     private function typing(): void
@@ -171,6 +171,7 @@ final class LiveReply
     {
         $this->disarm();
         if ($this->draft) {
+            $this->sendDraft($this->frame(0));
             $ok = $this->sync($answer, true);
             if ($ok) {
                 return true;
@@ -333,7 +334,7 @@ final class LiveReply
             if (substr_count($part, '```') % 2 === 1) {
                 $part .= "\n```";
             }
-            $html = AI::toHtml($part) . ($i === $last && !$final && mb_strlen($part) <= 4094 ? ' ▍' : '');
+            $html = AI::wide(AI::toHtml($part) . ($i === $last && !$final && mb_strlen($part) <= 4094 ? ' ▍' : ''));
             if (($this->sent[$i] ?? null) === $html) {
                 continue;
             }
