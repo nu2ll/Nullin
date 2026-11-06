@@ -14,6 +14,7 @@ final class LiveReply
     private int $lastLen  = 0;
     private int $lastTyping = 0;
     private bool $draft   = false;
+    private bool $rich    = false;
     private int $draftId  = 0;
     private float $t0     = 0.0;
     private int $shown    = 0;
@@ -79,7 +80,7 @@ final class LiveReply
             $html = $this->frame($n);
             $r    = null;
             if ($this->draft) {
-                $this->sendDraft($html);
+                $this->waitDraft($n, $html);
             } elseif ($this->imid !== null) {
                 $r = App::tg()->editInline($this->imid, $html);
             } elseif (isset($this->ids[0])) {
@@ -103,6 +104,12 @@ final class LiveReply
 
         if (($this->msg['chat']['type'] ?? '') === 'private') {
             $this->draftId = mt_rand(1, 2147483646);
+            if ($this->sendThinking(0)) {
+                $this->rich  = true;
+                $this->draft = true;
+                $this->arm();
+                return;
+            }
             if ($this->sendDraft($this->frame(0))) {
                 $this->draft = true;
                 $this->arm();
@@ -117,6 +124,35 @@ final class LiveReply
         }
         $this->ids[0] = (int) $r['result']['message_id'];
         $this->arm();
+    }
+
+    private function sendThinking(int $n): bool
+    {
+        $r = App::tg()->call('sendRichMessageDraft', [
+            'chat_id'      => $this->msg['chat']['id'],
+            'draft_id'     => $this->draftId,
+            'rich_message' => ['html' => '<tg-thinking>🧠 نالینی داره فکر می‌کنه… ' . $n . 's</tg-thinking>'],
+        ], 8);
+        return !empty($r['ok']);
+    }
+
+    private function sendRichText(string $text): bool
+    {
+        $r = App::tg()->call('sendRichMessageDraft', [
+            'chat_id'      => $this->msg['chat']['id'],
+            'draft_id'     => $this->draftId,
+            'rich_message' => ['markdown' => Rich::markdown($text) . ' ▍'],
+        ], 8);
+        return !empty($r['ok']);
+    }
+
+    private function waitDraft(int $n, string $html): void
+    {
+        if ($this->rich && $this->sendThinking($n)) {
+            return;
+        }
+        $this->rich = false;
+        $this->sendDraft($html);
     }
 
     private function sendDraft(string $html): bool
@@ -171,7 +207,7 @@ final class LiveReply
     {
         $this->disarm();
         if ($this->draft) {
-            $this->sendDraft($this->frame(0));
+            $this->waitDraft(0, $this->frame(0));
             $ok = $this->sync($answer, true);
             if ($ok) {
                 return true;
@@ -297,6 +333,10 @@ final class LiveReply
             if (substr_count($text, '```') % 2 === 1) {
                 $text .= "\n```";
             }
+            if ($this->rich && $this->sendRichText($text)) {
+                return;
+            }
+            $this->rich = false;
             $this->sendDraft(AI::toHtml($text) . ' ▍');
             return;
         }

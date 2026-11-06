@@ -2,14 +2,9 @@
 
 final class Rich
 {
-    public static function on(): bool
-    {
-        return (bool) App::cfg('ai_rich', false);
-    }
-
     public static function reply(array $msg, string $text): ?int
     {
-        if (!self::on() || ($msg['chat']['type'] ?? '') !== 'private' || trim($text) === '' || mb_strlen($text) > 30000) {
+        if (!in_array($msg['chat']['type'] ?? '', ['private', 'group', 'supergroup'], true) || trim($text) === '' || mb_strlen($text) > 30000) {
             return null;
         }
         $r = App::tg()->replyRich($msg, self::markdown($text));

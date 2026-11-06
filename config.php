@@ -41,7 +41,6 @@ return [
     'ai_memory_messages' => (int) env('AI_MEMORY_MESSAGES', 20),
     'ai_typing_effect'   => true,
     'ai_stream'          => env('AI_STREAM', '1') !== '0',
-    'ai_rich'            => env('AI_RICH', '0') === '1',
 
     'cloudflare_account_id' => env('CF_ACCOUNT_ID', ''),
     'cloudflare_api_token'  => env('CF_API_TOKEN', ''),
