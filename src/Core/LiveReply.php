@@ -4,7 +4,7 @@ final class LiveReply
 {
     public const DRAWING = '🎨 دارم می‌کشمش، چند لحظه صبر کن...';
 
-    public const THINKING = '🤔 نالینی داره فکر می‌کنه...';
+    public const THINKING = '🧠 نالینی داره فکر می‌کنه...';
 
     private array $ids    = [];
     private array $sent   = [];
@@ -108,7 +108,7 @@ final class LiveReply
         $text = trim((string) ($d['text'] ?? ''));
         App::tg()->send($cid, $text !== '' ? AI::toHtml(mb_substr($text, 0, 3900)) : '⛔ متوقف شد.');
         if (($s['chat']['type'] ?? 'private') === 'private' && !App::isAdmin((int) $cid)) {
-            Assistant::holdDots((int) $cid, (int) $cid);
+            Assistant::holdDots((int) $cid, (int) $cid, (int) ($d['draft'] ?? 0));
         }
     }
 
@@ -175,6 +175,11 @@ final class LiveReply
         }
         $this->discard();
         return false;
+    }
+
+    public function draftId(): int
+    {
+        return $this->draft ? $this->draftId : 0;
     }
 
     public function ids(): array

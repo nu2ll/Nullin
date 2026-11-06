@@ -396,13 +396,16 @@ final class Assistant
         return $lastId;
     }
 
-    public static function holdDots(int $chatId, int $userId): void
+    public static function holdDots(int $chatId, int $userId, int $draftId = 0): void
     {
         $end = time() + AI::WAIT;
         Store::set('rl', 'ai_' . $userId, time());
-        $id = mt_rand(1, 2147483646);
+        $id = $draftId > 0 ? $draftId : mt_rand(1, 2147483646);
         while (time() < $end) {
-            App::tg()->call('sendMessageDraft', ['chat_id' => $chatId, 'draft_id' => $id, 'text' => '...'], 8);
+            $r = App::tg()->call('sendMessageDraft', ['chat_id' => $chatId, 'draft_id' => $id, 'text' => ''], 8);
+            if (empty($r['ok'])) {
+                App::tg()->call('sendMessageDraft', ['chat_id' => $chatId, 'draft_id' => $id, 'text' => '‎'], 8);
+            }
             sleep((int) min(5, max(1, $end - time())));
         }
     }
@@ -575,6 +578,7 @@ final class Assistant
                 'n'  => $chunks,
                 'o'  => (int) $msg['message_id'],
                 'sr' => $searched ? 1 : 0,
+                'vo' => $voiceIn ? 1 : 0,
             ]);
         }
 
@@ -583,7 +587,7 @@ final class Assistant
         }
 
         if ($res['answer'] !== null && !$service && $chatType === 'private' && !App::isAdmin($userId)) {
-            self::holdDots($chatId, $userId);
+            self::holdDots($chatId, $userId, (int) $live?->draftId());
         }
     }
 
