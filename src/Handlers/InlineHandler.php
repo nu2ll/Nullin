@@ -3,7 +3,7 @@
 final class InlineHandler
 {
     private const ROUTES = [
-        'ai'      => ['ai', 'nullini', 'هوش', 'نالینی'],
+        'ai'      => ['ai', 'nullini', 'nullin', 'هوش', 'نالینی', 'نالین'],
         'tr'      => ['tr', 'tarjome', 'translate', 'ترجمه'],
         'whisper' => ['nj', 'najva', 'نجوا'],
         'weather' => ['hv', 'havaye', 'hava', 'weather', 'آب و هوای', 'آب و هوا', 'آب‌وهوای', 'آب‌وهوا', 'هوای', 'هوا'],
@@ -40,7 +40,7 @@ final class InlineHandler
                 'results'         => [],
                 'cache_time'      => 0,
                 'is_personal'     => true,
-                'button'          => ['text' => '🔒 اول عضو کانال نالینی شو', 'start_parameter' => 'join'],
+                'button'          => ['text' => '🔒 اول عضو کانال نالین شو', 'start_parameter' => 'join'],
             ]);
             return;
         }
@@ -115,11 +115,11 @@ final class InlineHandler
 
         $isAi  = $kind === 'ai';
         $head  = $isAi ? '❓ <b>' . h(mb_substr($q, 0, 256)) . '</b>' : '📝 ' . h(mb_substr($q, 0, 256));
-        $wait  = $isAi ? '🧠 نالینی داره فکر می‌کنه...' : '🌐 در حال ترجمه...';
+        $wait  = $isAi ? '🧠 نالین داره فکر می‌کنه...' : '🌐 در حال ترجمه...';
         return Ui::article(
             "{$kind}q_{$token}",
             $isAi ? 'ai' : 'translate',
-            $isAi ? '🧠 بپرس از نالینی' : '🌐 ترجمه کن',
+            $isAi ? '🧠 بپرس از نالین' : '🌐 ترجمه کن',
             mb_substr($q, 0, 80),
             "{$head}\n\n⏳ {$wait}",
             ikb([[btn('⏳ صبر کن...', "{$kind}q:{$token}", null)]])
@@ -587,7 +587,7 @@ final class InlineHandler
             Ui::article('math', 'math', '🔢 دوئل ریاضی', 'مسابقه‌ی سرعت حساب، چندنفره', MathDuel::intro(), MathDuel::modeKeyboard()),
             Ui::article('coin', 'coin', '🪙 سکه', 'شیر یا خط؟', "<b>🪙 سکه</b>\n\nآماده‌ی پرتاب! 👇", Tools::coinKeyboard()),
             Ui::article('fal', 'fal', '🔮 فال حافظ', 'یه فال از دیوان حافظ', Tools::hafezCaption(), Tools::hafezKeyboard()),
-            Ui::article('help_group', 'group', '👥 در گروه', 'نالینی رو به گروهت اضافه کن', Ui::guide('group'), Ui::tryKeyboard('group')),
+            Ui::article('help_group', 'group', '👥 در گروه', 'نالین رو به گروهت اضافه کن', Ui::guide('group'), Ui::tryKeyboard('group')),
             Ui::article('help_image', 'image', '🎨 ساخت عکس', 'فقط بگو چی بکشم؛ تو پیوی یا گروه', Ui::guide('image'), Ui::tryKeyboard('image')),
             Ui::article('help_whisper', 'whisper', '🤫 نجوا', 'nj [متن] [@یوزرنیم] [آیدی]', Ui::guide('whisper'), Ui::tryKeyboard('whisper')),
             Ui::article('help_giveaway', 'gift', '🎁 قرعه‌کشی', 'gw [تعداد] [زمان] [جایزه]', Ui::guide('giveaway'), Ui::tryKeyboard('giveaway')),

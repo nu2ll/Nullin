@@ -4,9 +4,9 @@ final class LiveReply
 {
     public const DRAWING = '🎨 دارم می‌کشمش، چند لحظه صبر کن...';
 
-    public const THINKING = '🧠 نالینی داره فکر می‌کنه';
+    public const THINKING = '🧠 نالین داره فکر می‌کنه';
 
-    private const WAIT_TEXT = 'نالینی داره فکر می‌کنه';
+    private const WAIT_TEXT = 'نالین داره فکر می‌کنه';
 
     private array $ids    = [];
     private array $sent   = [];
@@ -156,7 +156,7 @@ final class LiveReply
         $r = App::tg()->call('sendRichMessageDraft', [
             'chat_id'      => $this->msg['chat']['id'],
             'draft_id'     => $this->draftId,
-            'rich_message' => ['html' => '<tg-thinking>🧠 نالینی داره فکر می‌کنه… ' . $n . 's</tg-thinking>'],
+            'rich_message' => ['html' => '<tg-thinking>🧠 نالین داره فکر می‌کنه… ' . $n . 's</tg-thinking>'],
         ], 8);
         return !empty($r['ok']);
     }

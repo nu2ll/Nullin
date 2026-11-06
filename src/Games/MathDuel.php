@@ -207,7 +207,7 @@ final class MathDuel
                 $s['mode']    = $mode === 'bot' ? 'bot' : 'pvp';
                 $s['players'] = [$uid => $me];
                 if ($s['mode'] === 'bot') {
-                    $s['players'][self::BOT_KEY] = ['name' => '🤖 نالینی', 'scores' => []];
+                    $s['players'][self::BOT_KEY] = ['name' => '🤖 نالین', 'scores' => []];
                     $s['status']                 = 'playing';
                     $s['started']                = time();
                     $s                           = self::nextRound($s);

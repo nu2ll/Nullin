@@ -2,7 +2,7 @@
 
 final class MessageHandler
 {
-    private const TRIGGER = 'نالینی';
+    private const TRIGGER = '(?:نالینی|نالین|nullini|nullin)';
 
     public static function handle(array $msg): void
     {
@@ -53,12 +53,12 @@ final class MessageHandler
             return;
         }
 
-        $startsWithName = preg_match('/^' . self::TRIGGER . '(?:[\s،,:!؟?.]|$)/u', $text) === 1;
+        $startsWithName = preg_match('/^' . self::TRIGGER . '(?:[\s،,:!؟?.]|$)/iu', $text) === 1;
         $mentioned      = self::mentionsBot($text);
         $link = null;
         if ($text !== '' && empty($msg['is_automatic_forward']) && ($private || Downloader::groupsEnabled() || $mentioned || $startsWithName)) {
             $bare = preg_replace('/@' . preg_quote(App::botUsername(), '/') . '\b/iu', '', $text) ?? $text;
-            $bare = preg_replace('/^' . self::TRIGGER . '[\s،,:]*/u', '', mbTrim($bare)) ?? $bare;
+            $bare = preg_replace('/^' . self::TRIGGER . '[\s،,:]*/iu', '', mbTrim($bare)) ?? $bare;
             $link = Downloader::match($bare);
         }
         $toolReply = self::isReplyToBot($msg)
@@ -74,7 +74,7 @@ final class MessageHandler
                 || ($group && self::isReplyToBot($msg))
                 || ($group && $mentioned)
                 || ($group && is_array($msg['dice'] ?? null))
-                || ($group && mb_strpos($text, self::TRIGGER) !== false)
+                || ($group && preg_match('/' . self::TRIGGER . '/iu', $text) === 1)
             ));
 
         if (!$shouldRespond) {
@@ -104,7 +104,7 @@ final class MessageHandler
             $question = mbTrim(preg_replace('/@' . preg_quote(App::botUsername(), '/') . '\b/iu', '', $question) ?? $question, " \t\n،,:");
         }
         if ($startsWithName) {
-            $question = mbTrim(mb_substr($question, mb_strlen(self::TRIGGER)), " \t\n،,:");
+            $question = mbTrim(preg_replace('/^' . self::TRIGGER . '/iu', '', $question) ?? $question, " \t\n،,:");
         }
 
         if ($group && $question === '' && !$hasMedia && !isset($msg['reply_to_message']) && ($mentioned || $startsWithName)) {
@@ -258,7 +258,7 @@ final class MessageHandler
                 foreach (Users::topEvents(1, 8) as $e) {
                     $top .= "\n• <code>" . h($e['event']) . '</code>: ' . $n($e['hits']);
                 }
-                $tg->reply($msg, "📊 <b>آمار نالینی</b>\n\n"
+                $tg->reply($msg, "📊 <b>آمار نالین</b>\n\n"
                     . '👥 کل کاربرها: ' . $n($u['total'] ?? 0) . "\n"
                     . '🆕 جدید امروز: ' . $n($u['new_today'] ?? 0) . "\n"
                     . '🔥 فعال ۲۴ ساعت: ' . $n($u['day'] ?? 0) . ' · ۷ روز: ' . $n($u['week'] ?? 0) . "\n"
@@ -337,9 +337,9 @@ final class MessageHandler
                 $row = ($r && (int) $r['id'] === $tid) ? ['name' => userName($r), 'username' => $r['username'] ?? null] : Db::row('SELECT name, username FROM users WHERE id = ?', [$tid]);
                 $who = userTag($tid, (string) ($row['name'] ?? ''), $row['username'] ?? null);
                 if ($cmd === 'ban') {
-                    $tg->reply($msg, Ban::add($tid, (int) $from['id']) ? "کاربر {$who} از ربات نالینی بن شد." : '🙅 ادمین رو نمی‌شه بن کرد.');
+                    $tg->reply($msg, Ban::add($tid, (int) $from['id']) ? "کاربر {$who} از ربات نالین بن شد." : '🙅 ادمین رو نمی‌شه بن کرد.');
                 } else {
-                    $tg->reply($msg, Ban::remove($tid) ? "کاربر {$who} از ربات نالینی آنبن شد." : 'این کاربر بن نبود.');
+                    $tg->reply($msg, Ban::remove($tid) ? "کاربر {$who} از ربات نالین آنبن شد." : 'این کاربر بن نبود.');
                 }
                 return true;
 

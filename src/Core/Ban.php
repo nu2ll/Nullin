@@ -6,7 +6,7 @@ final class Ban
     private const SPAM_LIMIT  = 10;
     private const SPAM_WINDOW = 20;
     private const SPAM_BAN    = 3600;
-    private const SPAM_TEXT   = "⏳ یه ساعت استراحت؛ بعدش دوباره بیا.\n🚫 اینقدر سریع پیام دادی که نالینی قاطی کرد 😅";
+    private const SPAM_TEXT   = "⏳ یه ساعت استراحت؛ بعدش دوباره بیا.\n🚫 اینقدر سریع پیام دادی که نالین قاطی کرد 😅";
 
     public static function is(int $uid): bool
     {

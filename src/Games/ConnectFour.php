@@ -141,7 +141,7 @@ final class ConnectFour
                 $s['status'] = 'playing';
                 $s['board']  = array_fill(0, self::ROWS * self::COLS, '');
                 $s['turn']   = 'R';
-                $s['p2']     = $s['mode'] === 'bot' ? ['id' => 0, 'name' => '🤖 نالینی'] : null;
+                $s['p2']     = $s['mode'] === 'bot' ? ['id' => 0, 'name' => '🤖 نالین'] : null;
                 GameKit::save($imid, $s);
                 self::render($imid, $s);
             },

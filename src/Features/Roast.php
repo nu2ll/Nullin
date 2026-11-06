@@ -197,7 +197,7 @@ final class Roast
         }
         $prompt = implode("\n", $l);
 
-        $sys    = 'تو «نالینی» هستی. فقط متن روست رو بنویس، بدون مقدمه و بدون ** یا #.';
+        $sys    = 'تو «نالین» هستی. فقط متن روست رو بنویس، بدون مقدمه و بدون ** یا #.';
         $stream = $live ? ['stream' => $live->feed(...)] : [];
         $out    = AI::chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => array_values(array_filter([$pic, ['type' => 'text', 'text' => $prompt]]))]],
             ['tier' => 'smart', 'temperature' => 1.0, 'deadline' => microtime(true) + 60, 'section' => 'roast'] + $stream);

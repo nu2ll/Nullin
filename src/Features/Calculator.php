@@ -21,9 +21,9 @@ final class Calculator
     {
         $pretty = strtr($expr, ['*' => '×', '/' => '÷', '-' => '−']);
         if ($done) {
-            return "<b>🧮 ماشین‌حساب نالینی</b>\n\n= <b>" . h($pretty) . '</b>';
+            return "<b>🧮 ماشین‌حساب نالین</b>\n\n= <b>" . h($pretty) . '</b>';
         }
-        return "<b>🧮 ماشین‌حساب نالینی</b>\n\n<code>" . h($pretty) . '</code>';
+        return "<b>🧮 ماشین‌حساب نالین</b>\n\n<code>" . h($pretty) . '</code>';
     }
 
     public static function press(string $expr, string $key): string

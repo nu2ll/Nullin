@@ -12,7 +12,7 @@ final class GuestHandler
         $text = trim((string) ($msg['text'] ?? $msg['caption'] ?? ''));
         $bot  = App::botUsername();
         $q    = mbTrim(preg_replace('/@' . preg_quote($bot, '/') . '\b/iu', '', $text) ?? $text, " \t\n،,:");
-        $q    = mbTrim(preg_replace('/^نالینی(?=[\s،,:!؟?.]|$)/u', '', $q) ?? $q, " \t\n،,:");
+        $q    = mbTrim(preg_replace('/^(?:نالینی|نالین|nullini|nullin)(?=[\s،,:!؟?.]|$)/iu', '', $q) ?? $q, " \t\n،,:");
         Users::hit('guest');
 
         $reply    = $msg['reply_to_message'] ?? null;
@@ -161,7 +161,7 @@ final class GuestHandler
             'type'          => 'voice',
             'id'            => substr(md5($qid . microtime()), 0, 16),
             'voice_file_id' => $id,
-            'title'         => 'نالینی',
+            'title'         => 'نالین',
             'caption'       => $html,
             'parse_mode'    => 'HTML',
         ]], 15);
@@ -241,7 +241,7 @@ final class GuestHandler
         $result = [
             'type'                  => 'article',
             'id'                    => substr(md5($qid . microtime()), 0, 16),
-            'title'                 => 'نالینی',
+            'title'                 => 'نالین',
             'input_message_content' => ['message_text' => $html, 'parse_mode' => 'HTML', 'link_preview_options' => ['is_disabled' => true]],
         ];
         if ($markup !== null) {

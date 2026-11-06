@@ -501,9 +501,9 @@ final class Assistant
 
         $history = $service ? [] : self::history($chatId, $userId);
         $voiceIn = isset($msg['voice']) && !$service;
-        $live    = LiveReply::typingOnly($msg);
-        $live->start();
-        $opt     = ['max_len' => PHP_INT_MAX];
+        $live    = App::cfg('ai_stream', true) ? new LiveReply($msg, null, '', true, true, $voiceIn) : null;
+        $live?->start();
+        $opt     = ['max_len' => PHP_INT_MAX] + ($live ? ['on_text' => $live->feed(...)] : []);
         $res     = AI::reply($content, $ctx, $history, $opt);
         if (!$voiceIn) {
             $live?->stop();
@@ -629,7 +629,7 @@ final class Assistant
         $history = $service ? [] : self::history($chatId, $uid);
         $live    = new LiveReply($origMsg, null, '', true, true, $voiceIn);
         $live->adopt($mid);
-        $opt     = ['max_len' => PHP_INT_MAX];
+        $opt     = ['max_len' => PHP_INT_MAX] + (App::cfg('ai_stream', true) ? ['on_text' => $live->feed(...)] : []);
 
         $settled = false;
         try {

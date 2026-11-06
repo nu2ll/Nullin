@@ -67,7 +67,7 @@ final class Rps
                 $s['score']  = [0, 0];
                 $s['picks']  = [null, null];
                 if ($s['mode'] === 'bot') {
-                    $s['p2'] = ['id' => 0, 'name' => '🤖 نالینی'];
+                    $s['p2'] = ['id' => 0, 'name' => '🤖 نالین'];
                 }
                 GameKit::save($imid, $s);
                 $tg->editInline($imid, self::header($s) . "دور ۱ از ۳\n👇 انتخابت رو بزن:", self::choiceKeyboard($s['mode'] === 'pvp'));

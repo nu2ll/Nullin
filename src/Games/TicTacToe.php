@@ -107,7 +107,7 @@ final class TicTacToe
                 $s['status'] = 'playing';
                 $s['board']  = array_fill(0, 9, '');
                 $s['turn']   = 'X';
-                $s['p2']     = $s['mode'] === 'bot' ? ['id' => 0, 'name' => '🤖 نالینی'] : null;
+                $s['p2']     = $s['mode'] === 'bot' ? ['id' => 0, 'name' => '🤖 نالین'] : null;
                 GameKit::save($imid, $s);
                 self::render($imid, $s);
             },

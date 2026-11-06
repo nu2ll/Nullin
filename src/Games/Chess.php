@@ -201,7 +201,7 @@ final class Chess
         $s['reps']       = [ChessEngine::key($s['pos']) => 1];
         $s['promo']      = null;
         $s['draw_offer'] = 0;
-        $s['p2']         = $mode === 'bot' ? ['id' => 0, 'name' => '🤖 نالینی'] : null;
+        $s['p2']         = $mode === 'bot' ? ['id' => 0, 'name' => '🤖 نالین'] : null;
         return $s;
     }
 
@@ -433,7 +433,7 @@ final class Chess
         }
 
         $tg->answer($cq, '🤔 بذار فکر کنم...');
-        self::render($imid, $s, '🤖 نالینی داره فکر می‌کنه...' . (ChessEngine::inCheck($s['pos']) ? ' (کیشم کردی! 😳)' : ''));
+        self::render($imid, $s, '🤖 نالین داره فکر می‌کنه...' . (ChessEngine::inCheck($s['pos']) ? ' (کیشم کردی! 😳)' : ''));
 
         $bm = ChessEngine::bestMove($s['pos'], (int) $s['level']);
         if ($bm !== null) {
