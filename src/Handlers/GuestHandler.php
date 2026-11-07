@@ -214,6 +214,9 @@ final class GuestHandler
             self::send($qid, $o['text'], $o['kb'] ?? null);
             return;
         }
+        if (!empty($o['photo']) && is_string($o['photo']) && str_starts_with($o['photo'], 'https://')) {
+            $o['photo'] = self::photoId($o['photo']) ?? $o['photo'];   // لینک → file_id؛ اگه نشد همون لینک (رفتار قبلی)
+        }
         if (!empty($o['photo']) && is_string($o['photo']) && preg_match('#^(?:https://|[A-Za-z0-9_-]{20,}$)#', $o['photo']) === 1 && (Rich::usable($o['kb'] ?? null) || !Rich::hasButtons($o['kb'] ?? null))) {
             $r = Rich::editInlinePhoto($imid, $o['text'], $o['photo'], $o['kb'] ?? null);
             if (!empty($r['ok'])) {
@@ -230,7 +233,19 @@ final class GuestHandler
                 return;
             }
         }
-        Rich::editInline($imid, $o['text'], $o['kb'] ?? null, $o['img'] ?? null, true, $o['preview'] ?? null);
+        $img = $o['img'] ?? null;
+        if (is_string($img) && str_starts_with($img, 'https://')) {
+            $img = self::photoId($img);
+        }
+        $r = Rich::editInline($imid, $o['text'], $o['kb'] ?? null, $img, true, $o['preview'] ?? null);
+        if (empty($r['ok']) && $img !== null) {
+            Rich::editInline($imid, $o['text'], $o['kb'] ?? null, null, true, $o['preview'] ?? null);
+        }
+    }
+
+    private static function photoId(string $url): ?string
+    {
+        return Wiki::photoId($url);
     }
 
     private static function send(string $qid, string $html, ?array $markup = null): ?string

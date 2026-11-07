@@ -67,7 +67,7 @@ final class Wiki
 
     public static function inline(string $id, array $p): array
     {
-        // تو نتیجه‌ی اینلاین عکسِ URL جا نمی‌گیره (400)؛ پس متن کامل بدون عکس می‌ره و بعد از انتخاب، onChosen عکس رو اضافه می‌کنه
+        // تو نتیجه‌ی اینلاین عکسِ URL جا نمی‌گیره؛ متن می‌ره و بعد از انتخاب، onChosen عکس (file_id) رو اضافه می‌کنه
         Store::set('wiki_pending', $id, $p);
         $a = Ui::article($id, 'wiki', '📖 ' . $p['title'], $p['desc'] !== '' ? $p['desc'] : mb_substr($p['text'], 0, 90), self::text($p), self::keyboard($p), true, null);
         if ($p['thumb'] !== '') {
@@ -80,21 +80,11 @@ final class Wiki
     {
         $p = Store::get('wiki_pending', $id);
         if (!is_array($p)) {
-            logWarn('wiki', 'onChosen: pending not found ' . $id);
             return;
         }
-        logWarn('wiki', 'onChosen start thumb=' . ($p['thumb'] !== '' ? 'yes' : 'NONE'));
         $fid = null;
         if (($img = self::image($p)) !== null) {
-            $r     = Http::request('GET', $img, ['timeout' => 12, 'max_bytes' => 5000000]);
-            $bytes = (string) ($r['body'] ?? '');
-            $chat  = (string) App::cfg('storage_chat', '');
-            $chat  = $chat !== '' ? $chat : (string) (App::cfg('admins', [])[0] ?? '');
-            logWarn('wiki', 'img http=' . (int) ($r['code'] ?? 0) . ' bytes=' . strlen($bytes) . ' chat=' . ($chat !== '' ? 'set' : 'EMPTY') . ' url=' . substr($img, 0, 100));
-            if ($r['code'] === 200 && $bytes !== '' && @getimagesizefromstring($bytes) !== false && $chat !== '') {
-                $fid = App::tg()->photoFileId($chat, $bytes);
-            }
-            logWarn('wiki', 'fileid=' . ($fid !== null ? 'ok' : 'NULL'));
+            $fid = self::photoId($img);
             if ($fid === null) {
                 logWarn('wiki', 'photo upload failed for ' . $p['title']);
             }
@@ -106,6 +96,40 @@ final class Wiki
         if (empty($r['ok'])) {
             logWarn('wiki', 'edit failed: ' . (string) ($r['description'] ?? ''));
         }
+    }
+
+    public static function photoId(string $url, int $timeout = 12): ?string
+    {
+        $chat = (string) App::cfg('storage_chat', '');
+        $chat = $chat !== '' ? $chat : (string) (App::cfg('admins', [])[0] ?? '');
+        if ($chat === '') {
+            logWarn('wiki', 'photo: no storage_chat/admin configured (set STORAGE_CHAT_ID)');
+            return null;
+        }
+        $bytes = '';
+        foreach (array_unique([$url, preg_replace('#/thumb/(.+?)/\d+px-[^/]+$#', '/$1', $url)]) as $u) {
+            if (!is_string($u) || $u === '') {
+                continue;
+            }
+            $r = Http::request('GET', $u, ['timeout' => $timeout, 'max_bytes' => 5000000, 'headers' => [
+                'User-Agent: NulliniBot/3.0 (https://t.me/NullinBot; bot@nullini.app) curl',
+                'Accept: image/*',
+            ] + (str_contains($u, 'wikimedia.org') ? [3 => 'Referer: https://fa.wikipedia.org/'] : [])]);
+            $bytes = (string) ($r['body'] ?? '');
+            if (($r['code'] ?? 0) === 200 && $bytes !== '' && @getimagesizefromstring($bytes) !== false) {
+                break;
+            }
+            logWarn('wiki', 'photo download http ' . (int) ($r['code'] ?? 0) . ' ' . substr($u, 0, 120));
+            $bytes = '';
+        }
+        if ($bytes === '') {
+            return null;
+        }
+        $id = App::tg()->photoFileId($chat, $bytes);
+        if ($id === null) {
+            logWarn('wiki', 'photo sendPhoto to storage chat failed (bot must be able to message ' . $chat . ')');
+        }
+        return $id;
     }
 
     public static function image(array $p): ?string

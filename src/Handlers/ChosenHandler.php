@@ -11,9 +11,6 @@ final class ChosenHandler
         $id   = (string) ($c['result_id'] ?? '');
         $imid = $c['inline_message_id'] ?? null;
         $from = $c['from'] ?? [];
-        if (str_starts_with($id, 'wk_')) {
-            logWarn('wiki', 'chosen id=' . $id . ' imid=' . ($imid ? 'yes' : 'NO'));
-        }
         if (!$imid || empty($from['id'])) {
             return;
         }

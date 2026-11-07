@@ -73,7 +73,7 @@ final class Ui
             unset($r['input_message_content']['parse_mode']);
         }
         if (Rich::usable($markup)) {
-            $keep = preg_match('/^(?:fal|(?:ai|tr)q_|rs_|st_|lv_|gwi_)/', $id) === 1;
+            $keep = preg_match('/^(?:fal|(?:ai|tr)q_|rs_|st_|lv_|gwi_|wk_)/', $id) === 1;
             $r['input_message_content'] = Rich::inlineContent($html ? $text : h($text), $markup, $img);
             if ($keep) {
                 $r['reply_markup'] = ikb([[btn('Nullin', 'noop', null)]]);
