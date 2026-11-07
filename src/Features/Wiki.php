@@ -80,17 +80,21 @@ final class Wiki
     {
         $p = Store::get('wiki_pending', $id);
         if (!is_array($p)) {
+            logWarn('wiki', 'onChosen: pending not found ' . $id);
             return;
         }
+        logWarn('wiki', 'onChosen start thumb=' . ($p['thumb'] !== '' ? 'yes' : 'NONE'));
         $fid = null;
         if (($img = self::image($p)) !== null) {
             $r     = Http::request('GET', $img, ['timeout' => 12, 'max_bytes' => 5000000]);
             $bytes = (string) ($r['body'] ?? '');
             $chat  = (string) App::cfg('storage_chat', '');
             $chat  = $chat !== '' ? $chat : (string) (App::cfg('admins', [])[0] ?? '');
+            logWarn('wiki', 'img http=' . (int) ($r['code'] ?? 0) . ' bytes=' . strlen($bytes) . ' chat=' . ($chat !== '' ? 'set' : 'EMPTY') . ' url=' . substr($img, 0, 100));
             if ($r['code'] === 200 && $bytes !== '' && @getimagesizefromstring($bytes) !== false && $chat !== '') {
                 $fid = App::tg()->photoFileId($chat, $bytes);
             }
+            logWarn('wiki', 'fileid=' . ($fid !== null ? 'ok' : 'NULL'));
             if ($fid === null) {
                 logWarn('wiki', 'photo upload failed for ' . $p['title']);
             }
