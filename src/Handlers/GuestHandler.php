@@ -214,11 +214,13 @@ final class GuestHandler
             self::send($qid, $o['text'], $o['kb'] ?? null);
             return;
         }
-        if (!empty($o['photo']) || !empty($o['anim'])) {
-            if (Rich::usable($o['kb'] ?? null)) {
-                Rich::editInlineMedia($imid, $o['text'], (string) ($o['photo'] ?? $o['anim']), !empty($o['photo']) ? 'photo' : 'animation', $o['kb']);
+        if (!empty($o['photo']) && is_string($o['photo']) && preg_match('#^(?:https://|[A-Za-z0-9_-]{20,}$)#', $o['photo']) === 1 && (Rich::usable($o['kb'] ?? null) || !Rich::hasButtons($o['kb'] ?? null))) {
+            $r = Rich::editInlinePhoto($imid, $o['text'], $o['photo'], $o['kb'] ?? null);
+            if (!empty($r['ok'])) {
                 return;
             }
+        }
+        if (!empty($o['photo']) || !empty($o['anim'])) {
             $r = $tg->call('editMessageMedia', [
                 'inline_message_id' => $imid,
                 'media'             => ['type' => !empty($o['photo']) ? 'photo' : 'animation', 'media' => $o['photo'] ?? $o['anim'], 'caption' => $o['text'], 'parse_mode' => 'HTML'],
