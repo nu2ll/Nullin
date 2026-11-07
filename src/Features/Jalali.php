@@ -28,6 +28,35 @@ final class Jalali
         return [$jy, $jm, $jd];
     }
 
+    public static function toGregorian(int $jy, int $jm, int $jd): array
+    {
+        $jy  += 1595;
+        $days = -355668 + (365 * $jy) + (intdiv($jy, 33) * 8) + intdiv(($jy % 33) + 3, 4) + $jd + ($jm < 7 ? ($jm - 1) * 31 : (($jm - 7) * 30) + 186);
+        $gy   = 400 * intdiv($days, 146097);
+        $days %= 146097;
+        if ($days > 36524) {
+            $days--;
+            $gy  += 100 * intdiv($days, 36524);
+            $days %= 36524;
+            if ($days >= 365) {
+                $days++;
+            }
+        }
+        $gy  += 4 * intdiv($days, 1461);
+        $days %= 1461;
+        if ($days > 365) {
+            $gy  += intdiv($days - 1, 365);
+            $days = ($days - 1) % 365;
+        }
+        $gd   = $days + 1;
+        $leap = ($gy % 4 === 0 && $gy % 100 !== 0) || $gy % 400 === 0;
+        $dim  = [0, 31, $leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        for ($gm = 0; $gm < 13 && $gd > $dim[$gm]; $gm++) {
+            $gd -= $dim[$gm];
+        }
+        return [$gy, $gm, $gd];
+    }
+
     public static function parts(int $ts): array
     {
         return self::fromGregorian((int) date('Y', $ts), (int) date('n', $ts), (int) date('j', $ts));

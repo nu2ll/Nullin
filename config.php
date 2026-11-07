@@ -38,6 +38,7 @@ return [
         ],
     ],
     'storage_chat' => env('STORAGE_CHAT_ID', ''),
+    'nasa_key'     => env('NASA_KEY', 'DEMO_KEY'),
     'ai_memory_messages' => (int) env('AI_MEMORY_MESSAGES', 20),
     'ai_typing_effect'   => true,
     'ai_stream'          => env('AI_STREAM', '1') !== '0',

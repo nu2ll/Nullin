@@ -19,6 +19,7 @@ final class InlineHandler
         'gw'      => ['gw', 'giveaway', 'قرعه‌کشی', 'قرعه کشی', 'قرعه'],
         'linkcheck' => ['st'],
         'like'    => ['like', 'لایک'],
+        'apod'    => ['apod'],
     ];
 
     private static array $iq = [];
@@ -72,6 +73,7 @@ final class InlineHandler
                         'wiki'    => self::wiki($rest),
                         'linkcheck' => self::linkcheck($rest),
                         'like'    => self::like($rest),
+                        'apod'    => self::apod($rest),
                     };
                     return;
                 }
@@ -143,6 +145,30 @@ final class InlineHandler
             return;
         }
         self::answer(array_map(static fn($p) => Wiki::inline('wk_' . substr(md5($p['url']), 0, 16), $p), $list), 600, false);
+    }
+
+    private static function apod(string $q): void
+    {
+        $date = null;
+        if ($q !== '') {
+            $g = Apod::parseDate($q);
+            if ($g === null) {
+                self::fail('apx_bad', '⚠️ تاریخ رو نفهمیدم', 'مثل apod ۱۳۷۵/۴/۱۲ بنویس', '⚠️ تاریخ رو این‌جوری بنویس:' . "\n" . '<code>apod ۱۳۷۵/۴/۱۲</code>');
+                return;
+            }
+            $date = sprintf('%04d-%02d-%02d', $g[0], $g[1], $g[2]);
+            if ($date < Apod::FIRST || $date > Apod::today()) {
+                self::fail('apx_range', '📅 برای اون روز عکسی نیست', 'آرشیو ناسا از ۱۳۷۴/۳/۲۶ شروعه', '📅 آرشیو عکس روزِ ناسا از <b>' . fa('1374/03/26') . '</b> (' . fa('1995/06/16') . ') شروع شده؛' . "\n" . 'یه تاریخ بعد از اون بزن.');
+                return;
+            }
+        }
+        $r = Apod::load($date);
+        if ($r === null) {
+            self::answer([], 0);
+            return;
+        }
+        Users::hit('apod');
+        self::answer([Apod::inline($r, $date !== null)], $date !== null ? 3600 : 600, false);
     }
 
     private static function like(string $text): void
@@ -603,7 +629,9 @@ final class InlineHandler
             Ui::article('help_whisper', 'whisper', '🤫 نجوا', 'nj [متن] [@یوزرنیم] [آیدی]', Ui::guide('whisper'), Ui::tryKeyboard('whisper')),
             Ui::article('help_like', 'like', '❤️ لایک‌ساز', 'like [متن]', Ui::guide('like'), Ui::tryKeyboard('like')),
             Ui::article('help_giveaway', 'gift', '🎁 قرعه‌کشی', 'gw [تعداد] [زمان] [جایزه]', Ui::guide('giveaway'), Ui::tryKeyboard('giveaway')),
+            Ui::article('apt_today', 'apod', '🌌 عکس نجومی روز', 'عکس امروز ناسا · یه روز دیگه: apod ۱۳۷۵/۴/۱۲', "🌌 <b>عکس نجومی روز</b>\n\n⏳ دارم عکس امروز رو میارم...", ikb([[btn('⏳ صبر کن...', 'noop', null)]])),
             Ui::article('help_wiki', 'wiki', '📖 ویکی‌پدیا', 'wk [موضوع]', Ui::guide('wiki'), Ui::tryKeyboard('wiki')),
+            Ui::article('help_apod', 'apod', '🌌 راهنمای عکس نجومی', 'apod [تاریخ شمسی]', Ui::guide('apod'), Ui::tryKeyboard('apod')),
             Ui::article('help_ai', 'ai', '🧠 هوش مصنوعی', 'ai [سؤالت]', Ui::guide('ai'), Ui::tryKeyboard('ai')),
             Ui::article('help_translate', 'translate', '🌐 ترجمه', 'tr [متن]', Ui::guide('translate'), Ui::tryKeyboard('translate')),
             Ui::article('help_search', 'search', '🔍 سرچ گوگل', 'g [هر چی بخوای]', Ui::guide('search'), Ui::tryKeyboard('search')),
@@ -618,7 +646,7 @@ final class InlineHandler
             Ui::article('help_funstat', 'funstat', '🔍 استعلام کاربر', 'id [آیدی عددی]', Ui::guide('funstat'), Ui::tryKeyboard('funstat')),
         ];
 
-        $swMap = ['info' => 'userinfo', 'chess' => 'chess', 'ttt' => 'ttt', 'c4' => 'c4', 'rps' => 'rps', 'math' => 'math', 'calc' => 'calc', 'rates' => 'rates', 'date' => 'date', 'pass' => 'password', 'coin' => 'coin', 'fal' => 'fal',
+        $swMap = ['apt_today' => 'apod', 'help_apod' => 'apod', 'info' => 'userinfo', 'chess' => 'chess', 'ttt' => 'ttt', 'c4' => 'c4', 'rps' => 'rps', 'math' => 'math', 'calc' => 'calc', 'rates' => 'rates', 'date' => 'date', 'pass' => 'password', 'coin' => 'coin', 'fal' => 'fal',
             'help_image' => 'image', 'help_whisper' => 'whisper', 'help_giveaway' => 'giveaway', 'help_like' => 'like', 'help_wiki' => 'wiki', 'help_ai' => 'ai', 'help_translate' => 'translate', 'help_search' => 'search',
             'help_font' => 'font', 'help_weather' => 'weather', 'help_qr' => 'qr', 'help_short' => 'short', 'help_roast' => 'roast', 'help_love' => 'love', 'help_nid' => 'nid', 'help_funstat' => 'funstat', 'help_linkcheck' => 'linkcheck'];
         $items = array_values(array_filter($items, static fn($r) => !isset($swMap[$r['id']]) || Switches::on($swMap[$r['id']])));
