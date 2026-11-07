@@ -24,7 +24,6 @@ final class Switches
         'roast'    => '🔥 روست',
         'nid'      => '🪪 کد ملی',
         'userinfo' => '👤 اطلاعات کاربر',
-        'mail'     => '📧 ایمیل موقت',
         'funstat'  => '🔍 استعلام کاربر',
         'fal'      => '🔮 فال حافظ',
         'password' => '🔑 پسورد ساز',
