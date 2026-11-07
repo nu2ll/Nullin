@@ -72,10 +72,10 @@ final class Ui
             unset($r['input_message_content']['parse_mode']);
         }
         if (Rich::usable($markup)) {
-            $keep = preg_match('/^(?:calc|coin|fal|pass|rps|ttt|c4|math|chess|(?:ai|tr)q_|rs_|st_|lv_|gwi_|wh_|wt_)/', $id) === 1;
-            $r['input_message_content'] = Rich::inlineContent($html ? $text : h($text), $keep ? null : $markup, $img);
+            $keep = preg_match('/^(?:fal|(?:ai|tr)q_|rs_|st_|lv_|gwi_)/', $id) === 1;
+            $r['input_message_content'] = Rich::inlineContent($html ? $text : h($text), $markup, $img);
             if ($keep) {
-                $r['reply_markup'] = $markup;
+                $r['reply_markup'] = ikb([[btn('Nullin', 'noop', null)]]);
             }
         } elseif ($markup !== null) {
             $r['reply_markup'] = $markup;

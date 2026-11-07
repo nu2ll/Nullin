@@ -227,44 +227,27 @@ final class Downloader
         return !empty($r['ok']) ? $uid : null;
     }
 
-    private static function show(array $t, string $text, ?array $kb = null, ?array $preview = null): bool
+    private static function show(array $t, string $text, ?array $kb = null, ?array $preview = null): void
     {
         $tg = App::tg();
         if (!empty($t['imid'])) {
-            if (!empty($t['pic'])) {
-                $tg->call('editMessageCaption', ['inline_message_id' => $t['imid'], 'caption' => $text, 'parse_mode' => 'HTML', 'reply_markup' => $kb]);
-                return true;
-            }
-            if (($preview['url'] ?? '') !== '' && self::showPhoto($t, $text, $kb, (string) $preview['url'])) {
-                return true;
-            }
-            Rich::editInline($t['imid'], $text, $kb);
-            return false;
+            $img = ($preview['url'] ?? '') !== '' ? self::thumbId($t, (string) $preview['url']) : null;
+            Rich::editInline($t['imid'], $text, $kb, $img);
+            return;
         }
         if (!empty($t['card'])) {
             Rich::editHtml($t['chat'], (int) $t['card'], $text, $kb, (string) ($preview['url'] ?? ''));
         }
-        return false;
     }
 
-    private static function showPhoto(array $t, string $text, ?array $kb, string $url): bool
+    private static function thumbId(array $t, string $url): ?string
     {
         $r     = Http::request('GET', $url, ['timeout' => 12, 'max_bytes' => 5000000]);
         $bytes = (string) ($r['body'] ?? '');
         if ($r['code'] !== 200 || $bytes === '' || @getimagesizefromstring($bytes) === false) {
-            return false;
+            return null;
         }
-        $tg  = App::tg();
-        $fid = $tg->photoFileId($t['chat'], $bytes);
-        if ($fid === null) {
-            return false;
-        }
-        $e = $tg->call('editMessageMedia', [
-            'inline_message_id' => $t['imid'],
-            'media'             => ['type' => 'photo', 'media' => $fid, 'caption' => $text, 'parse_mode' => 'HTML'],
-            'reply_markup'      => $kb,
-        ], 30);
-        return !empty($e['ok']);
+        return App::tg()->photoFileId($t['chat'], $bytes);
     }
 
     private static function limit(array $t): int
@@ -377,11 +360,7 @@ final class Downloader
         $auto     = $hasVideo && $sp === null && !empty($t['group']) && empty($t['imid']) && (int) ($info['count'] ?? 1) <= 1
             ? self::armAuto($token, self::options($link['site'], $info, true, self::limit($t))[0][0] ?? 'hd')
             : false;
-        $pv    = self::preview($info);
-        $shown = self::show($t, self::cardText($info, $link, $hasVideo) . ($auto ? "\n\n⏱ اگه تا " . fa((string) self::AUTO_DELAY) . " ثانیه‌ی دیگه چیزی انتخاب نکنی،\nخودکار با بالاترین کیفیت دانلود می‌شه." : ''), self::cardKeyboard($token, $link['site'], $info, $hasVideo, self::limit($t)), $pv);
-        if ($shown && !empty($t['imid'])) {
-            Store::update('dl', $token, static fn($j) => is_array($j) ? ['pic' => true] + $j : null);
-        }
+        self::show($t, self::cardText($info, $link, $hasVideo) . ($auto ? "\n\n⏱ اگه تا " . fa((string) self::AUTO_DELAY) . " ثانیه‌ی دیگه چیزی انتخاب نکنی،\nخودکار با بالاترین کیفیت دانلود می‌شه." : ''), self::cardKeyboard($token, $link['site'], $info, $hasVideo, self::limit($t)), self::preview($info));
     }
 
     private static function prepareSet(array $t, array $link, int $uid, int $replyTo, array $ref): void

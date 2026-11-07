@@ -98,7 +98,7 @@ final class Rich
     private static function payload(string $html, ?array $kb, ?string $img, bool $linkDefault = false): array
     {
         $body = '<p>' . str_replace("\n", '<br>', $html) . '</p>' . self::buttonsHtml($kb, $linkDefault);
-        if ($img !== null && preg_match('#^https://#', $img)) {
+        if ($img !== null && preg_match('#^(?:https://|[A-Za-z0-9_-]{20,}$)#', $img)) {
             return ['html' => '<img src="tg://photo?id=thumb"/>' . $body, 'is_rtl' => true, 'media' => [['id' => 'thumb', 'media' => ['type' => 'photo', 'media' => $img]]]];
         }
         return ['html' => $body, 'is_rtl' => true];
