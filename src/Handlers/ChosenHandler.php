@@ -41,6 +41,9 @@ final class ChosenHandler
         if (str_starts_with($id, 'gwi_')) {
             Giveaway::onChosen(substr($id, 4), $imid, $from);
         }
+        if (str_starts_with($id, 'wk_')) {
+            Wiki::onChosen($id, $imid, (int) $from['id']);
+        }
         if (str_starts_with($id, 'wh_')) {
             Whisper::bind(substr($id, 3), $imid);
         }

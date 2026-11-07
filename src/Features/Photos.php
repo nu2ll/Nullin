@@ -65,10 +65,7 @@ final class Photos
                     continue;
                 }
                 $more = $got['total'] > 1 ? "\n📚 " . fa((string) $got['total']) . ' تا عکس داره؛ بقیه رو تو پیوی بگیر.' : '';
-                $e    = $tg->call('editMessageMedia', [
-                    'inline_message_id' => $imid,
-                    'media'             => ['type' => 'photo', 'media' => $fid, 'caption' => self::caption($link) . $more, 'parse_mode' => 'HTML'],
-                ], 30);
+                $e = Rich::editInlinePhoto($imid, self::caption($link) . $more, $fid);
                 if (env('DL_STORE_CHAT', '') === '' && !empty($r['result']['message_id'])) {
                     $tg->call('deleteMessage', ['chat_id' => $store, 'message_id' => (int) $r['result']['message_id']], 8);
                 }
@@ -302,7 +299,15 @@ final class Photos
 
     private static function single(int|string $chat, string $file, string $cap, int $replyTo): bool
     {
-        return App::tg()->sendPhotoBytes($chat, (string) file_get_contents($file), $cap, $replyTo);
+        $store = (string) App::cfg('storage_chat', '');
+        $store = $store !== '' ? $store : (string) (App::cfg('admins', [])[0] ?? '');
+        $fid   = $store !== '' ? App::tg()->photoFileId($store, (string) file_get_contents($file)) : null;
+        if ($fid === null) {
+            logWarn('dl', 'photo upload to storage chat failed');
+            return false;
+        }
+        $r = Rich::send($chat, $cap, null, $replyTo, $fid);
+        return !empty($r['ok']);
     }
 
     private static function album(int|string $chat, array $files, string $cap, int $replyTo): bool

@@ -1639,8 +1639,13 @@ final class Downloader
             return $id ? ['type' => 'audio', 'file_id' => $id, 'msg' => (int) ($r['result']['message_id'] ?? 0)] : null;
         }
 
+        $viaStore = '';
+        if (empty($job['imid'])) {
+            $viaStore = (string) App::cfg('storage_chat', '');
+            $viaStore = $viaStore !== '' ? $viaStore : (string) (App::cfg('admins', [])[0] ?? '');
+        }
         $r = $tg->call('sendVideo', [
-            'chat_id'            => $job['chat'],
+            'chat_id'            => $viaStore !== '' ? $viaStore : $job['chat'],
             'video'              => new CURLFile($file, 'video/mp4', self::fileName($job, $ext)),
             'duration'           => ($meta['duration'] ?? 0) ?: ($job['duration'] ?: null),
             'width'              => ($meta['width'] ?? 0) ?: null,
@@ -1651,10 +1656,35 @@ final class Downloader
             'reply_parameters'   => $reply,
         ], 300);
         $id = $r['result']['video']['file_id'] ?? null;
+        if ($id && $viaStore !== '') {
+            if (env('DL_STORE_CHAT', '') === '' && !empty($r['result']['message_id'])) {
+                $tg->call('deleteMessage', ['chat_id' => $viaStore, 'message_id' => (int) $r['result']['message_id']], 8);
+            }
+            $rr = Rich::sendVideo($job['chat'], self::caption($job, true), (string) $id, $job['reply_to'] ? (int) $job['reply_to'] : null);
+            if (empty($rr['ok'])) {
+                logWarn('dl', 'rich video send failed: ' . (string) ($rr['description'] ?? ''));
+                return null;
+            }
+            return ['type' => 'video', 'file_id' => $id, 'msg' => 0];
+        }
         if ($id) {
             return ['type' => 'video', 'file_id' => $id, 'msg' => (int) ($r['result']['message_id'] ?? 0)];
         }
         $id = $r['result']['document']['file_id'] ?? $r['result']['animation']['file_id'] ?? null;
+        if ($id && $viaStore !== '' && !empty($r['result']['message_id'])) {
+            $cp = $tg->call('copyMessage', [
+                'chat_id'          => $job['chat'],
+                'from_chat_id'     => $viaStore,
+                'message_id'       => (int) $r['result']['message_id'],
+                'caption'          => $caption,
+                'parse_mode'       => 'HTML',
+                'reply_parameters' => $reply,
+            ], 60);
+            if (env('DL_STORE_CHAT', '') === '') {
+                $tg->call('deleteMessage', ['chat_id' => $viaStore, 'message_id' => (int) $r['result']['message_id']], 8);
+            }
+            return !empty($cp['ok']) ? ['type' => isset($r['result']['animation']) ? 'animation' : 'document', 'file_id' => $id, 'msg' => 0] : null;
+        }
         if ($id) {
             return ['type' => isset($r['result']['animation']) ? 'animation' : 'document', 'file_id' => $id, 'msg' => (int) ($r['result']['message_id'] ?? 0)];
         }
@@ -1696,13 +1726,18 @@ final class Downloader
                 $thumb = '';
             }
         }
+        $viaStore = '';
+        if ($kind === 'video' && empty($job['imid'])) {
+            $viaStore = (string) App::cfg('storage_chat', '');
+            $viaStore = $viaStore !== '' ? $viaStore : (string) (App::cfg('admins', [])[0] ?? '');
+        }
         $job2 = [
             'session_file' => NULLINI_DATA . '/mtproto' . (App::botIndex() === 0 ? '' : (string) App::botIndex()) . '.session',
             'api_id'       => self::apiId(),
             'api_hash'     => self::apiHash(),
             'bot_token'    => $tg->token(),
-            'chat'         => (int) $job['chat'],
-            'reply_to'     => (int) $job['reply_to'],
+            'chat'         => $viaStore !== '' ? (int) $viaStore : (int) $job['chat'],
+            'reply_to'     => $viaStore !== '' ? 0 : (int) $job['reply_to'],
             'file'         => $file,
             'name'         => self::fileName($job, $ext),
             'kind'         => $kind,
@@ -1736,6 +1771,28 @@ final class Downloader
             logError('dl', 'mtproto upload failed (exit ' . $res['code'] . '): ' . (string) ($out['error'] ?? self::lastLine($res['err'])));
             return null;
         }
+        if ($viaStore !== '') {
+            // ویدیوی بزرگ تو چت ذخیره آپلود شد؛ file_id می‌گیریم و پیام rich با کپشن بلند می‌فرستیم
+            $f   = $tg->call('forwardMessage', ['chat_id' => $viaStore, 'from_chat_id' => $viaStore, 'message_id' => (int) $out['msg_id'], 'disable_notification' => true], 60);
+            $m   = (array) ($f['result'] ?? []);
+            $fid = (string) ($m['video']['file_id'] ?? '');
+            if (env('DL_STORE_CHAT', '') === '') {
+                $tg->call('deleteMessage', ['chat_id' => $viaStore, 'message_id' => (int) $out['msg_id']], 8);
+                if (!empty($m['message_id'])) {
+                    $tg->call('deleteMessage', ['chat_id' => $viaStore, 'message_id' => (int) $m['message_id']], 8);
+                }
+            }
+            if ($fid === '') {
+                logError('dl', 'mtproto video: no file_id after forward');
+                return null;
+            }
+            $rr = Rich::sendVideo($job['chat'], self::caption($job, true), $fid, $job['reply_to'] ? (int) $job['reply_to'] : null);
+            if (empty($rr['ok'])) {
+                logWarn('dl', 'rich video send failed: ' . (string) ($rr['description'] ?? ''));
+                return null;
+            }
+            return ['type' => 'video', 'file_id' => $fid, 'msg' => 0];
+        }
         return ['type' => 'copy', 'chat' => $job['chat'], 'msg' => (int) $out['msg_id']];
     }
 
@@ -1760,10 +1817,12 @@ final class Downloader
             }
             return false;
         }
-        $r = App::tg()->call('editMessageMedia', [
-            'inline_message_id' => $job['imid'],
-            'media'             => ['type' => $c['type'], 'media' => $c['file_id'], 'caption' => self::caption($job), 'parse_mode' => 'HTML'],
-        ], 30);
+        $r = $c['type'] === 'video'
+            ? Rich::editInlineVideo((string) $job['imid'], self::caption($job, true), (string) $c['file_id'])
+            : App::tg()->call('editMessageMedia', [
+                'inline_message_id' => $job['imid'],
+                'media'             => ['type' => $c['type'], 'media' => $c['file_id'], 'caption' => self::caption($job), 'parse_mode' => 'HTML'],
+            ], 30);
         if ($fwd > 0) {
             App::tg()->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => $fwd], 8);
         }
@@ -1784,6 +1843,10 @@ final class Downloader
         $method = ['video' => 'sendVideo', 'audio' => 'sendAudio', 'animation' => 'sendAnimation', 'document' => 'sendDocument'][$c['type'] ?? ''] ?? null;
         if ($method === null || empty($c['file_id'])) {
             return false;
+        }
+        if ($c['type'] === 'video') {
+            $r = Rich::sendVideo($job['chat'], self::caption($job, true), (string) $c['file_id'], $job['reply_to'] ? (int) $job['reply_to'] : null);
+            return !empty($r['ok']);
         }
         $r = App::tg()->call($method, [
             'chat_id'          => $job['chat'],
@@ -1953,10 +2016,10 @@ final class Downloader
         return '📥 <b>' . h(mb_substr($job['title'], 0, 3500)) . "</b>\n\n" . $status;
     }
 
-    private static function caption(array $job): string
+    private static function caption(array $job, bool $long = false): string
     {
         $bot = App::botUsername();
-        $head = '🎬 <b>' . h(mb_substr($job['title'], 0, 800)) . "</b>\n"
+        $head = '🎬 <b>' . h(mb_substr($job['title'], 0, $long ? 3500 : 800)) . "</b>\n"
             . ($job['uploader'] !== '' ? '👤 ' . h($job['uploader']) . "\n" : '');
         return $head . "\n📥 <a href=\"https://t.me/{$bot}\">@{$bot}</a>";
     }

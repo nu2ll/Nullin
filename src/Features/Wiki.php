@@ -67,12 +67,39 @@ final class Wiki
 
     public static function inline(string $id, array $p): array
     {
-        // نتیجه‌ی اینلاین نمی‌تونه عکسِ URL تو rich_message داشته باشه (تلگرام 400 می‌ده)؛ عکس فقط به‌صورت thumbnail تو لیست میاد
-        $a   = Ui::article($id, 'wiki', '📖 ' . $p['title'], $p['desc'] !== '' ? $p['desc'] : mb_substr($p['text'], 0, 90), self::text($p), self::keyboard($p), true, null);
+        // تو نتیجه‌ی اینلاین عکسِ URL جا نمی‌گیره (400)؛ پس متن کامل بدون عکس می‌ره و بعد از انتخاب، onChosen عکس رو اضافه می‌کنه
+        if (self::image($p) !== null) {
+            Store::set('wiki_pending', $id, $p);
+        }
+        $a = Ui::article($id, 'wiki', '📖 ' . $p['title'], $p['desc'] !== '' ? $p['desc'] : mb_substr($p['text'], 0, 90), self::text($p), self::keyboard($p), true, null);
         if ($p['thumb'] !== '') {
             $a['thumbnail_url'] = $p['thumb'];
         }
         return $a;
+    }
+
+    public static function onChosen(string $id, string $imid, int $uid): void
+    {
+        $p = Store::get('wiki_pending', $id);
+        if (!is_array($p) || ($img = self::image($p)) === null) {
+            return;
+        }
+        $r     = Http::request('GET', $img, ['timeout' => 12, 'max_bytes' => 5000000]);
+        $bytes = (string) ($r['body'] ?? '');
+        if ($r['code'] !== 200 || $bytes === '' || @getimagesizefromstring($bytes) === false) {
+            return;
+        }
+        $chat = (string) App::cfg('storage_chat', '');
+        $chat = $chat !== '' ? $chat : (string) (App::cfg('admins', [])[0] ?? '');
+        if ($chat === '') {
+            return;
+        }
+        $fid = App::tg()->photoFileId($chat, $bytes);
+        if ($fid === null) {
+            logWarn('wiki', 'photo upload failed for ' . $p['title']);
+            return;
+        }
+        Rich::editInline($imid, self::text($p), self::keyboard($p), $fid);
     }
 
     public static function image(array $p): ?string

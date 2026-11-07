@@ -127,6 +127,34 @@ final class Rich
         return $r;
     }
 
+    public static function editInlinePhoto(string $inlineId, string $html, string $fileId): ?array
+    {
+        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($html, null, $fileId, true)], 15);
+    }
+
+    private static function videoPayload(string $html, string $fileId): array
+    {
+        return [
+            'html'   => '<video src="tg://video?id=v"></video><p>' . str_replace("\n", '<br>', $html) . '</p>',
+            'is_rtl' => true,
+            'media'  => [['id' => 'v', 'media' => ['type' => 'video', 'media' => $fileId]]],
+        ];
+    }
+
+    public static function editInlineVideo(string $inlineId, string $html, string $fileId): ?array
+    {
+        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::videoPayload($html, $fileId)], 15);
+    }
+
+    public static function sendVideo(int|string $chatId, string $html, string $fileId, ?int $replyTo = null): ?array
+    {
+        return App::tg()->call('sendRichMessage', [
+            'chat_id'          => $chatId,
+            'rich_message'     => self::videoPayload($html, $fileId),
+            'reply_parameters' => $replyTo ? ['message_id' => $replyTo, 'allow_sending_without_reply' => true] : null,
+        ], 30);
+    }
+
     public static function editMsg(int|string $chatId, int $mid, string $html, ?array $kb = null, ?string $img = null): ?array
     {
         $tg = App::tg();
