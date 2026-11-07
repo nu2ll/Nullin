@@ -153,12 +153,12 @@ final class InlineHandler
         if ($q !== '') {
             $g = Apod::parseDate($q);
             if ($g === null) {
-                self::fail('apx_bad', '⚠️ تاریخ رو نفهمیدم', 'مثل apod ۱۳۷۵/۴/۱۲ بنویس', '⚠️ تاریخ رو این‌جوری بنویس:' . "\n" . '<code>apod ۱۳۷۵/۴/۱۲</code>');
+                self::fail('apx_bad', '⚠️ تاریخ نامعتبره', 'مثل apod 1375/4/12 بنویس', '⚠️ تاریخ رو نفهمیدم.' . "\n" . '💡 این‌جوری بنویس: <code>apod 1375/4/12</code>');
                 return;
             }
             $date = sprintf('%04d-%02d-%02d', $g[0], $g[1], $g[2]);
             if ($date < Apod::FIRST || $date > Apod::today()) {
-                self::fail('apx_range', '📅 برای اون روز عکسی نیست', 'آرشیو ناسا از ۱۳۷۴/۳/۲۶ شروعه', '📅 آرشیو عکس روزِ ناسا از <b>' . fa('1374/03/26') . '</b> (' . fa('1995/06/16') . ') شروع شده؛' . "\n" . 'یه تاریخ بعد از اون بزن.');
+                self::fail('apx_range', '📅 اون روز عکسی نیست', 'آرشیو ناسا از ۱۳۷۴/۳/۲۶ شروع می‌شه', '📅 ناسا از <b>' . fa('1374/03/26') . '</b> (' . fa('1995/06/16') . ') شروع کرده عکس گذاشتن.' . "\n" . '💡 یه تاریخ بین اون روز و امروز بنویس.');
                 return;
             }
         }
@@ -629,9 +629,9 @@ final class InlineHandler
             Ui::article('help_whisper', 'whisper', '🤫 نجوا', 'nj [متن] [@یوزرنیم] [آیدی]', Ui::guide('whisper'), Ui::tryKeyboard('whisper')),
             Ui::article('help_like', 'like', '❤️ لایک‌ساز', 'like [متن]', Ui::guide('like'), Ui::tryKeyboard('like')),
             Ui::article('help_giveaway', 'gift', '🎁 قرعه‌کشی', 'gw [تعداد] [زمان] [جایزه]', Ui::guide('giveaway'), Ui::tryKeyboard('giveaway')),
-            Ui::article('apt_today', 'apod', '🌌 عکس نجومی روز', 'عکس امروز ناسا · یه روز دیگه: apod ۱۳۷۵/۴/۱۲', "🌌 <b>عکس نجومی روز</b>\n\n⏳ دارم عکس امروز رو میارم...", ikb([[btn('⏳ صبر کن...', 'noop', null)]])),
+            Ui::article('apt_today', 'apod', '🌌 عکس نجومی امروز', 'عکس امروز ناسا · apod [تاریخ] برای روز دیگه', "🌌 <b>عکس نجومی امروز</b>\n\n⏳ دارم عکس رو میارم...", ikb([[btn('⏳ صبر کن...', 'noop', null)]])),
             Ui::article('help_wiki', 'wiki', '📖 ویکی‌پدیا', 'wk [موضوع]', Ui::guide('wiki'), Ui::tryKeyboard('wiki')),
-            Ui::article('help_apod', 'apod', '🌌 راهنمای عکس نجومی', 'apod [تاریخ شمسی]', Ui::guide('apod'), Ui::tryKeyboard('apod')),
+            Ui::article('help_apod', 'apod', '🌌 عکس نجومی', 'apod [تاریخ شمسی]', Ui::guide('apod'), Ui::tryKeyboard('apod')),
             Ui::article('help_ai', 'ai', '🧠 هوش مصنوعی', 'ai [سؤالت]', Ui::guide('ai'), Ui::tryKeyboard('ai')),
             Ui::article('help_translate', 'translate', '🌐 ترجمه', 'tr [متن]', Ui::guide('translate'), Ui::tryKeyboard('translate')),
             Ui::article('help_search', 'search', '🔍 سرچ گوگل', 'g [هر چی بخوای]', Ui::guide('search'), Ui::tryKeyboard('search')),

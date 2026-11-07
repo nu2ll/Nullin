@@ -34,7 +34,7 @@ final class Apod
     {
         $today = self::today();
         $date ??= $today;
-        $hit = Store::get('apod', $date);
+        $hit = Store::get('apod2', $date);
         if (is_array($hit) && !empty($hit['title'])) {
             return $hit;
         }
@@ -42,8 +42,8 @@ final class Apod
         if ($r === null) {
             return null;
         }
-        if (!is_array(Store::get('apod', $r['date']))) {
-            Store::set('apod', $r['date'], $r);
+        if (!is_array(Store::get('apod2', $r['date']))) {
+            Store::set('apod2', $r['date'], $r);
         }
         return $r;
     }
@@ -81,7 +81,7 @@ final class Apod
             'credit' => $credit,
             'media'  => ($j['media_type'] ?? '') === 'image' ? 'image' : 'video',
             'url'    => self::sized($hd, 1600),
-            'hd'     => $hd,
+            'hd'     => str_contains($hd, '/content/dam/') ? (string) strtok($hd, '?') : $hd,
             'thumb'  => self::sized($hd, 320),
             'page'   => (string) ($j['permalink'] ?? ''),
         ];
@@ -98,7 +98,7 @@ final class Apod
     // عکس‌ها از CDN ناسا میان؛ پهنا رو کوچیک می‌کنیم تا تلگرام قبولش کنه
     private static function sized(string $url, int $w): string
     {
-        if (!str_contains($url, 'assets.science.nasa.gov/dynamicimage/')) {
+        if (!str_contains($url, 'assets.science.nasa.gov/')) {
             return $url;
         }
         return strtok($url, '?') . '?w=' . $w . '&fit=clip';
@@ -107,7 +107,8 @@ final class Apod
     private static function translate(string $title, string $text): ?array
     {
         $text = mbTrim((string) preg_replace('/\s+/u', ' ', $text));
-        $text = mbTrim((string) preg_replace('/\s*(?:Tomorrow\'s picture|Follow APOD on)\b.*$/isu', '', $text));
+        $text = mbTrim((string) preg_replace('/^Explanation:\s*/iu', '', $text));
+        $text = mbTrim((string) preg_replace('/\s*(?:APOD News|Tomorrow\'s picture|Follow APOD on)\b.*$/isu', '', $text));
         $out  = AI::translateFast($title . "\n\n" . $text, 'Persian');
         if ($out !== null) {
             $p = preg_split('/\n\s*\n/u', mbTrim($out), 2);
@@ -168,11 +169,11 @@ final class Apod
             // از منوی اینلاین: عکس امروز؛ پیام «صبر کن» از قبل فرستاده شده
             $r = self::load(null);
             if ($r === null) {
-                Rich::editInline($imid, '🌌 الان عکس نجومی نیومد؛ یه کم بعد دوباره بزن.');
+                Rich::editInline($imid, '😕 الان عکس نیومد؛ چند دقیقه‌ی دیگه دوباره بزن.');
                 return;
             }
         } elseif (preg_match('/^ap_(\d{4})(\d{2})(\d{2})(b?)$/', $id, $m)) {
-            $r        = Store::get('apod', "{$m[1]}-{$m[2]}-{$m[3]}");
+            $r        = Store::get('apod2', "{$m[1]}-{$m[2]}-{$m[3]}");
             $birthday = $m[4] === 'b';
         } else {
             return;
@@ -196,7 +197,7 @@ final class Apod
                 }
                 return;
             }
-            Store::update('apod', $date, static function ($x) use ($fid, $bot) {
+            Store::update('apod2', $date, static function ($x) use ($fid, $bot) {
                 if (!is_array($x)) {
                     return null;
                 }
