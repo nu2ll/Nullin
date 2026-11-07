@@ -149,20 +149,20 @@ final class CallbackHandler
                 return;
             }
             $tg->call('deleteMessage', ['chat_id' => $chatId, 'message_id' => $msgId], 8);
-            $tg->send($chatId, Ui::startText($cq['from']), ['reply_markup' => Ui::startKeyboard()]);
+            Ui::sendMain($chatId, $cq['from']);
             $tg->answer($cq, '✅ خوش اومدی!');
             return;
         }
 
         if ($data === 'home') {
-            $tg->editMessage($chatId, $msgId, Ui::startText($cq['from']), Ui::startKeyboard());
+            Ui::show($chatId, $msgId, Ui::startText($cq['from']), Ui::startKeyboard());
         } elseif ($data === 'about') {
-            $tg->editMessage($chatId, $msgId, Ui::aboutText(), Ui::aboutKeyboard(true));
+            Ui::show($chatId, $msgId, Ui::aboutText(), Ui::aboutKeyboard(true));
         } elseif ($data === 'help:menu' || $data === 'help:p1' || $data === 'help:p2') {
             $page = $data === 'help:p2' ? 2 : 1;
-            $tg->editMessage($chatId, $msgId, Ui::helpText($page), Ui::helpMenu(($cq['message']['chat']['type'] ?? '') === 'private', $page));
+            Ui::show($chatId, $msgId, Ui::helpText($page), Ui::helpMenu(($cq['message']['chat']['type'] ?? '') === 'private', $page));
         } elseif (str_starts_with($data, 'help:') && isset(Ui::GUIDES[substr($data, 5)])) {
-            $tg->editMessage($chatId, $msgId, Ui::guide(substr($data, 5)), Ui::guideKeyboard(substr($data, 5), ($cq['message']['chat']['type'] ?? '') === 'private'));
+            Ui::show($chatId, $msgId, Ui::guide(substr($data, 5)), Ui::guideKeyboard(substr($data, 5), ($cq['message']['chat']['type'] ?? '') === 'private'));
         }
         $tg->answer($cq);
     }

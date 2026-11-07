@@ -194,7 +194,7 @@ final class MessageHandler
                     $tg->send($chatId, Ui::groupText(), ['reply_markup' => Ui::groupKeyboard()]);
                     return true;
                 }
-                $tg->send($chatId, Ui::startText($from), ['reply_markup' => Ui::startKeyboard()]);
+                Ui::sendMain($chatId, $from);
                 return true;
 
             case 'monshi':

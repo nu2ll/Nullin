@@ -751,7 +751,7 @@ final class Business
             self::save($uid, ['prompt' => '']);
         } elseif ($data === 'bz:key') {
             Store::set('biz_wait', (string) $uid, ['step' => 'key']);
-            $tg->editMessage($chatId, $msgId, "<b>🔑 کلید گروک</b>\nکلید API گروکت رو همین‌جا بفرست؛\nبا <code>gsk_</code> شروع می‌شه.\nرایگانه، از console.groq.com/keys بگیر.\n\n🔁 می‌تونی چند کلید بفرستی (هر کدوم تو یه خط)\nیا هر بار یکی اضافه کنی؛ منشی بینشون می‌چرخه\nو اگه یکی خطا داد، سراغ بعدی می‌ره.\n\n💡 بعد از ذخیره، پیامی که کلید توشه پاک می‌شه.", ikb([[btn('🗑 حذف همه کلیدها', 'bz:kc', 'danger')], $back]));
+            Ui::show($chatId, $msgId, "<b>🔑 کلید گروک</b>\nکلید API گروکت رو همین‌جا بفرست؛\nبا <code>gsk_</code> شروع می‌شه.\nرایگانه، از console.groq.com/keys بگیر.\n\n🔁 می‌تونی چند کلید بفرستی (هر کدوم تو یه خط)\nیا هر بار یکی اضافه کنی؛ منشی بینشون می‌چرخه\nو اگه یکی خطا داد، سراغ بعدی می‌ره.\n\n💡 بعد از ذخیره، پیامی که کلید توشه پاک می‌شه.", ikb([[btn('🗑 حذف همه کلیدها', 'bz:kc', 'danger')], $back]));
             $tg->answer($cq);
             return;
         } elseif ($data === 'bz:kc') {
@@ -762,14 +762,14 @@ final class Business
                 $rows[] = [btn(FreeAI::title('groq', $e['id']), 'bz:md:' . $i, null)];
             }
             $rows[] = $back;
-            $tg->editMessage($chatId, $msgId, "<b>🤖 انتخاب مدل</b>\nمدل مورد نظرت رو انتخاب کن 😎\nمنشی با همون به پیام‌هات جواب می‌ده.", ikb($rows));
+            Ui::show($chatId, $msgId, "<b>🤖 انتخاب مدل</b>\nمدل مورد نظرت رو انتخاب کن 😎\nمنشی با همون به پیام‌هات جواب می‌ده.", ikb($rows));
             $tg->answer($cq);
             return;
         } elseif (preg_match('/^bz:md:(\d+)$/', $data, $m) && isset(FreeAI::models('groq')[(int) $m[1]])) {
             self::save($uid, ['model' => FreeAI::models('groq')[(int) $m[1]]['id']]);
         } elseif ($data === 'bz:prompt') {
             Store::set('biz_wait', (string) $uid, ['step' => 'prompt']);
-            $tg->editMessage($chatId, $msgId, "<b>📝 پرامپت منشی</b>\nشخصیت و دستورالعمل منشی رو بفرست.\n\nمثال:\n<code>تو منشی شخصی من هستی؛\nوقتی نیستم مودب و کوتاه جواب بده\nو بگو وقتی خودم اومدم راهنماییت می‌کنم.</code>\n\n💡 اگه پرامپت نذاری، بدون پرامپت جواب می‌ده.", ikb([[btn('🗑 حذف پرامپت', 'bz:clr', 'danger')], $back]));
+            Ui::show($chatId, $msgId, "<b>📝 پرامپت منشی</b>\nشخصیت و دستورالعمل منشی رو بفرست.\n\nمثال:\n<code>تو منشی شخصی من هستی؛\nوقتی نیستم مودب و کوتاه جواب بده\nو بگو وقتی خودم اومدم راهنماییت می‌کنم.</code>\n\n💡 اگه پرامپت نذاری، بدون پرامپت جواب می‌ده.", ikb([[btn('🗑 حذف پرامپت', 'bz:clr', 'danger')], $back]));
             $tg->answer($cq);
             return;
         } elseif ($data === 'bz:pm') {
@@ -778,7 +778,7 @@ final class Business
                 $rows[] = array_map(static fn($k) => btn(self::modes()[$k][0], 'bz:pm:' . $k, null), $pair);
             }
             $rows[] = $back;
-            $tg->editMessage($chatId, $msgId, "<b>⏱ حالت پاسخ‌دهی</b>\nبعد از هر جواب، یا وقتی خودت دستی\nتو یه چت پیام می‌دی، چقدر ساکت بمونم؟\n\n⚡ فوری: همیشه جواب می‌دم؛\nفقط بعد از پیام دستی خودت ۱ دقیقه صبر می‌کنم.\n♾ دائمی: بعد از اولین جواب یا پیام دستی‌ت،\nدیگه خودکار جواب نمی‌دم.", ikb($rows));
+            Ui::show($chatId, $msgId, "<b>⏱ حالت پاسخ‌دهی</b>\nبعد از هر جواب، یا وقتی خودت دستی\nتو یه چت پیام می‌دی، چقدر ساکت بمونم؟\n\n⚡ فوری: همیشه جواب می‌دم؛\nفقط بعد از پیام دستی خودت ۱ دقیقه صبر می‌کنم.\n♾ دائمی: بعد از اولین جواب یا پیام دستی‌ت،\nدیگه خودکار جواب نمی‌دم.", ikb($rows));
             $tg->answer($cq);
             return;
         } elseif (preg_match('/^bz:pm:(\w+)$/', $data, $m) && isset(self::modes()[$m[1]])) {
@@ -790,7 +790,7 @@ final class Business
                 $rows[] = [btn(($k === $cur ? '✅ ' : '') . AI::THINK_LEVELS[$k], 'bz:th:' . $k, $k === $cur ? 'success' : null)];
             }
             $rows[] = $back;
-            $tg->editMessage($chatId, $msgId, "<b>🧠 سطح فکر کردن</b>\nمنشی قبل از جواب چقدر فکر کنه؟\n\nفقط روی مدل‌هایی اثر داره که فکر کردن دارن.\nکمتر = سریع‌تر، بیشتر = دقیق‌تر.\n\nاین تنظیم مخصوص منشی توئه و به هوش مصنوعی اصلی ربات ربطی نداره.", ikb($rows));
+            Ui::show($chatId, $msgId, "<b>🧠 سطح فکر کردن</b>\nمنشی قبل از جواب چقدر فکر کنه؟\n\nفقط روی مدل‌هایی اثر داره که فکر کردن دارن.\nکمتر = سریع‌تر، بیشتر = دقیق‌تر.\n\nاین تنظیم مخصوص منشی توئه و به هوش مصنوعی اصلی ربات ربطی نداره.", ikb($rows));
             $tg->answer($cq);
             return;
         } elseif (preg_match('/^bz:th:(\w+)$/', $data, $m) && isset(AI::THINK_LEVELS[$m[1]])) {
@@ -810,25 +810,25 @@ final class Business
                     $rows[] = array_map(static fn($h) => btn(($h === $cur ? '✅ ' : '') . self::hourLabel($h), "bz:hr:{$act}:{$h}", $h === $cur ? 'success' : null), $chunk);
                 }
                 $rows[] = [btn('🔙 برگشت', 'bz:hr', null)];
-                $tg->editMessage($chatId, $msgId, $act === 'f' ? "<b>🌅 ساعت شروع</b>\nمنشی از چه ساعتی فعال بشه؟" : "<b>🌙 ساعت پایان</b>\nمنشی تا چه ساعتی فعال باشه؟", ikb($rows));
+                Ui::show($chatId, $msgId, $act === 'f' ? "<b>🌅 ساعت شروع</b>\nمنشی از چه ساعتی فعال بشه؟" : "<b>🌙 ساعت پایان</b>\nمنشی تا چه ساعتی فعال باشه؟", ikb($rows));
                 $tg->answer($cq);
                 return;
             }
             self::clear($uid);
             [$text, $kb] = self::hoursMenu($uid);
-            $tg->editMessage($chatId, $msgId, $text, $kb);
+            Ui::show($chatId, $msgId, $text, $kb);
             $tg->answer($cq);
             return;
         } elseif ($data === 'bz:how') {
             $bot = App::botUsername();
-            $tg->editMessage($chatId, $msgId, "<b>➕ اتصال به اکانت</b>\n\n۱. تلگرام ← پروفایل\n۲. ویرایش پروفایل\n۳. خودکار سازی گفت و گو\n۴. یوزرنیم منو بزن: <code>@{$bot}</code>\n۵. چت‌هایی که می‌خوای جواب بدم رو انتخاب کن\n\n💡 دسترسی «پاسخ به پیام‌ها» رو هم بده،\nوگرنه نمی‌تونم جواب بدم.", ikb([$back]));
+            Ui::show($chatId, $msgId, "<b>➕ اتصال به اکانت</b>\n\n۱. تلگرام ← پروفایل\n۲. ویرایش پروفایل\n۳. خودکار سازی گفت و گو\n۴. یوزرنیم منو بزن: <code>@{$bot}</code>\n۵. چت‌هایی که می‌خوای جواب بدم رو انتخاب کن\n\n💡 دسترسی «پاسخ به پیام‌ها» رو هم بده،\nوگرنه نمی‌تونم جواب بدم.", ikb([$back]));
             $tg->answer($cq);
             return;
         }
 
         self::clear($uid);
         [$text, $kb] = self::panel($uid);
-        $tg->editMessage($chatId, $msgId, $text, $kb);
+        Ui::show($chatId, $msgId, $text, $kb);
         $tg->answer($cq);
     }
 

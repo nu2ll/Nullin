@@ -100,6 +100,21 @@ final class Ui
             . "🚀 دکمه‌ی پایین رو بزن و ببین چه کارایی ازم برمیاد!";
     }
 
+    public static function sendMain(int|string $chatId, array $from): void
+    {
+        $r = Rich::sendHtml($chatId, self::startText($from), null, self::startKeyboard());
+        if (empty($r['ok'])) {
+            App::tg()->send($chatId, self::startText($from), ['reply_markup' => self::startKeyboard()]);
+        }
+    }
+
+    public static function show(int|string $chatId, int $mid, string $text, ?array $kb = null): void
+    {
+        if (!Rich::editHtml($chatId, $mid, $text, $kb)) {
+            App::tg()->editMessage($chatId, $mid, $text, $kb);
+        }
+    }
+
     public static function groupText(): string
     {
         return "سلام به همگی 👋 من <b>نالین</b>‌ام!\n\n"

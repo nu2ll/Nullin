@@ -62,6 +62,8 @@ final class Rich
                     $r .= '<tg-button type="callback_data"' . $style . ' data="' . h((string) $b['callback_data']) . '">' . $label . '</tg-button>';
                 } elseif (isset($b['url'])) {
                     $r .= '<tg-button type="url"' . $style . ' url="' . h((string) $b['url']) . '">' . $label . '</tg-button>';
+                } elseif (isset($b['switch_inline_query_current_chat'])) {
+                    $r .= '<tg-button type="switch_inline_query_current_chat"' . $style . ' query="' . h((string) $b['switch_inline_query_current_chat']) . '">' . $label . '</tg-button>';
                 } elseif (isset($b['copy_text']['text'])) {
                     $r .= '<tg-button type="copy_text"' . $style . ' text="' . h((string) $b['copy_text']['text']) . '">' . $label . '</tg-button>';
                 }
