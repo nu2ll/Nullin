@@ -11,6 +11,7 @@ final class ChosenHandler
         $id   = (string) ($c['result_id'] ?? '');
         $imid = $c['inline_message_id'] ?? null;
         $from = $c['from'] ?? [];
+        logInfo('chosen', $id . ' imid=' . ($imid ? '1' : '0'));
         if (!$imid || empty($from['id'])) {
             return;
         }
