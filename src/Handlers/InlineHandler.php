@@ -18,6 +18,7 @@ final class InlineHandler
         'wiki'    => ['wk', 'wiki', 'ویکی‌پدیا', 'ویکیپدیا', 'ویکی'],
         'gw'      => ['gw', 'giveaway', 'قرعه‌کشی', 'قرعه کشی', 'قرعه'],
         'linkcheck' => ['st'],
+        'like'    => ['like', 'لایک'],
     ];
 
     private static array $iq = [];
@@ -70,6 +71,7 @@ final class InlineHandler
                         'gw'      => self::giveaway($rest),
                         'wiki'    => self::wiki($rest),
                         'linkcheck' => self::linkcheck($rest),
+                        'like'    => self::like($rest),
                     };
                     return;
                 }
@@ -141,6 +143,15 @@ final class InlineHandler
             return;
         }
         self::answer(array_map(static fn($p) => Wiki::inline('wk_' . substr(md5($p['url']), 0, 16), $p), $list), 600, false);
+    }
+
+    private static function like(string $text): void
+    {
+        if ($text === '') {
+            self::guide('like', 'like', '❤️ لایک‌ساز', 'بعد از like متنت رو بنویس');
+            return;
+        }
+        self::answer([Likes::article($text)], 0);
     }
 
     private static function giveaway(string $q): void
@@ -590,6 +601,7 @@ final class InlineHandler
             Ui::article('help_group', 'group', '👥 در گروه', 'نالین رو به گروهت اضافه کن', Ui::guide('group'), Ui::tryKeyboard('group')),
             Ui::article('help_image', 'image', '🎨 ساخت عکس', 'فقط بگو چی بکشم؛ تو پیوی یا گروه', Ui::guide('image'), Ui::tryKeyboard('image')),
             Ui::article('help_whisper', 'whisper', '🤫 نجوا', 'nj [متن] [@یوزرنیم] [آیدی]', Ui::guide('whisper'), Ui::tryKeyboard('whisper')),
+            Ui::article('help_like', 'like', '❤️ لایک‌ساز', 'like [متن]', Ui::guide('like'), Ui::tryKeyboard('like')),
             Ui::article('help_giveaway', 'gift', '🎁 قرعه‌کشی', 'gw [تعداد] [زمان] [جایزه]', Ui::guide('giveaway'), Ui::tryKeyboard('giveaway')),
             Ui::article('help_wiki', 'wiki', '📖 ویکی‌پدیا', 'wk [موضوع]', Ui::guide('wiki'), Ui::tryKeyboard('wiki')),
             Ui::article('help_ai', 'ai', '🧠 هوش مصنوعی', 'ai [سؤالت]', Ui::guide('ai'), Ui::tryKeyboard('ai')),
@@ -607,7 +619,7 @@ final class InlineHandler
         ];
 
         $swMap = ['info' => 'userinfo', 'chess' => 'chess', 'ttt' => 'ttt', 'c4' => 'c4', 'rps' => 'rps', 'math' => 'math', 'calc' => 'calc', 'rates' => 'rates', 'date' => 'date', 'pass' => 'password', 'coin' => 'coin', 'fal' => 'fal',
-            'help_image' => 'image', 'help_whisper' => 'whisper', 'help_giveaway' => 'giveaway', 'help_wiki' => 'wiki', 'help_ai' => 'ai', 'help_translate' => 'translate', 'help_search' => 'search',
+            'help_image' => 'image', 'help_whisper' => 'whisper', 'help_giveaway' => 'giveaway', 'help_like' => 'like', 'help_wiki' => 'wiki', 'help_ai' => 'ai', 'help_translate' => 'translate', 'help_search' => 'search',
             'help_font' => 'font', 'help_weather' => 'weather', 'help_qr' => 'qr', 'help_short' => 'short', 'help_roast' => 'roast', 'help_love' => 'love', 'help_nid' => 'nid', 'help_funstat' => 'funstat', 'help_linkcheck' => 'linkcheck'];
         $items = array_values(array_filter($items, static fn($r) => !isset($swMap[$r['id']]) || Switches::on($swMap[$r['id']])));
 

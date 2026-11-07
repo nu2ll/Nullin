@@ -75,6 +75,14 @@ final class CallbackHandler
             InlineHandler::resolveDeferred($m[2], $imid);
             return;
         }
+        if (str_starts_with($data, 'lk:')) {
+            if (!Switches::on('like')) {
+                $tg->answer($cq);
+                return;
+            }
+            Likes::onCallback($cq, $data, $imid);
+            return;
+        }
         if (str_starts_with($data, 'wh:')) {
             Whisper::onCallback($cq, $data, $imid);
             return;
