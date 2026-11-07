@@ -121,10 +121,10 @@ final class Rich
         $body = $isHtml ? $html : h($html);
         if (self::usable($kb)) {
             $r = $tg->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($body, $kb, $img, true)], 10);
-            if (empty($r['ok']) && self::invalid($r)) {
-                $r = $tg->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($body, $kb, $img, true, true)], 10);
-            }
             if (empty($r['ok']) && self::invalid($r) && $img !== null) {
+                $r = $tg->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($body, $kb, null, true)], 10);
+            }
+            if (empty($r['ok']) && self::invalid($r)) {
                 $r = $tg->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($body, $kb, null, true, true)], 10);
             }
             return $r;

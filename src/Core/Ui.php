@@ -73,6 +73,9 @@ final class Ui
         }
         if (Rich::usable($markup)) {
             $r['input_message_content'] = Rich::inlineContent($html ? $text : h($text), $markup, $img);
+            if (preg_match('/^(?:calc|coin|fal|pass|rps|ttt|c4|math|chess|(?:ai|tr)q_|rs_|st_|lv_|gwi_|wh_|wt_)/', $id) === 1) {
+                $r['reply_markup'] = $markup;
+            }
         } elseif ($markup !== null) {
             $r['reply_markup'] = $markup;
         }
