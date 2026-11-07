@@ -79,12 +79,8 @@ final class Intent
         $reply = ['message_id' => $msg['message_id'], 'allow_sending_without_reply' => true];
         if (!empty($o['photo']) || !empty($o['anim'])) {
             $kb = $o['kb'] ?? null;
-            if (!empty($o['photo']) && is_string($o['photo']) && str_starts_with($o['photo'], 'https://') && trim((string) $o['text']) !== '' && Rich::usable($kb)) {
+            if (!empty($o['photo']) && is_string($o['photo']) && preg_match('#^(?:https://|[A-Za-z0-9_-]{20,}$)#', $o['photo']) === 1 && trim((string) $o['text']) !== '' && (Rich::usable($kb) || !Rich::hasButtons($kb))) {
                 $r = Rich::send($chat, $o['text'], $kb, (int) $msg['message_id'], $o['photo']);
-                return !empty($r['ok']);
-            }
-            if (Rich::usable($kb)) {
-                $r = Rich::sendMedia($chat, $o['text'], (string) ($o['photo'] ?? $o['anim']), !empty($o['photo']) ? 'photo' : 'animation', $kb, (int) $msg['message_id']);
                 return !empty($r['ok']);
             }
             $r = $tg->call(!empty($o['photo']) ? 'sendPhoto' : 'sendAnimation', [
@@ -173,7 +169,7 @@ final class Intent
                 return ['text' => ShortLink::text($short, $url), 'kb' => ShortLink::keyboard($short)];
 
             case 'fal':
-                return ['anim' => Tools::hafezUrl(), 'text' => Tools::hafezCaption()];
+                return ['photo' => Tools::hafezPhoto(), 'text' => Tools::hafezCaption()];
 
             case 'password':
                 return ['text' => Tools::passwordText(16)];

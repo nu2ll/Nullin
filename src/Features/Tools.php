@@ -53,9 +53,37 @@ final class Tools
         return "<b>🪙 سکه</b>\n\nسکه چرخید و چرخید و... {$r} اومد!";
     }
 
-    public static function hafezUrl(): string
+    public static function hafezUrl(int $n = 0): string
     {
-        return 'https://api.codebazan.ir/fal/hafez/' . random_int(1, 149) . '.gif';
+        return 'https://api.codebazan.ir/fal/hafez/' . ($n > 0 ? $n : random_int(1, 149)) . '.gif';
+    }
+
+    public static function hafezPhoto(): ?string
+    {
+        $n  = (string) random_int(1, 149);
+        $id = Store::get('hafez', $n);
+        if (is_string($id) && $id !== '') {
+            return $id;
+        }
+        $r = Http::request('GET', self::hafezUrl((int) $n), ['timeout' => 20]);
+        if ($r['code'] !== 200 || $r['body'] === '') {
+            return null;
+        }
+        $in  = (string) tempnam(sys_get_temp_dir(), 'nl_hf_');
+        $out = $in . '.jpg';
+        file_put_contents($in, $r['body']);
+        @exec('timeout 20 ffmpeg -y -v error -i ' . escapeshellarg($in) . ' -frames:v 1 ' . escapeshellarg($out) . ' 2>/dev/null', $o, $rc);
+        $bytes = is_file($out) ? file_get_contents($out) : false;
+        @unlink($in);
+        @unlink($out);
+        if ($bytes === false || $bytes === '') {
+            return null;
+        }
+        $id = ImageGen::fileId($bytes);
+        if ($id !== null) {
+            Store::set('hafez', $n, $id);
+        }
+        return $id;
     }
 
     public static function hafezCaption(): string
@@ -70,7 +98,7 @@ final class Tools
 
     public static function showHafez(string $imid): ?array
     {
-        return Rich::editInlineMedia($imid, self::hafezCaption(), self::hafezUrl(), 'photo', self::hafezKeyboard());
+        return Rich::editInline($imid, self::hafezCaption(), self::hafezKeyboard(), self::hafezPhoto());
     }
 
     public static function normalizeNid(string $raw): ?string
