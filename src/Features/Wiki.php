@@ -67,8 +67,8 @@ final class Wiki
 
     public static function inline(string $id, array $p): array
     {
-        $img = self::image($p);
-        $a   = Ui::article($id, 'wiki', '📖 ' . $p['title'], $p['desc'] !== '' ? $p['desc'] : mb_substr($p['text'], 0, 90), self::text($p), self::keyboard($p), true, $img);
+        // نتیجه‌ی اینلاین نمی‌تونه عکسِ URL تو rich_message داشته باشه (تلگرام 400 می‌ده)؛ عکس فقط به‌صورت thumbnail تو لیست میاد
+        $a   = Ui::article($id, 'wiki', '📖 ' . $p['title'], $p['desc'] !== '' ? $p['desc'] : mb_substr($p['text'], 0, 90), self::text($p), self::keyboard($p), true, null);
         if ($p['thumb'] !== '') {
             $a['thumbnail_url'] = $p['thumb'];
         }
