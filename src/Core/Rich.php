@@ -42,7 +42,7 @@ final class Rich
     {
         foreach ((array) ($kb['inline_keyboard'] ?? []) as $row) {
             foreach ((array) $row as $b) {
-                if (!isset($b['callback_data']) && !isset($b['url'])) {
+                if (!isset($b['callback_data']) && !isset($b['url']) && !isset($b['switch_inline_query_current_chat'])) {
                     return false;
                 }
             }

@@ -73,7 +73,7 @@ final class Business
             'user'  => array_intersect_key((array) $c['user'], array_flip(['id', 'first_name', 'last_name', 'username'])),
         ]);
         if ($on && $first && Switches::on('business')) {
-            App::tg()->send((int) ($c['user_chat_id'] ?? $uid), "🎉 به اکانتت وصل شدم!\nبرای شروع، کلید گروکت رو ثبت کن.", ['reply_markup' => ikb([[btn('⚙️ پنل منشی', 'bz:menu', 'success')]])]);
+            Rich::sendHtml((int) ($c['user_chat_id'] ?? $uid), "🎉 به اکانتت وصل شدم!\nبرای شروع، کلید گروکت رو ثبت کن.", null, ikb([[btn('⚙️ پنل منشی', 'bz:menu', 'success')]]));
         }
     }
 

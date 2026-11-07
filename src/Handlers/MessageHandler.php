@@ -187,7 +187,7 @@ final class MessageHandler
                     Business::clear((int) $from['id']);
                 }
                 if ($args === 'help') {
-                    $tg->send($chatId, Ui::helpText(), ['reply_markup' => Ui::helpMenu($private)]);
+                    Rich::sendHtml($chatId, Ui::helpText(), null, Ui::helpMenu($private));
                     return true;
                 }
                 if (!$private) {
@@ -201,7 +201,7 @@ final class MessageHandler
                 if ($private) {
                     Store::set('biz_back', (string) $from['id'], 0);
                     [$bt, $bk] = Business::panel((int) $from['id']);
-                    $tg->send($chatId, $bt, ['reply_markup' => $bk]);
+                    Rich::sendHtml($chatId, $bt, null, $bk);
                 }
                 return true;
 
@@ -212,7 +212,7 @@ final class MessageHandler
                 return true;
 
             case 'help':
-                $tg->send($chatId, Ui::helpText(), ['reply_markup' => Ui::helpMenu($private)]);
+                Rich::sendHtml($chatId, Ui::helpText(), null, Ui::helpMenu($private));
                 return true;
 
             case 'voice':
