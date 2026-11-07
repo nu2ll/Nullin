@@ -83,6 +83,10 @@ final class Intent
                 $r = Rich::send($chat, $o['text'], $kb, (int) $msg['message_id'], $o['photo']);
                 return !empty($r['ok']);
             }
+            if (Rich::usable($kb)) {
+                $r = Rich::sendMedia($chat, $o['text'], (string) ($o['photo'] ?? $o['anim']), !empty($o['photo']) ? 'photo' : 'animation', $kb, (int) $msg['message_id']);
+                return !empty($r['ok']);
+            }
             $r = $tg->call(!empty($o['photo']) ? 'sendPhoto' : 'sendAnimation', [
                 'chat_id' => $chat, !empty($o['photo']) ? 'photo' : 'animation' => $o['photo'] ?? $o['anim'],
                 'caption' => $o['text'], 'parse_mode' => 'HTML', 'reply_markup' => $kb, 'reply_parameters' => $reply,
