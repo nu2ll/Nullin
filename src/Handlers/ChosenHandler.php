@@ -41,9 +41,6 @@ final class ChosenHandler
         if (str_starts_with($id, 'gwi_')) {
             Giveaway::onChosen(substr($id, 4), $imid, $from);
         }
-        if (str_starts_with($id, 'lk_')) {
-            Likes::onChosen(substr($id, 3), $imid);
-        }
         if (str_starts_with($id, 'wk_')) {
             Wiki::onChosen($id, $imid, (int) $from['id']);
         }

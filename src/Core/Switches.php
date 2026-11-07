@@ -15,7 +15,6 @@ final class Switches
         'business' => '🤝 منشی هوشمند',
         'whisper'  => '🤫 نجوا',
         'giveaway' => '🎁 قرعه‌کشی',
-        'like'     => '❤️ لایک‌ساز',
         'font'     => '✨ فونت‌ساز',
         'qr'       => '🔳 QR کد',
         'short'    => '🔗 کوتاه‌کننده لینک',
