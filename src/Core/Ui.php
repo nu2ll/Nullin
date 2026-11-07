@@ -662,7 +662,7 @@ final class Ui
 
     private const HELP_LAYOUT = [
         1 => [['ai', 'image'], ['translate', 'search'], ['whisper', 'linkcheck'], ['font', 'download'], ['giveaway', 'wiki']],
-        2 => [['weather', 'calc'], ['qr', 'short'], ['love', 'group'], ['roast', 'nid'], ['like'], ['funstat', 'games']],
+        2 => [['weather', 'calc'], ['qr', 'short'], ['love', 'group'], ['like'], ['roast', 'nid'], ['funstat', 'games']],
     ];
 
     public static function helpPage(string $key): int

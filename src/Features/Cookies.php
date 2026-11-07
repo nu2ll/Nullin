@@ -48,7 +48,7 @@ final class Cookies
         if ($old && !empty($old['m'])) {
             self::del($chat, (int) $old['m']);
         }
-        $r   = Rich::send($chat, '🍪', self::keyboard());
+        $r   = App::tg()->send($chat, '🍪', ['reply_markup' => self::keyboard()]);
         $mid = (int) ($r['result']['message_id'] ?? 0);
         Store::set(self::NS, (string) $uid, ['m' => $mid, 'at' => time()]);
     }

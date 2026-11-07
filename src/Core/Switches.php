@@ -113,11 +113,17 @@ final class Switches
         $rows = [];
         $row  = [];
         foreach (self::TOOLS as $k => $label) {
+            if ($k === 'math') {
+                continue;
+            }
             $on    = self::on($k);
             $row[] = btn($label, 'tl:t:' . $k, $on ? 'success' : 'danger');
-            if (count($row) === 2) {
+            if (count($row) === 2 || $k === 'font') {
                 $rows[] = $row;
                 $row    = [];
+            }
+            if ($k === 'font') {
+                $rows[] = [btn(self::TOOLS['math'], 'tl:t:math', self::on('math') ? 'success' : 'danger')];
             }
         }
         if ($row) {
