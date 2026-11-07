@@ -163,7 +163,7 @@ final class MessageHandler
         }
         Users::hit("cmd:{$cmd}");
 
-        $gate = ['wk' => 'wiki', 'wiki' => 'wiki', 'giveaway' => 'giveaway', 'gw' => 'giveaway', 'image' => 'image', 'img' => 'image', 'font' => 'font', 'ft' => 'font', 'tr' => 'translate', 'translate' => 'translate', 'st' => 'linkcheck', 'monshi' => 'business'][$cmd] ?? null;
+        $gate = ['wk' => 'wiki', 'wiki' => 'wiki', 'giveaway' => 'giveaway', 'gw' => 'giveaway', 'image' => 'image', 'img' => 'image', 'font' => 'font', 'ft' => 'font', 'tr' => 'translate', 'translate' => 'translate', 'st' => 'linkcheck', 'monshi' => 'business', 'mail' => 'mail'][$cmd] ?? null;
         if ($gate !== null && !Switches::guard($gate)) {
             return true;
         }
@@ -249,6 +249,12 @@ final class MessageHandler
             case 'tr':
             case 'translate':
                 Assistant::translate($msg, $args);
+                return true;
+
+            case 'mail':
+                $addr = TempMail::create((int) $from['id']);
+                [$mText, $mKb] = TempMail::card($addr);
+                Rich::replyTo($msg, $mText, $mKb);
                 return true;
 
             case 'st':

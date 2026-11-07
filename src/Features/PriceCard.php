@@ -21,16 +21,16 @@ final class PriceCard
         'coin' => ['sekee', ['سکه', 'سکه امامی'], 'سکه امامی', 'عدد', '◎', 'irr'],
         'gold' => ['geram18', ['طلا', 'گرم طلا', 'طلا ۱۸', 'طلای ۱۸', 'طلا 18', 'طلای 18', 'طلای18', 'طلا18', 'گرم 18', 'گرم ۱۸'], 'طلای ۱۸ عیار', 'گرم', 'Au', 'irr'],
         'mesh' => ['geram18', ['مثقال', 'مثقال طلا', 'مثقال ۱۸', 'مثقال 18'], 'مثقال طلا', 'عدد', 'Au', 'mesh'],
-        'ons'  => ['ons', ['انس طلا', 'انس جهانی', 'اونس', 'اونس طلا', 'ons', 'ounce'], 'انس جهانی طلا', 'واحد', 'Au', 'usd'],
-        'btc'  => ['crypto-bitcoin', ['بیت کوین', 'بیتکوین', 'btc', 'bitcoin'], 'بیت‌کوین', 'واحد', '₿', 'usd'],
-        'eth'  => ['crypto-ethereum', ['اتریوم', 'eth', 'ethereum'], 'اتریوم', 'واحد', 'Ξ', 'usd'],
+        'ons'  => ['ons', ['انس', 'انس طلا', 'انس جهانی', 'اونس', 'اونس طلا', 'ons', 'ounce'], 'انس جهانی طلا', 'واحد', 'Au', 'usd'],
+        'btc'  => ['crypto-bitcoin', ['بیت', 'بیت کوین', 'بیتکوین', 'btc', 'bitcoin'], 'بیت‌کوین', 'واحد', '₿', 'usd'],
+        'eth'  => ['crypto-ethereum', ['اتر', 'اتریوم', 'eth', 'ethereum'], 'اتریوم', 'واحد', 'Ξ', 'usd'],
         'bnb'  => ['crypto-binance-coin', ['بایننس', 'بایننس کوین', 'bnb', 'binance'], 'بایننس کوین', 'واحد', 'BNB', 'usd'],
-        'sol'  => ['crypto-solana', ['سولانا', 'sol', 'solana'], 'سولانا', 'واحد', 'SOL', 'usd'],
+        'sol'  => ['crypto-solana', ['سول', 'سولانا', 'sol', 'solana'], 'سولانا', 'واحد', 'SOL', 'usd'],
         'ton'  => ['crypto-toncoin', ['تون کوین', 'تونکوین', 'toncoin'], 'تون‌کوین', 'واحد', 'TON', 'usd'],
         'xrp'  => ['crypto-ripple', ['ریپل', 'xrp', 'ripple'], 'ریپل', 'واحد', 'XRP', 'usd'],
         'trx'  => ['crypto-tron', ['ترون', 'trx', 'tron'], 'ترون', 'واحد', 'TRX', 'usd'],
         'doge' => ['crypto-dogecoin', ['دوج', 'دوج کوین', 'دوجکوین', 'doge', 'dogecoin'], 'دوج‌کوین', 'واحد', 'Ð', 'usd'],
-        'ltc'  => ['crypto-litecoin', ['لایت کوین', 'لایتکوین', 'ltc', 'litecoin'], 'لایت‌کوین', 'واحد', 'Ł', 'usd'],
+        'ltc'  => ['crypto-litecoin', ['لایت', 'لایت کوین', 'لایتکوین', 'ltc', 'litecoin'], 'لایت‌کوین', 'واحد', 'Ł', 'usd'],
     ];
 
     private static function norm(string $s): string

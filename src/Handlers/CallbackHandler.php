@@ -54,6 +54,14 @@ final class CallbackHandler
             VoicePick::onCallback($cq, $data);
             return;
         }
+        if (str_starts_with($data, 'mail:')) {
+            if (!Switches::on('mail')) {
+                $tg->answer($cq);
+                return;
+            }
+            TempMail::onCallback($cq, $data);
+            return;
+        }
 
         if (!$imid) {
             self::privateButtons($cq, $data);

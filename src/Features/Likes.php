@@ -2,7 +2,7 @@
 
 final class Likes
 {
-    public const TEXT_MAX = 1000;
+    public const TEXT_MAX = 256;
 
     public static function token(string $text): string
     {
@@ -16,7 +16,7 @@ final class Likes
 
     public static function keyboard(string $token, int $count = 0): array
     {
-        return ikb([[btn('❤️ ' . ($count > 0 ? fa((string) $count) : '۰'), 'lk:' . $token, null)]]);
+        return ikb([[btn($count > 0 ? '❤️ ' . fa((string) $count) : '❤️', 'lk:' . $token, null)]]);
     }
 
     public static function article(string $text): array

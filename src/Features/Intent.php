@@ -2,7 +2,7 @@
 
 final class Intent
 {
-    public const NAMES = ['translate', 'download', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'short', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'love', 'roast', 'userinfo', 'giveaway'];
+    public const NAMES = ['translate', 'download', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'short', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'love', 'roast', 'userinfo', 'giveaway', 'mail'];
 
     public static function prompt(): string
     {
@@ -24,6 +24,7 @@ final class Intent
             . "\n- nid | <کد ملی>: بررسی درستی کد ملی."
             . "\n- love | <نفر اول> | <نفر دوم>: درصد عشق دو نفر."
             . "\n- roast | <me یا reply یا @یوزرنیم یا آیدی عددی>: روست کردن یه آدم؛ me یعنی خود کاربر، reply یعنی صاحب پیامی که روش ریپلای کرده. فقط برای یه روست جدید؛ نظر دادن درباره‌ی روست قبلی درخواست روست نیست."
+            . "\n- mail: ساخت یه آدرس ایمیل موقت و یکبارمصرف."
             . "\n- userinfo: اطلاعات اکانت تلگرام خود کاربر."
             . "\nاگه فقط درباره‌ی این موضوعات حرف زد یا سؤال کلی پرسید و انجام خود کار رو نخواست، خودت جواب بده و دستور «[[ ]]» ننویس.";
     }
@@ -234,6 +235,13 @@ final class Intent
 
             case 'giveaway':
                 return $guest ? ['text' => "🎁 قرعه‌کشی رو تو پیوی من بساز 👇", 'kb' => ikb([[urlBtn('🎁 ساخت قرعه‌کشی', "https://t.me/{$bot}?start=giveaway", 'success')]])] : null;
+
+            case 'mail':
+                if ($guest) {
+                    return ['text' => "📧 ایمیل موقت رو تو پیوی من بساز 👇", 'kb' => ikb([[urlBtn('📧 ساخت ایمیل موقت', "https://t.me/{$bot}?start=mail", 'success')]])];
+                }
+                [$text, $kb] = TempMail::card(TempMail::create((int) ($msg['from']['id'] ?? 0)));
+                return ['text' => $text, 'kb' => $kb];
         }
         return null;
     }
