@@ -119,7 +119,7 @@ final class Giveaway
         $uid = (int) $from['id'];
         $id  = substr(md5($uid . '|' . $q . '|' . intdiv(time(), 600)), 0, 10);
         Store::set('gw_draft', $id, ['q' => mb_substr($q, 0, 300), 'owner' => $uid]);
-        return Ui::article('gwi_' . $id, 'gift', '🎁 قرعه‌کشی: ' . mb_substr($q, 0, 60), 'بزن تا بسازمش',
+        return Ui::richArticle('gwi_' . $id, 'gift', '🎁 قرعه‌کشی: ' . mb_substr($q, 0, 60), 'بزن تا بسازمش',
             "<b>🎁 قرعه‌کشی</b>\n\n⏳ دارم آماده‌اش می‌کنم...", ikb([[btn('⏳ صبر کن...', 'noop', null)]]));
     }
 
@@ -181,7 +181,7 @@ final class Giveaway
     private static function refreshPublic(array $g): void
     {
         if (!empty($g['imid'])) {
-            App::tg()->editInline($g['imid'], self::publicText($g, self::count($g['id'])), self::inlineKeyboard($g));
+            Rich::editInline($g['imid'], self::publicText($g, self::count($g['id'])), self::inlineKeyboard($g));
         } else {
             App::tg()->editMessage($g['chat'], (int) $g['msg'], self::publicText($g, self::count($g['id'])), self::joinKeyboard($g['id']));
         }
@@ -190,7 +190,7 @@ final class Giveaway
     private static function editPublic(array $g, string $text, ?array $kb = null): void
     {
         if (!empty($g['imid'])) {
-            App::tg()->editInline($g['imid'], $text, $kb);
+            Rich::editInline($g['imid'], $text, $kb);
         } else {
             App::tg()->editMessage($g['chat'], (int) $g['msg'], $text, $kb);
         }

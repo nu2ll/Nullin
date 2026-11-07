@@ -408,7 +408,7 @@ final class Whisper
                         return $s;
                     });
                     if ($new && is_array($upd)) {
-                        $tg->editInline($imid, self::seenText($upd), self::seenKeyboard());
+                        Rich::editInline($imid, self::seenText($upd), self::seenKeyboard());
                         self::addRecent((int) $from['id'], ['id' => $w['sender_id'], 'username' => null, 'name' => (string) ($w['sender_name'] ?? '')]);
                     }
                 }
@@ -424,7 +424,7 @@ final class Whisper
                     return;
                 }
                 Store::update('whisper', $imid, static fn($s) => is_array($s) ? ['deleted' => true, 'text' => ''] + $s : null);
-                $tg->call('editMessageReplyMarkup', ['inline_message_id' => $imid, 'reply_markup' => self::deletedKeyboard()]);
+                Rich::editInline($imid, !empty($w['seen']) ? self::seenText($w) : self::pendingText($w), self::deletedKeyboard());
                 $tg->answer($cq, '🗑 پاک شد؛ دیگه کسی نمی‌تونه بخونه');
                 return;
 

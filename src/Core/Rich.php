@@ -38,13 +38,25 @@ final class Rich
         return $id > 0 ? $id : null;
     }
 
-    public static function buttonsHtml(?array $kb): string
+    public static function supports(?array $kb): bool
+    {
+        foreach ((array) ($kb['inline_keyboard'] ?? []) as $row) {
+            foreach ((array) $row as $b) {
+                if (!isset($b['callback_data']) && !isset($b['url'])) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    public static function buttonsHtml(?array $kb, bool $linkDefault = false): string
     {
         $out = '';
         foreach ((array) ($kb['inline_keyboard'] ?? []) as $row) {
             $r = '';
             foreach ((array) $row as $b) {
-                $style = isset($b['style']) ? ' style="' . h((string) $b['style']) . '"' : '';
+                $style = isset($b['style']) ? ' style="' . h((string) $b['style']) . '"' : (($linkDefault && isset($b['callback_data'])) ? ' style="link"' : '');
                 $label = h((string) ($b['text'] ?? ''));
                 if (isset($b['callback_data'])) {
                     $r .= '<tg-button type="callback_data"' . $style . ' data="' . h((string) $b['callback_data']) . '">' . $label . '</tg-button>';
@@ -61,9 +73,9 @@ final class Rich
         return $out;
     }
 
-    private static function payload(string $html, ?array $kb, ?string $img): array
+    private static function payload(string $html, ?array $kb, ?string $img, bool $linkDefault = false): array
     {
-        $body = '<p>' . str_replace("\n", '<br>', $html) . '</p>' . self::buttonsHtml($kb);
+        $body = '<p>' . str_replace("\n", '<br>', $html) . '</p>' . self::buttonsHtml($kb, $linkDefault);
         if ($img !== null && preg_match('#^https://#', $img)) {
             return ['html' => '<img src="tg://photo?id=thumb"/>' . $body, 'is_rtl' => true, 'media' => [['id' => 'thumb', 'media' => ['type' => 'photo', 'media' => $img]]]];
         }
@@ -78,12 +90,12 @@ final class Rich
 
     public static function editInline(string $inlineId, string $html, ?array $kb = null): ?array
     {
-        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($html, $kb, null)], 10);
+        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($html, $kb, null, true)], 10);
     }
 
     public static function inlineContent(string $html, ?array $kb = null): array
     {
-        return ['rich_message' => self::payload($html, $kb, null)];
+        return ['rich_message' => self::payload($html, $kb, null, true)];
     }
 
     public static function edit(int|string $chatId, int $mid, string $html, ?array $kb = null, ?string $img = null): void

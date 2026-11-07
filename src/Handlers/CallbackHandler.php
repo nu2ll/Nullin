@@ -107,20 +107,20 @@ final class CallbackHandler
                 return;
             }
             Store::set('calc', $imid, $new);
-            $tg->editInline($imid, Calculator::render($new, $key === '=' && $new !== Calculator::ERROR), Calculator::keyboard());
+            Rich::editInline($imid, Calculator::render($new, $key === '=' && $new !== Calculator::ERROR), Calculator::keyboard());
             $tg->answer($cq);
             return;
         }
 
         if (str_starts_with($data, 'pass:')) {
-            $tg->editInline($imid, Tools::passwordText((int) substr($data, 5)), Tools::passwordKeyboard());
+            Rich::editInline($imid, Tools::passwordText((int) substr($data, 5)), Tools::passwordKeyboard());
             $tg->answer($cq, '🔑 پسورد جدید ساخته شد');
             return;
         }
 
         switch ($data) {
             case 'coin:flip':
-                $tg->editInline($imid, Tools::coinResult(), ikb([[btn('🔁 دوباره بنداز', 'coin:flip')]]));
+                Rich::editInline($imid, Tools::coinResult(), ikb([[btn('🔁 دوباره بنداز', 'coin:flip')]]));
                 $tg->answer($cq);
                 return;
             case 'fal:refresh':

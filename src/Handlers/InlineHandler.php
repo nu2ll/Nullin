@@ -350,7 +350,7 @@ final class InlineHandler
             return Ui::article('whe_' . substr(md5(json_encode($to)), 0, 16), $icon, $title, $desc, Whisper::emptyText(), Whisper::emptyKeyboard());
         }
         $ref = $token . '_' . $idx;
-        return Ui::article(
+        return Ui::richArticle(
             "wh_{$ref}",
             $icon,
             $title,
@@ -503,7 +503,7 @@ final class InlineHandler
             return;
         }
         $q     = mb_substr($q, 0, 200);
-        $items = [Ui::article(
+        $items = [Ui::richArticle(
             'gs_' . substr(md5($q), 0, 16),
             'search',
             '🔍 سرچ گوگل: ' . $q,
@@ -512,7 +512,7 @@ final class InlineHandler
             Search::keyboard($q)
         )];
         foreach (Search::results($q, 10) as $i => $r) {
-            $a                  = Ui::article('sr_' . substr(md5($r['url']), 0, 16), 'search', $r['title'], $r['snippet'] !== '' ? $r['snippet'] : $r['url'], Search::resultText($r), ikb([[urlBtn('🌐 باز کردن', $r['url'], null)]]));
+            $a                  = Ui::richArticle('sr_' . substr(md5($r['url']), 0, 16), 'search', $r['title'], $r['snippet'] !== '' ? $r['snippet'] : $r['url'], Search::resultText($r), ikb([[urlBtn('🌐 باز کردن', $r['url'], null)]]));
             $a['thumbnail_url'] = Search::favicon($r['url']);
             $a['url']           = $r['url'];
             $a['hide_url']      = true;
@@ -577,15 +577,15 @@ final class InlineHandler
         $items = [
             Ui::article('info', 'info', '👤 اطلاعات من', 'آیدی، عمر اکانت، DC و...', $infoText, $infoKb),
             Ui::richArticle('chess', 'chess', '♟️ شطرنج', 'با ربات در ۳ سطح سختی، یا با دوستت', Chess::intro(), Chess::modeKeyboard()),
-            Ui::article('calc', 'calc', '🧮 ماشین‌حساب', 'با پرانتز و توان', Calculator::render('0'), Calculator::keyboard()),
+            Ui::richArticle('calc', 'calc', '🧮 ماشین‌حساب', 'با پرانتز و توان', Calculator::render('0'), Calculator::keyboard()),
             Ui::article('rates', 'rates', '💱 نرخ ارز و طلا', 'دلار، یورو، سکه، تتر، بیت‌کوین...', "<b>💱 نرخ لحظه‌ای بازار</b>\n\nبرای دیدن قیمت‌ها دکمه‌ی زیر رو بزن 👇", Currency::pendingKeyboard()),
             Ui::article('date', 'date', '📅 تاریخ و ساعت', 'شمسی و میلادی، به وقت ایران', Tools::dateText()),
-            Ui::article('pass', 'pass', '🔑 پسورد ساز', 'یه رمز قوی و غیرقابل حدس', Tools::passwordText(16), Tools::passwordKeyboard()),
+            Ui::richArticle('pass', 'pass', '🔑 پسورد ساز', 'یه رمز قوی و غیرقابل حدس', Tools::passwordText(16), Tools::passwordKeyboard()),
             Ui::richArticle('ttt', 'ttt', '⭕ دوز', 'دوز کلاسیک، با ربات یا دوستت', TicTacToe::intro(), TicTacToe::modeKeyboard()),
             Ui::richArticle('c4', 'c4', '🔴 دوز سکه‌ای', '۴ تا پشت سر هم، با ربات یا دوستت', ConnectFour::intro(), ConnectFour::modeKeyboard()),
             Ui::richArticle('rps', 'rps', '✊ سنگ کاغذ قیچی', 'بهترین از ۳ دور', Rps::intro(), Rps::modeKeyboard()),
             Ui::richArticle('math', 'math', '🔢 دوئل ریاضی', 'مسابقه‌ی سرعت حساب، چندنفره', MathDuel::intro(), MathDuel::modeKeyboard()),
-            Ui::article('coin', 'coin', '🪙 سکه', 'شیر یا خط؟', "<b>🪙 سکه</b>\n\nآماده‌ی پرتاب! 👇", Tools::coinKeyboard()),
+            Ui::richArticle('coin', 'coin', '🪙 سکه', 'شیر یا خط؟', "<b>🪙 سکه</b>\n\nآماده‌ی پرتاب! 👇", Tools::coinKeyboard()),
             Ui::article('fal', 'fal', '🔮 فال حافظ', 'یه فال از دیوان حافظ', Tools::hafezCaption(), Tools::hafezKeyboard()),
             Ui::article('help_group', 'group', '👥 در گروه', 'نالین رو به گروهت اضافه کن', Ui::guide('group'), Ui::tryKeyboard('group')),
             Ui::article('help_image', 'image', '🎨 ساخت عکس', 'فقط بگو چی بکشم؛ تو پیوی یا گروه', Ui::guide('image'), Ui::tryKeyboard('image')),

@@ -79,8 +79,11 @@ final class Ui
 
     public static function richArticle(string $id, string $icon, string $title, string $desc, string $text, ?array $markup = null): array
     {
-        $r = self::article($id, $icon, $title, $desc, $text);
-        $r['input_message_content'] = Rich::inlineContent($text, $markup);
+        $r = self::article($id, $icon, $title, $desc, $text, $markup);
+        if (Rich::supports($markup)) {
+            $r['input_message_content'] = Rich::inlineContent($text, $markup);
+            unset($r['reply_markup']);
+        }
         return $r;
     }
 
