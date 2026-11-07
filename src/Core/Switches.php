@@ -142,7 +142,7 @@ final class Switches
             self::setAll(($p[2] ?? '1') === '1');
         }
         if ($chatId !== null && $msgId !== null) {
-            $tg->editMessage($chatId, $msgId, self::text(), self::keyboard());
+            Rich::edit($chatId, $msgId, self::text(), self::keyboard());
         }
         $tg->answer($cq);
         self::syncCommands();

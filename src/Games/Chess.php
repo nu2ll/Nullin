@@ -22,7 +22,7 @@ final class Chess
 
     private static function show(string $imid, array &$s, string $text, ?array $kb): void
     {
-        App::tg()->editInline($imid, $text, $kb);
+        Rich::editInline($imid, $text, $kb);
     }
 
     private static function glyph(string $p): string

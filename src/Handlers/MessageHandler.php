@@ -288,7 +288,7 @@ final class MessageHandler
                 if (!App::isAdmin((int) $from['id'])) {
                     return false;
                 }
-                $tg->reply($msg, AiPanel::text(), ['reply_markup' => AiPanel::keyboard()]);
+                Rich::sendHtml($chatId, AiPanel::text(), (int) $msg['message_id'], AiPanel::keyboard());
                 return true;
 
             case 'quota':
@@ -317,7 +317,7 @@ final class MessageHandler
                 if (!App::isAdmin((int) $from['id'])) {
                     return false;
                 }
-                $tg->reply($msg, Switches::text(), ['reply_markup' => Switches::keyboard()]);
+                Rich::sendHtml($chatId, Switches::text(), (int) $msg['message_id'], Switches::keyboard());
                 return true;
 
             case 'ban':

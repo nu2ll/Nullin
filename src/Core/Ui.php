@@ -77,6 +77,13 @@ final class Ui
         return $r;
     }
 
+    public static function richArticle(string $id, string $icon, string $title, string $desc, string $text, ?array $markup = null): array
+    {
+        $r = self::article($id, $icon, $title, $desc, $text);
+        $r['input_message_content'] = Rich::inlineContent($text, $markup);
+        return $r;
+    }
+
     public static function startText(array $from): string
     {
         $bot = App::botUsername();

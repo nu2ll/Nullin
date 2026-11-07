@@ -88,11 +88,11 @@ final class TicTacToe
             $w   = self::winner($s['board']);
             $end = !empty($s['resigned']) ? GameKit::resignLine($s)
                 : ($w === 'draw' ? '🤝 <b>بازی مساوی شد!</b>' : '🏆 <b>' . GameKit::name($w === 'X' ? $s['p1'] : $s['p2']) . ' برد!</b>');
-            $tg->editInline($imid, self::header($s) . $end, self::board($s['board'], false));
+            Rich::editInline($imid, self::header($s) . $end, self::board($s['board'], false));
             return;
         }
         $turn = $s['turn'] === 'X' ? '❌ ' . GameKit::name($s['p1']) : '⭕ ' . GameKit::name($s['p2'] ?? null, 'هر کی اول بزنه');
-        $tg->editInline($imid, self::header($s) . "👉 نوبت: {$turn}" . GameKit::resignNote($s), self::board($s['board'], true, $s));
+        Rich::editInline($imid, self::header($s) . "👉 نوبت: {$turn}" . GameKit::resignNote($s), self::board($s['board'], true, $s));
     }
 
     public static function onCallback(array $cq, string $data, string $imid): void
@@ -114,11 +114,11 @@ final class TicTacToe
             function () use (&$s, $imid, $tg) {
                 $s = GameKit::fresh(self::P, $s['p1']);
                 GameKit::save($imid, $s);
-                $tg->editInline($imid, self::intro(), self::modeKeyboard());
+                Rich::editInline($imid, self::intro(), self::modeKeyboard());
             },
             function (string $by) use (&$s, $imid, $tg) {
                 GameKit::save($imid, $s);
-                $tg->editInline($imid, self::header($s) . "✖️ بازی توسط {$by} لغو شد.", self::board($s['board'], false));
+                Rich::editInline($imid, self::header($s) . "✖️ بازی توسط {$by} لغو شد.", self::board($s['board'], false));
             },
             function () use (&$s, $imid) {
                 GameKit::save($imid, $s);

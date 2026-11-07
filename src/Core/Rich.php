@@ -76,6 +76,16 @@ final class Rich
         return !empty($r['ok']) || stripos((string) ($r['description'] ?? ''), 'not modified') !== false;
     }
 
+    public static function editInline(string $inlineId, string $html, ?array $kb = null): ?array
+    {
+        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($html, $kb, null)], 10);
+    }
+
+    public static function inlineContent(string $html, ?array $kb = null): array
+    {
+        return ['rich_message' => self::payload($html, $kb, null)];
+    }
+
     public static function edit(int|string $chatId, int $mid, string $html, ?array $kb = null, ?string $img = null): void
     {
         self::editHtml($chatId, $mid, $html, $kb, $img);

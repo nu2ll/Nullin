@@ -223,7 +223,7 @@ final class AiPanel
                 $saved = true;
             }
             $tp = $act === 'th' ? null : $prov;
-            $tg->editMessage($chatId, $msgId, self::thinkText($tp, $act === 'thm', $model), self::thinkKeyboard($tp, $act === 'thm', $model));
+            Rich::edit($chatId, $msgId, self::thinkText($tp, $act === 'thm', $model), self::thinkKeyboard($tp, $act === 'thm', $model));
             $tg->answer($cq, $saved ? '✅ ذخیره شد' : null);
             return;
         }
@@ -254,9 +254,9 @@ final class AiPanel
         }
 
         if ($known && ($act === 'p' || $act === 'set')) {
-            $tg->editMessage($chatId, $msgId, self::providerText($prov, $page), self::providerKeyboard($prov, $page));
+            Rich::edit($chatId, $msgId, self::providerText($prov, $page), self::providerKeyboard($prov, $page));
         } else {
-            $tg->editMessage($chatId, $msgId, self::text(), self::keyboard());
+            Rich::edit($chatId, $msgId, self::text(), self::keyboard());
         }
         $tg->answer($cq, $saved ? '✅ ذخیره شد' : null);
     }

@@ -70,16 +70,16 @@ final class Rps
                     $s['p2'] = ['id' => 0, 'name' => '🤖 نالین'];
                 }
                 GameKit::save($imid, $s);
-                $tg->editInline($imid, self::header($s) . "دور ۱ از ۳\n👇 انتخابت رو بزن:", self::choiceKeyboard($s['mode'] === 'pvp'));
+                Rich::editInline($imid, self::header($s) . "دور ۱ از ۳\n👇 انتخابت رو بزن:", self::choiceKeyboard($s['mode'] === 'pvp'));
             },
             function () use (&$s, $imid, $tg) {
                 $s = GameKit::fresh(self::P, $s['p1']);
                 GameKit::save($imid, $s);
-                $tg->editInline($imid, self::intro(), self::modeKeyboard());
+                Rich::editInline($imid, self::intro(), self::modeKeyboard());
             },
             function (string $by) use (&$s, $imid, $tg) {
                 GameKit::save($imid, $s);
-                $tg->editInline($imid, self::header($s) . "✖️ بازی توسط {$by} لغو شد.", GameKit::replayKeyboard(self::P));
+                Rich::editInline($imid, self::header($s) . "✖️ بازی توسط {$by} لغو شد.", GameKit::replayKeyboard(self::P));
             }
         );
         if ($handled) {
@@ -117,7 +117,7 @@ final class Rps
             if ($s['picks'][0] === null || $s['picks'][1] === null) {
                 GameKit::save($imid, $s);
                 $who = $s['picks'][0] !== null ? GameKit::name($s['p1']) : GameKit::name($s['p2']);
-                $tg->editInline($imid, self::header($s) . 'دور ' . fa($s['round']) . " از ۳\n✅ {$who} انتخاب کرد؛\nمنتظر نفر بعدی... 🤫\n\n" . self::scoreLine($s), self::choiceKeyboard(true));
+                Rich::editInline($imid, self::header($s) . 'دور ' . fa($s['round']) . " از ۳\n✅ {$who} انتخاب کرد؛\nمنتظر نفر بعدی... 🤫\n\n" . self::scoreLine($s), self::choiceKeyboard(true));
                 $tg->answer($cq, '✅ ثبت شد (مخفیه)');
                 return;
             }
@@ -141,12 +141,12 @@ final class Rps
             [$x, $y]     = $s['score'];
             $final       = $x === $y ? '🤝 <b>کل مسابقه مساوی شد!</b>' : '🏆 <b>قهرمان: ' . GameKit::name($x > $y ? $s['p1'] : $s['p2']) . '</b>';
             GameKit::save($imid, $s);
-            $tg->editInline($imid, $body . "\n" . divider() . "\n" . $final, GameKit::replayKeyboard(self::P));
+            Rich::editInline($imid, $body . "\n" . divider() . "\n" . $final, GameKit::replayKeyboard(self::P));
         } else {
             $s['round']++;
             $s['picks'] = [null, null];
             GameKit::save($imid, $s);
-            $tg->editInline($imid, $body . "\n\n👇 دور " . fa($s['round']) . ':', self::choiceKeyboard($s['mode'] === 'pvp'));
+            Rich::editInline($imid, $body . "\n\n👇 دور " . fa($s['round']) . ':', self::choiceKeyboard($s['mode'] === 'pvp'));
         }
         $tg->answer($cq);
     }

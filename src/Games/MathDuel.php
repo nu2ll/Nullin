@@ -188,9 +188,9 @@ final class MathDuel
             self::markActive($imid, false);
         }
         if ($event === 'over' && $s) {
-            $tg->editInline($imid, self::finalText($s), GameKit::replayKeyboard(self::P));
+            Rich::editInline($imid, self::finalText($s), GameKit::replayKeyboard(self::P));
         } elseif (($event === 'next' || $event === 'bot') && $s) {
-            $tg->editInline($imid, self::playText($s), self::playKeyboard($s));
+            Rich::editInline($imid, self::playText($s), self::playKeyboard($s));
         }
     }
 
@@ -213,22 +213,22 @@ final class MathDuel
                     $s                           = self::nextRound($s);
                     GameKit::save($imid, $s);
                     self::markActive($imid, true);
-                    $tg->editInline($imid, self::playText($s), self::playKeyboard($s));
+                    Rich::editInline($imid, self::playText($s), self::playKeyboard($s));
                 } else {
                     $s['status'] = 'lobby';
                     GameKit::save($imid, $s);
-                    $tg->editInline($imid, self::lobbyText($s), self::lobbyKeyboard());
+                    Rich::editInline($imid, self::lobbyText($s), self::lobbyKeyboard());
                 }
             },
             function () use (&$s, $imid, $tg) {
                 $s = GameKit::fresh(self::P, $s['p1']);
                 GameKit::save($imid, $s);
-                $tg->editInline($imid, self::intro(), self::modeKeyboard());
+                Rich::editInline($imid, self::intro(), self::modeKeyboard());
             },
             function (string $by) use (&$s, $imid, $tg) {
                 GameKit::save($imid, $s);
                 self::markActive($imid, false);
-                $tg->editInline($imid, "<b>🔢 دوئل ریاضی</b>\n" . divider() . "\n✖️ بازی توسط {$by} لغو شد.", GameKit::replayKeyboard(self::P));
+                Rich::editInline($imid, "<b>🔢 دوئل ریاضی</b>\n" . divider() . "\n✖️ بازی توسط {$by} لغو شد.", GameKit::replayKeyboard(self::P));
             }
         );
         if ($handled) {
@@ -251,7 +251,7 @@ final class MathDuel
                 $tg->answer($cq, '✅ قبلاً اومدی تو بازی');
                 return;
             }
-            $tg->editInline($imid, self::lobbyText($joined), self::lobbyKeyboard());
+            Rich::editInline($imid, self::lobbyText($joined), self::lobbyKeyboard());
             $tg->answer($cq, '✅ اومدی تو بازی!');
             return;
         }
@@ -274,7 +274,7 @@ final class MathDuel
             $s            = self::nextRound($s);
             GameKit::save($imid, $s);
             self::markActive($imid, true);
-            $tg->editInline($imid, self::playText($s), self::playKeyboard($s));
+            Rich::editInline($imid, self::playText($s), self::playKeyboard($s));
             $tg->answer($cq, '🚀 شروع!');
             return;
         }
@@ -317,7 +317,7 @@ final class MathDuel
 
             switch ($result) {
                 case 'ok':
-                    $tg->editInline($imid, self::playText($upd), self::playKeyboard($upd));
+                    Rich::editInline($imid, self::playText($upd), self::playKeyboard($upd));
                     $tg->answer($cq, '✅ آفرین! +' . fa((int) $value));
                     return;
                 case 'wrong':
