@@ -8,7 +8,6 @@ final class Switches
         'translate' => '🌐 ترجمه',
         'search'   => '🔍 سرچ گوگل',
         'wiki'     => '📖 ویکی‌پدیا',
-        'apod'     => '🌌 عکس نجومی',
         'weather'  => '🌦 آب‌وهوا',
         'rates'    => '💱 نرخ ارز و طلا',
         'download' => '⬇️ دانلودر',

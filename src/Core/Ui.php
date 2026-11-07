@@ -44,7 +44,6 @@ final class Ui
         'linkcheck' => ['Shield', 'shield'],
         'short'    => ['Link', 'link'],
         'like'     => ['Red heart', 'red_heart'],
-        'apod'     => ['Milky way', 'milky_way'],
     ];
 
     public static function icon(string $key): string
@@ -74,7 +73,7 @@ final class Ui
             unset($r['input_message_content']['parse_mode']);
         }
         if (Rich::usable($markup)) {
-            $keep = preg_match('/^(?:fal|(?:ai|tr)q_|rs_|st_|lv_|gwi_|wk_|apt?_)/', $id) === 1;
+            $keep = preg_match('/^(?:fal|(?:ai|tr)q_|rs_|st_|lv_|gwi_|wk_)/', $id) === 1;
             $r['input_message_content'] = Rich::inlineContent($html ? $text : h($text), $markup, $img);
             if ($keep) {
                 $r['reply_markup'] = ikb([[btn('Nullin', 'noop', null)]]);
@@ -469,7 +468,6 @@ final class Ui
         'giveaway'  => '🎁 قرعه‌کشی',
         'like'      => '❤️ لایک‌ساز',
         'wiki'      => '📖 ویکی‌پدیا',
-        'apod'      => '🌌 عکس نجومی',
         'whisper'   => '🤫 نجوا',
         'weather'   => '🌦 آب‌وهوا',
         'calc'      => '🧮 محاسبه سریع',
@@ -603,15 +601,6 @@ final class Ui
                 . "هر لینک بلندی رو کوتاه کن.\n\n"
                 . "• " . $c('sh https://t.me/nullini'),
 
-            'apod' => "<b>🌌 عکس نجومی</b>\n"
-                . "هر روز ناسا یه عکس از کیهان می‌ذاره؛\n"
-                . "با توضیح فارسی برات می‌فرستمش.\n\n"
-                . "• امروز:\n" . $c('apod') . "\n"
-                . "• یه روز دیگه:\n" . $c('apod 1375/4/12') . "\n\n"
-                . "💡 تاریخ شمسی بنویس تا عکسی که ناسا\n"
-                . "همون روز گذاشته رو ببینی.\n"
-                . "آرشیو از ۱۳۷۴/۳/۲۶ شروع می‌شه.",
-
             'like' => "<b>❤️ لایک‌ساز</b>\n"
                 . "هر متنی بنویسی با دکمه‌ی ❤️ و شمارنده می‌فرستمش؛\n"
                 . "هر نفر یه بار می‌تونه لایک کنه و با زدن دوباره برمی‌داره.\n\n"
@@ -673,7 +662,7 @@ final class Ui
 
     private const HELP_LAYOUT = [
         1 => [['ai', 'image'], ['translate', 'search'], ['whisper', 'linkcheck'], ['font', 'download'], ['giveaway', 'wiki']],
-        2 => [['weather', 'calc'], ['qr', 'short'], ['love', 'group'], ['roast', 'nid'], ['funstat', 'games'], ['like', 'apod']],
+        2 => [['weather', 'calc'], ['qr', 'short'], ['love', 'group'], ['roast', 'nid'], ['funstat', 'like'], ['games']],
     ];
 
     public static function helpPage(string $key): int
@@ -710,7 +699,7 @@ final class Ui
     }
 
     private const TRY_PREFIX = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'love ', 'like' => 'like ', 'roast' => 'roast ',
-        'nid' => 'meli ', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'apod' => 'apod ', 'calc' => '2+2', 'linkcheck' => 'st '];
+        'nid' => 'meli ', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'calc' => '2+2', 'linkcheck' => 'st '];
 
     private static function tryButton(string $key): array
     {

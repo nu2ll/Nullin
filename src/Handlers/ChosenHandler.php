@@ -47,9 +47,6 @@ final class ChosenHandler
         if (str_starts_with($id, 'wk_')) {
             Wiki::onChosen($id, $imid, (int) $from['id']);
         }
-        if (preg_match('/^apt?_/', $id) === 1) {
-            Apod::onChosen($id, $imid);
-        }
         if (str_starts_with($id, 'wh_')) {
             Whisper::bind(substr($id, 3), $imid);
         }

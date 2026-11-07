@@ -362,7 +362,7 @@ check('football goal rule', str_contains(Assistant::dataInfo(['dice' => ['emoji'
 
 Switches::setAll(true);
 check('switch all on', array_filter(array_keys(Switches::TOOLS), static fn($k) => !Switches::on($k)), []);
-check('switch tools count', count(Switches::TOOLS), 32);
+check('switch tools count', count(Switches::TOOLS), 31);
 check('switch no old games key', isset(Switches::TOOLS['games']), false);
 foreach (['chess', 'ttt', 'c4', 'rps', 'math'] as $g) {
     check("switch game key {$g}", isset(Switches::TOOLS[$g]), true);
