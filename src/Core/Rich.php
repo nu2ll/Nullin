@@ -58,6 +58,38 @@ final class Rich
         return stripos((string) ($r['description'] ?? ''), 'not modified') !== false;
     }
 
+    private static function mediaOk(string $media): bool
+    {
+        return preg_match('#^(?:https://|[A-Za-z0-9_-]{20,}$)#', $media) === 1;
+    }
+
+    private static function mediaPayload(string $html, ?array $kb, string $media, string $type): array
+    {
+        $tag  = $type === 'photo' ? '<img src="tg://photo?id=m"/>' : '<video src="tg://video?id=m"></video>';
+        $body = '<p>' . str_replace("\n", '<br>', $html) . '</p>' . self::buttonsHtml($kb);
+        return ['html' => $tag . $body, 'is_rtl' => true, 'media' => [['id' => 'm', 'media' => ['type' => $type, 'media' => $media]]]];
+    }
+
+    public static function editInlineMedia(string $inlineId, string $html, string $media, string $type, ?array $kb = null): ?array
+    {
+        if (!self::mediaOk($media) || !self::usable($kb)) {
+            return null;
+        }
+        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::mediaPayload($html, $kb, $media, $type)], 30);
+    }
+
+    public static function sendMedia(int|string $chatId, string $html, string $media, string $type, ?array $kb = null, ?int $replyTo = null): ?array
+    {
+        if (!self::mediaOk($media) || !self::usable($kb)) {
+            return null;
+        }
+        return App::tg()->call('sendRichMessage', [
+            'chat_id'          => $chatId,
+            'rich_message'     => self::mediaPayload($html, $kb, $media, $type),
+            'reply_parameters' => $replyTo ? ['message_id' => $replyTo, 'allow_sending_without_reply' => true] : null,
+        ], 30);
+    }
+
     public static function supports(?array $kb): bool
     {
         foreach ((array) ($kb['inline_keyboard'] ?? []) as $row) {

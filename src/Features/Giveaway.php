@@ -178,11 +178,6 @@ final class Giveaway
         }
     }
 
-    private static function isChannel(array $g): bool
-    {
-        return ($g['type'] ?? '') === 'channel';
-    }
-
     private static function refreshPublic(array $g): void
     {
         if (!empty($g['imid'])) {
@@ -190,7 +185,7 @@ final class Giveaway
         } else {
             $txt = self::publicText($g, self::count($g['id']));
             $kb  = self::joinKeyboard($g['id']);
-            self::isChannel($g) ? App::tg()->editMessage($g['chat'], (int) $g['msg'], $txt, $kb) : Rich::editMsg($g['chat'], (int) $g['msg'], $txt, $kb);
+            Rich::editMsg($g['chat'], (int) $g['msg'], $txt, $kb);
         }
     }
 
@@ -199,7 +194,7 @@ final class Giveaway
         if (!empty($g['imid'])) {
             Rich::editInline($g['imid'], $text, $kb);
         } else {
-            self::isChannel($g) ? App::tg()->editMessage($g['chat'], (int) $g['msg'], $text, $kb) : Rich::editMsg($g['chat'], (int) $g['msg'], $text, $kb);
+            Rich::editMsg($g['chat'], (int) $g['msg'], $text, $kb);
         }
     }
 
@@ -656,7 +651,7 @@ final class Giveaway
             'total'    => 0,
             'bot'      => App::botIndex(),
         ];
-        $r = self::isChannel($g) ? $tg->send($t['id'], self::publicText($g, 0), ['reply_markup' => self::joinKeyboard($id)]) : Rich::send($t['id'], self::publicText($g, 0), self::joinKeyboard($id));
+        $r = Rich::send($t['id'], self::publicText($g, 0), self::joinKeyboard($id));
         if (empty($r['ok'])) {
             $tg->alert($cq, '❌ نتونستم تو «' . $t['title'] . '» پیام بفرستم؛' . "\n" . 'دسترسی‌هام رو چک کن.');
             return;

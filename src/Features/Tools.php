@@ -70,11 +70,7 @@ final class Tools
 
     public static function showHafez(string $imid): ?array
     {
-        return App::tg()->call('editMessageMedia', [
-            'inline_message_id' => $imid,
-            'media'             => ['type' => 'photo', 'media' => self::hafezUrl(), 'caption' => self::hafezCaption(), 'parse_mode' => 'HTML'],
-            'reply_markup'      => self::hafezKeyboard(),
-        ]);
+        return Rich::editInlineMedia($imid, self::hafezCaption(), self::hafezUrl(), 'photo', self::hafezKeyboard());
     }
 
     public static function normalizeNid(string $raw): ?string
