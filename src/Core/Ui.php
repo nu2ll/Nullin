@@ -72,8 +72,9 @@ final class Ui
             unset($r['input_message_content']['parse_mode']);
         }
         if (Rich::usable($markup)) {
-            $r['input_message_content'] = Rich::inlineContent($html ? $text : h($text), $markup, $img);
-            if (preg_match('/^(?:calc|coin|fal|pass|rps|ttt|c4|math|chess|(?:ai|tr)q_|rs_|st_|lv_|gwi_|wh_|wt_)/', $id) === 1) {
+            $keep = preg_match('/^(?:calc|coin|fal|pass|rps|ttt|c4|math|chess|(?:ai|tr)q_|rs_|st_|lv_|gwi_|wh_|wt_)/', $id) === 1;
+            $r['input_message_content'] = Rich::inlineContent($html ? $text : h($text), $keep ? null : $markup, $img);
+            if ($keep) {
                 $r['reply_markup'] = $markup;
             }
         } elseif ($markup !== null) {
