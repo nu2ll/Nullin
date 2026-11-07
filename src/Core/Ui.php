@@ -71,12 +71,12 @@ final class Ui
         if (!$html) {
             unset($r['input_message_content']['parse_mode']);
         }
-        if (Rich::usable($markup)) {
-            $keep = preg_match('/^(?:fal|(?:ai|tr)q_|rs_|st_|lv_|gwi_)/', $id) === 1;
+        // نتیجه‌هایی که بعد از انتخاب باید خودشون ادیت بشن (inline_message_id لازمه): پیام معمولی با دکمه‌ی واقعی، بدون دکمه‌ی اضافه‌ی Nullin
+        $edits = preg_match('/^(?:fal|(?:ai|tr)q_|rs_|st_|lv_|gwi_|wk_)/', $id) === 1;
+        if ($edits && $markup !== null) {
+            $r['reply_markup'] = $markup;
+        } elseif (Rich::usable($markup)) {
             $r['input_message_content'] = Rich::inlineContent($html ? $text : h($text), $markup, $img);
-            if ($keep) {
-                $r['reply_markup'] = ikb([[btn('Nullin', 'noop', null)]]);
-            }
         } elseif ($markup !== null) {
             $r['reply_markup'] = $markup;
         }

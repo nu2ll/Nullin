@@ -127,9 +127,9 @@ final class Rich
         return $r;
     }
 
-    public static function editInlinePhoto(string $inlineId, string $html, string $fileId): ?array
+    public static function editInlinePhoto(string $inlineId, string $html, string $fileId, ?array $kb = null): ?array
     {
-        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($html, null, $fileId, true)], 15);
+        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($html, $kb, $fileId, true)], 15);
     }
 
     private static function videoPayload(string $html, string $fileId): array

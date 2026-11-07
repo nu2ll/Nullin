@@ -99,7 +99,10 @@ final class Wiki
             logWarn('wiki', 'photo upload failed for ' . $p['title']);
             return;
         }
-        Rich::editInline($imid, self::text($p), self::keyboard($p), $fid);
+        $r = Rich::editInlinePhoto($imid, self::text($p), $fid, self::keyboard($p));
+        if (empty($r['ok'])) {
+            logWarn('wiki', 'photo edit failed: ' . (string) ($r['description'] ?? ''));
+        }
     }
 
     public static function image(array $p): ?string
