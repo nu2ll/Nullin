@@ -185,13 +185,13 @@ final class LinkCheck
         Store::delete('linkcheck_inline', $token);
         $tg = App::tg();
         if (self::busy((int) ($p['from']['id'] ?? 0))) {
-            $tg->editInline($imid, "یه‌کم دیگه بیا 😅\n⏳ هر دقیقه فقط یه ردیاب اشتراک!", null, false);
+            Rich::editInline($imid, "یه‌کم دیگه بیا 😅\n⏳ هر دقیقه فقط یه ردیاب اشتراک!", null, null, false);
             return;
         }
         Users::hit('linkcheck');
         $text = self::build((string) $p['url'])['text'];
-        if (empty($tg->editInline($imid, $text)['ok'])) {
-            $tg->editInline($imid, strip_tags($text), null, false);
+        if (empty(Rich::editInline($imid, $text)['ok'])) {
+            Rich::editInline($imid, strip_tags($text), null, null, false);
         }
     }
 

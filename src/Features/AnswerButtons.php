@@ -350,9 +350,9 @@ final class AnswerButtons
             }
             if ($out !== null && $out !== '') {
                 Store::delete(self::NS, $key);
-                $tg->editInline($imid, (string) ($rec['h'] ?? '') . h($out));
+                Rich::editInline($imid, (string) ($rec['h'] ?? '') . h($out));
             } else {
-                $tg->editInline($imid, (string) ($rec['x'] ?? '') . AI::toHtml(AI::FAIL_TEXT), self::retryKeyboard());
+                Rich::editInline($imid, (string) ($rec['x'] ?? '') . AI::toHtml(AI::FAIL_TEXT), self::retryKeyboard());
             }
             self::unlock($key, $act);
             return;
@@ -389,9 +389,9 @@ final class AnswerButtons
             }
             $kb   = $searched ? null : self::searchOnly();
             $text = $head . AI::toHtml(AI::fit($answer, $head));
-            $r    = $tg->editInline($imid, $text, $kb);
+            $r    = Rich::editInline($imid, $text, $kb);
             if (empty($r['ok']) && stripos((string) ($r['description'] ?? ''), 'not modified') === false) {
-                $r = $tg->editInline($imid, mb_substr(strip_tags($text), 0, 4096), $kb, false);
+                $r = Rich::editInline($imid, mb_substr(strip_tags($text), 0, 4096), $kb, null, false);
             }
             if (empty($r['ok']) && stripos((string) ($r['description'] ?? ''), 'not modified') === false) {
                 return;
@@ -408,7 +408,7 @@ final class AnswerButtons
             $live?->stop();
             if ($retry) {
                 if (!$done) {
-                    $tg->editInline($imid, $head . AI::toHtml(AI::FAIL_TEXT), self::retryKeyboard());
+                    Rich::editInline($imid, $head . AI::toHtml(AI::FAIL_TEXT), self::retryKeyboard());
                 }
             } else {
                 $tg->answer($cq, $done ? null : AI::FAIL_TEXT);

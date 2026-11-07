@@ -19,7 +19,7 @@ final class Photos
     {
         $tg   = App::tg();
         $chat = $msg['chat']['id'];
-        $tg->editMessage($chat, $mid, '🖼 دارم عکس‌هاش رو می‌گیرم...');
+        Rich::editMsg($chat, $mid, '🖼 دارم عکس‌هاش رو می‌گیرم...');
         $files = [];
         try {
             $files = self::collect($link['site'], $link['url'], self::MAX)['files'];
@@ -52,7 +52,7 @@ final class Photos
     public static function inline(array $link, string $imid, int|string $store, int $uid): bool
     {
         $tg = App::tg();
-        $tg->editInline($imid, '🖼 دارم عکسش رو می‌گیرم...');
+        Rich::editInline($imid, '🖼 دارم عکسش رو می‌گیرم...');
         $files = [];
         try {
             $got   = self::collect($link['site'], $link['url'], 1);

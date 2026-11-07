@@ -41,7 +41,7 @@ final class LiveReply
             return;
         }
         if ($now) {
-            App::tg()->editInline($this->imid, $this->frame(0));
+            Rich::editInline($this->imid, $this->frame(0));
         }
         $this->arm();
     }
@@ -61,7 +61,7 @@ final class LiveReply
         if ($this->richMsg && $mid === ($this->ids[0] ?? 0)) {
             return AnswerButtons::editHtmlRich((int) $chatId, $mid, $html);
         }
-        return App::tg()->editMessage($chatId, $mid, $html);
+        return Rich::editMsg($chatId, $mid, $html);
     }
 
     public function stop(): void
@@ -113,7 +113,7 @@ final class LiveReply
             if ($this->draft) {
                 $this->waitDraft($n, $html);
             } elseif ($this->imid !== null) {
-                $r = App::tg()->editInline($this->imid, $html);
+                $r = Rich::editInline($this->imid, $html);
             } elseif (isset($this->ids[0])) {
                 $r = $this->editMsg($this->ids[0], $html);
             }
@@ -366,7 +366,7 @@ final class LiveReply
         $tg   = App::tg();
 
         if ($this->imid !== null) {
-            $tg->editInline($this->imid, $html);
+            Rich::editInline($this->imid, $html);
         } elseif (!isset($this->ids[0])) {
             $r = $tg->reply($this->msg, $html);
             if (!empty($r['ok']) && isset($r['result']['message_id'])) {
@@ -427,7 +427,7 @@ final class LiveReply
                 }
                 $this->ids[$i] = (int) $r['result']['message_id'];
             } else {
-                $r = $i === 0 ? $this->editMsg($this->ids[0], $html) : $tg->editMessage($this->msg['chat']['id'], $this->ids[$i], $html);
+                $r = $i === 0 ? $this->editMsg($this->ids[0], $html) : Rich::editMsg($this->msg['chat']['id'], $this->ids[$i], $html);
                 if (empty($r['ok']) && stripos((string) ($r['description'] ?? ''), 'not modified') === false) {
                     return false;
                 }

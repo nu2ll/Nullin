@@ -712,7 +712,7 @@ final class Assistant
                 if (!empty($rec['rc'])) {
                     AnswerButtons::editHtmlRich($chatId, $mid, $html);
                 } else {
-                    $tg->editMessage($chatId, $mid, $html);
+                    Rich::editMsg($chatId, $mid, $html);
                 }
                 Store::delete('aibtn', $chatId . ':' . $mid);
             } else {

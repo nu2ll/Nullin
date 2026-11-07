@@ -29,7 +29,7 @@ final class Love
         }
         Store::delete('love', $token);
         $r = self::build((string) $p['a'], (string) $p['b'], $p['ra'] ?? null, $p['rb'] ?? null);
-        App::tg()->editInline($imid, $r['text'], $r['keyboard']);
+        Rich::editInline($imid, $r['text'], $r['keyboard']);
     }
 
     private static function tag(?array $r, string $name): string

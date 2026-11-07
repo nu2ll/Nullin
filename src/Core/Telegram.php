@@ -31,23 +31,6 @@ final class Telegram
 
     public function call(string $method, array $params = [], int $timeout = 20): ?array
     {
-        $conv = empty($params['no_rich']) ? Rich::convert($method, $params) : null;
-        unset($params['no_rich'], $params['rich_image']);
-        if ($conv !== null) {
-            return $this->callPlain($conv[0], $conv[1], $timeout);
-        }
-        $r = $this->callPlain($method, $params, $timeout);
-        if ($method === 'editMessageText' && empty($r['ok']) && stripos((string) ($r['description'] ?? ''), 'not modified') === false && ($c2 = Rich::convert($method, $params, true)) !== null) {
-            $r2 = $this->callPlain($c2[0], $c2[1], $timeout);
-            if (!empty($r2['ok'])) {
-                return $r2;
-            }
-        }
-        return $r;
-    }
-
-    private function callPlain(string $method, array $params = [], int $timeout = 20): ?array
-    {
         if ($this->premium && ($alt = Premium::apply($method, $params)) !== null) {
             $r = $this->exec($method, $alt, $timeout);
             if ($r === null || !empty($r['ok']) || !preg_match('/emoji|entit|icon|button/i', (string) ($r['description'] ?? ''))) {
@@ -175,14 +158,14 @@ final class Telegram
         ]);
     }
 
-    public function editInline(string $inlineId, string $text, ?array $markup = null, bool $html = true): ?array
+    public function editInline(string $inlineId, string $text, ?array $markup = null, bool $html = true, ?array $preview = null): ?array
     {
         return $this->call('editMessageText', [
             'inline_message_id'    => $inlineId,
             'text'                 => $text,
             'parse_mode'           => $html ? 'HTML' : null,
             'reply_markup'         => $markup,
-            'link_preview_options' => ['is_disabled' => true],
+            'link_preview_options' => $preview ?? ['is_disabled' => true],
         ]);
     }
 

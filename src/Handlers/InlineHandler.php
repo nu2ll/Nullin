@@ -163,7 +163,7 @@ final class InlineHandler
         }
         $tg = App::tg();
         if ($job['kind'] === 'ai' && AI::busy((int) ($job['from']['id'] ?? 0))) {
-            $tg->editInline($imid, AI::BUSY_TEXT, null, false);
+            Rich::editInline($imid, AI::BUSY_TEXT, null, null, false);
             return;
         }
         if ($job['kind'] === 'ai' && is_array($job['from'] ?? null) && self::smart((string) $job['q'], (array) $job['from'], $imid)) {
@@ -171,8 +171,8 @@ final class InlineHandler
         }
         self::$failKb = null;
         $text = self::deferredText((string) $job['kind'], (string) $job['q'], (string) ($job['name'] ?? ''), $imid, (int) ($job['from']['id'] ?? 0));
-        if (empty($tg->editInline($imid, $text, self::$failKb)['ok'])) {
-            $tg->editInline($imid, strip_tags($text), self::$failKb, false);
+        if (empty(Rich::editInline($imid, $text, self::$failKb)['ok'])) {
+            Rich::editInline($imid, strip_tags($text), self::$failKb, null, false);
         }
     }
 
@@ -211,8 +211,8 @@ final class InlineHandler
         }
         $text = self::aiHead($q) . AI::toHtml(AI::fit($res['answer'], self::aiHead($q)));
         $kb   = AI::$searched ? null : AnswerButtons::searchOnly();
-        if (empty(App::tg()->editInline($imid, $text, $kb)['ok'])) {
-            App::tg()->editInline($imid, strip_tags($text), $kb, false);
+        if (empty(Rich::editInline($imid, $text, $kb)['ok'])) {
+            Rich::editInline($imid, strip_tags($text), $kb, null, false);
         }
         if ($kb !== null) {
             AnswerButtons::attachInline($imid, ['u' => (int) ($from['id'] ?? 0), 'q' => $q, 'a' => $res['answer'], 'h' => self::aiHead($q)]);
@@ -350,7 +350,7 @@ final class InlineHandler
             return Ui::article('whe_' . substr(md5(json_encode($to)), 0, 16), $icon, $title, $desc, Whisper::emptyText(), Whisper::emptyKeyboard());
         }
         $ref = $token . '_' . $idx;
-        return Ui::richArticle(
+        return Ui::article(
             "wh_{$ref}",
             $icon,
             $title,
@@ -503,7 +503,7 @@ final class InlineHandler
             return;
         }
         $q     = mb_substr($q, 0, 200);
-        $items = [Ui::richArticle(
+        $items = [Ui::article(
             'gs_' . substr(md5($q), 0, 16),
             'search',
             '🔍 سرچ گوگل: ' . $q,
@@ -512,7 +512,7 @@ final class InlineHandler
             Search::keyboard($q)
         )];
         foreach (Search::results($q, 10) as $i => $r) {
-            $a                  = Ui::richArticle('sr_' . substr(md5($r['url']), 0, 16), 'search', $r['title'], $r['snippet'] !== '' ? $r['snippet'] : $r['url'], Search::resultText($r), ikb([[urlBtn('🌐 باز کردن', $r['url'], null)]]));
+            $a                  = Ui::article('sr_' . substr(md5($r['url']), 0, 16), 'search', $r['title'], $r['snippet'] !== '' ? $r['snippet'] : $r['url'], Search::resultText($r), ikb([[urlBtn('🌐 باز کردن', $r['url'], null)]]));
             $a['thumbnail_url'] = Search::favicon($r['url']);
             $a['url']           = $r['url'];
             $a['hide_url']      = true;
@@ -576,16 +576,16 @@ final class InlineHandler
 
         $items = [
             Ui::article('info', 'info', '👤 اطلاعات من', 'آیدی، عمر اکانت، DC و...', $infoText, $infoKb),
-            Ui::richArticle('chess', 'chess', '♟️ شطرنج', 'با ربات در ۳ سطح سختی، یا با دوستت', Chess::intro(), Chess::modeKeyboard()),
-            Ui::richArticle('calc', 'calc', '🧮 ماشین‌حساب', 'با پرانتز و توان', Calculator::render('0'), Calculator::keyboard()),
+            Ui::article('chess', 'chess', '♟️ شطرنج', 'با ربات در ۳ سطح سختی، یا با دوستت', Chess::intro(), Chess::modeKeyboard()),
+            Ui::article('calc', 'calc', '🧮 ماشین‌حساب', 'با پرانتز و توان', Calculator::render('0'), Calculator::keyboard()),
             Ui::article('rates', 'rates', '💱 نرخ ارز و طلا', 'دلار، یورو، سکه، تتر، بیت‌کوین...', "<b>💱 نرخ لحظه‌ای بازار</b>\n\nبرای دیدن قیمت‌ها دکمه‌ی زیر رو بزن 👇", Currency::pendingKeyboard()),
             Ui::article('date', 'date', '📅 تاریخ و ساعت', 'شمسی و میلادی، به وقت ایران', Tools::dateText()),
-            Ui::richArticle('pass', 'pass', '🔑 پسورد ساز', 'یه رمز قوی و غیرقابل حدس', Tools::passwordText(16), Tools::passwordKeyboard()),
-            Ui::richArticle('ttt', 'ttt', '⭕ دوز', 'دوز کلاسیک، با ربات یا دوستت', TicTacToe::intro(), TicTacToe::modeKeyboard()),
-            Ui::richArticle('c4', 'c4', '🔴 دوز سکه‌ای', '۴ تا پشت سر هم، با ربات یا دوستت', ConnectFour::intro(), ConnectFour::modeKeyboard()),
-            Ui::richArticle('rps', 'rps', '✊ سنگ کاغذ قیچی', 'بهترین از ۳ دور', Rps::intro(), Rps::modeKeyboard()),
-            Ui::richArticle('math', 'math', '🔢 دوئل ریاضی', 'مسابقه‌ی سرعت حساب، چندنفره', MathDuel::intro(), MathDuel::modeKeyboard()),
-            Ui::richArticle('coin', 'coin', '🪙 سکه', 'شیر یا خط؟', "<b>🪙 سکه</b>\n\nآماده‌ی پرتاب! 👇", Tools::coinKeyboard()),
+            Ui::article('pass', 'pass', '🔑 پسورد ساز', 'یه رمز قوی و غیرقابل حدس', Tools::passwordText(16), Tools::passwordKeyboard()),
+            Ui::article('ttt', 'ttt', '⭕ دوز', 'دوز کلاسیک، با ربات یا دوستت', TicTacToe::intro(), TicTacToe::modeKeyboard()),
+            Ui::article('c4', 'c4', '🔴 دوز سکه‌ای', '۴ تا پشت سر هم، با ربات یا دوستت', ConnectFour::intro(), ConnectFour::modeKeyboard()),
+            Ui::article('rps', 'rps', '✊ سنگ کاغذ قیچی', 'بهترین از ۳ دور', Rps::intro(), Rps::modeKeyboard()),
+            Ui::article('math', 'math', '🔢 دوئل ریاضی', 'مسابقه‌ی سرعت حساب، چندنفره', MathDuel::intro(), MathDuel::modeKeyboard()),
+            Ui::article('coin', 'coin', '🪙 سکه', 'شیر یا خط؟', "<b>🪙 سکه</b>\n\nآماده‌ی پرتاب! 👇", Tools::coinKeyboard()),
             Ui::article('fal', 'fal', '🔮 فال حافظ', 'یه فال از دیوان حافظ', Tools::hafezCaption(), Tools::hafezKeyboard()),
             Ui::article('help_group', 'group', '👥 در گروه', 'نالین رو به گروهت اضافه کن', Ui::guide('group'), Ui::tryKeyboard('group')),
             Ui::article('help_image', 'image', '🎨 ساخت عکس', 'فقط بگو چی بکشم؛ تو پیوی یا گروه', Ui::guide('image'), Ui::tryKeyboard('image')),

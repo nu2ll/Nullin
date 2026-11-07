@@ -863,7 +863,7 @@ final class Business
             $done = 'پرامپت ذخیره شد ✅';
         }
         [$panel, $kb] = self::panel($uid);
-        $tg->send($msg['chat']['id'], "{$done}\n\n" . $panel, ['reply_markup' => $kb]);
+        Rich::send($msg['chat']['id'], "{$done}\n\n" . $panel, $kb);
         return true;
     }
 }

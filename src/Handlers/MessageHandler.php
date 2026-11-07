@@ -123,7 +123,7 @@ final class MessageHandler
         }
 
         if ($group && $question === '' && !$hasMedia && !isset($msg['reply_to_message']) && ($mentioned || $startsWithName)) {
-            App::tg()->reply($msg, Ui::hello(), ['reply_markup' => Ui::groupKeyboard()]);
+            Rich::replyTo($msg, Ui::hello(), Ui::groupKeyboard());
             return;
         }
 
@@ -191,7 +191,7 @@ final class MessageHandler
                     return true;
                 }
                 if (!$private) {
-                    $tg->send($chatId, Ui::groupText(), ['reply_markup' => Ui::groupKeyboard()]);
+                    Rich::send($chatId, Ui::groupText(), Ui::groupKeyboard());
                     return true;
                 }
                 Ui::sendMain($chatId, $from);
@@ -384,7 +384,7 @@ final class MessageHandler
                     usleep(40000);
                 });
                 $done = '✅ تموم شد. موفق: ' . fa($ok) . ' · ناموفق: ' . fa($fail);
-                $stId ? $tg->editMessage($chatId, $stId, $done) : $tg->reply($msg, $done);
+                $stId ? Rich::editMsg($chatId, $stId, $done) : $tg->reply($msg, $done);
                 return true;
         }
         return false;
@@ -399,7 +399,7 @@ final class MessageHandler
             return;
         }
         if (in_array($new, ['member', 'administrator'], true) && in_array($old, ['left', 'kicked'], true)) {
-            App::tg()->send($u['chat']['id'], Ui::groupText(), ['reply_markup' => Ui::groupKeyboard()]);
+            Rich::send($u['chat']['id'], Ui::groupText(), Ui::groupKeyboard());
         }
     }
 }

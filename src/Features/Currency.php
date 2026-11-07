@@ -154,7 +154,7 @@ final class Currency
             $tg->alert($cq, '⚠️ الان نتونستم نرخ‌ها رو بگیرم؛' . "\n" . 'یه‌کم دیگه امتحان کن.');
             return;
         }
-        $tg->editInline($imid, self::message(), self::keyboard());
+        Rich::editInline($imid, self::message(), self::keyboard());
         $tg->answer($cq, $data === 'rates:refresh' ? '🔄 به‌روز شد' : null);
     }
 }

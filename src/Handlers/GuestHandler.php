@@ -224,14 +224,7 @@ final class GuestHandler
                 return;
             }
         }
-        $r = $tg->call('editMessageText', [
-            'inline_message_id'    => $imid,
-            'text'                 => $o['text'],
-            'parse_mode'           => 'HTML',
-            'reply_markup'         => $o['kb'] ?? null,
-            'link_preview_options' => $o['preview'] ?? ['is_disabled' => true],
-            'rich_image'           => $o['img'] ?? null,
-        ]);
+        $r = Rich::editInline($imid, $o['text'], $o['kb'] ?? null, $o['img'] ?? null, true, $o['preview'] ?? null);
         if (empty($r['ok'])) {
             $tg->editInline($imid, $o['text'], $o['kb'] ?? null);
         }
@@ -245,7 +238,9 @@ final class GuestHandler
             'title'                 => 'نالین',
             'input_message_content' => ['message_text' => $html, 'parse_mode' => 'HTML', 'link_preview_options' => ['is_disabled' => true]],
         ];
-        if ($markup !== null) {
+        if (Rich::usable($markup)) {
+            $result['input_message_content'] = Rich::inlineContent($html, $markup);
+        } elseif ($markup !== null) {
             $result['reply_markup'] = $markup;
         }
         $r = App::tg()->call('answerGuestQuery', ['guest_query_id' => $qid, 'result' => $result], 15);
@@ -261,8 +256,8 @@ final class GuestHandler
             }
             return;
         }
-        if (empty($tg->editInline($imid, $html, $kb)['ok']) && $plain !== null) {
-            $tg->editInline($imid, mb_substr($plain, 0, 4096), $kb, false);
+        if (empty(Rich::editInline($imid, $html, $kb)['ok']) && $plain !== null) {
+            Rich::editInline($imid, mb_substr($plain, 0, 4096), $kb, null, false);
         }
     }
 }

@@ -78,9 +78,14 @@ final class Intent
         }
         $reply = ['message_id' => $msg['message_id'], 'allow_sending_without_reply' => true];
         if (!empty($o['photo']) || !empty($o['anim'])) {
+            $kb = $o['kb'] ?? null;
+            if (!empty($o['photo']) && is_string($o['photo']) && str_starts_with($o['photo'], 'https://') && trim((string) $o['text']) !== '' && Rich::usable($kb)) {
+                $r = Rich::send($chat, $o['text'], $kb, (int) $msg['message_id'], $o['photo']);
+                return !empty($r['ok']);
+            }
             $r = $tg->call(!empty($o['photo']) ? 'sendPhoto' : 'sendAnimation', [
                 'chat_id' => $chat, !empty($o['photo']) ? 'photo' : 'animation' => $o['photo'] ?? $o['anim'],
-                'caption' => $o['text'], 'parse_mode' => 'HTML', 'reply_markup' => $o['kb'] ?? null, 'reply_parameters' => $reply,
+                'caption' => $o['text'], 'parse_mode' => 'HTML', 'reply_markup' => $kb, 'reply_parameters' => $reply,
             ], 30);
             return !empty($r['ok']);
         }
@@ -88,10 +93,8 @@ final class Intent
             AnswerButtons::sendFail($msg, AI::FAIL_TEXT, array_diff_key($o['retry'], ['a' => 1, 'f' => 1]) + ['o' => (int) $msg['message_id']]);
             return true;
         }
-        $sent = $tg->reply($msg, $o['text'], array_filter([
-            'reply_markup'         => $o['kb'] ?? null,
+        $sent = Rich::replyTo($msg, $o['text'], $o['kb'] ?? null, $o['img'] ?? null, array_filter([
             'link_preview_options' => $o['preview'] ?? null,
-            'rich_image'           => $o['img'] ?? null,
         ]));
         if (!empty($o['retry']) && ($rmid = (int) ($sent['result']['message_id'] ?? 0)) > 0) {
             AnswerButtons::attach((int) $chat, $rmid, $o['retry'] + ['o' => (int) $msg['message_id']], false);

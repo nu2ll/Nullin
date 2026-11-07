@@ -236,6 +236,6 @@ final class Roast
         Store::delete('roast', $token);
         $t = $p['tok'] === '' ? self::user((array) $p['from']) + ['quote' => ''] : self::lookup((string) $p['tok']);
         $live = $t !== null && App::cfg('ai_stream', true) ? new LiveReply(['chat' => ['id' => 0, 'type' => 'inline'], 'message_id' => 0], $imid, self::head($t + ['quote' => '']), false) : null;
-        App::tg()->editInline($imid, $t === null ? '🤷 این آدم رو پیدا نکردم؛' . "\nآیدی عددی یا یوزرنیمش رو درست بنویس." : self::text($t + ['quote' => ''], $live));
+        Rich::editInline($imid, $t === null ? '🤷 این آدم رو پیدا نکردم؛' . "\nآیدی عددی یا یوزرنیمش رو درست بنویس." : self::text($t + ['quote' => ''], $live));
     }
 }

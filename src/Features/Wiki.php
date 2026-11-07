@@ -67,12 +67,18 @@ final class Wiki
 
     public static function inline(string $id, array $p): array
     {
-        $a = Ui::article($id, 'wiki', '📖 ' . $p['title'], $p['desc'] !== '' ? $p['desc'] : mb_substr($p['text'], 0, 90), self::text($p), self::keyboard($p));
+        $img = self::image($p);
+        $a   = Ui::article($id, 'wiki', '📖 ' . $p['title'], $p['desc'] !== '' ? $p['desc'] : mb_substr($p['text'], 0, 90), self::text($p), self::keyboard($p), true, $img);
         if ($p['thumb'] !== '') {
             $a['thumbnail_url'] = $p['thumb'];
         }
-        $a['input_message_content']['link_preview_options'] = ['url' => $p['url'], 'prefer_small_media' => true];
         return $a;
+    }
+
+    public static function image(array $p): ?string
+    {
+        $t = (string) ($p['thumb'] ?? '');
+        return ($t !== '' && str_starts_with($t, 'https://') && !str_contains($t, 'raw.githubusercontent.com')) ? $t : null;
     }
 
     public static function reply(array $msg, string $q): void
@@ -85,6 +91,6 @@ final class Wiki
             return;
         }
         Users::hit('wiki');
-        $tg->reply($msg, self::text($p), ['reply_markup' => self::keyboard($p), 'link_preview_options' => ['url' => $p['url'], 'prefer_small_media' => true], 'rich_image' => ($p['thumb'] ?? '') !== '' ? $p['thumb'] : null]);
+        Rich::replyTo($msg, self::text($p), self::keyboard($p), self::image($p), ['link_preview_options' => ['url' => $p['url'], 'prefer_small_media' => true]]);
     }
 }

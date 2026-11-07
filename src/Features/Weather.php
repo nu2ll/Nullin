@@ -221,7 +221,7 @@ final class Weather
             $tg->alert($cq, '⚠️ الان نتونستم آب‌وهوا رو بگیرم؛' . "\n" . 'یه‌کم دیگه امتحان کن.');
             return;
         }
-        $tg->editInline($imid, self::format($data), self::keyboard($hash !== '' ? $hash : substr(md5(mb_strtolower($city)), 0, 16)));
+        Rich::editInline($imid, self::format($data), self::keyboard($hash !== '' ? $hash : substr(md5(mb_strtolower($city)), 0, 16)));
         $tg->answer($cq, '🔄 به‌روز شد');
     }
 }

@@ -196,7 +196,7 @@ final class Downloader
         $tg  = App::tg();
         $uid = (int) ($from['id'] ?? 0);
         if (($stop = self::gate($uid, $link)) !== null) {
-            $tg->editInline($imid, $stop);
+            Rich::editInline($imid, $stop);
             return;
         }
         $store = self::storeChat($uid);
@@ -231,14 +231,7 @@ final class Downloader
     {
         $tg = App::tg();
         if (!empty($t['imid'])) {
-            $tg->call('editMessageText', [
-                'inline_message_id'    => $t['imid'],
-                'text'                 => $text,
-                'parse_mode'           => 'HTML',
-                'reply_markup'         => $kb,
-                'link_preview_options' => $preview ?? ['is_disabled' => true],
-                'rich_image'           => $preview['url'] ?? null,
-            ]);
+            Rich::editInline($t['imid'], $text, $kb, ($preview['url'] ?? '') !== '' ? (string) $preview['url'] : null, true, $preview);
             return;
         }
         if (!empty($t['card'])) {

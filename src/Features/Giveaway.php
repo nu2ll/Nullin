@@ -54,7 +54,7 @@ final class Giveaway
             . "🎯 قرعه‌کشی کجا برگزار بشه؟\n"
             . "از دکمه‌های پایین\nکانال یا گروهت رو انتخاب کن 👇\n\n"
             . "<i>💡 یا یه پیام از کانال فوروارد کن،\nیا آیدیش رو بفرست (مثل @mychannel)</i>";
-        $a = $tg->send($chat, $text, ['reply_markup' => self::cancelKeyboard()]);
+        $a = Rich::send($chat, $text, self::cancelKeyboard());
         $k = $tg->send($chat, '👇', ['reply_markup' => self::targetKeyboard()]);
         Store::set('gw_wiz', (string) $uid, ['step' => 'target', 'g' => [], 'm' => (int) ($a['result']['message_id'] ?? 0), 'k' => (int) ($k['result']['message_id'] ?? 0)]);
     }
@@ -83,12 +83,12 @@ final class Giveaway
     {
         $tg = App::tg();
         if ($mid) {
-            $r = $tg->editMessage($chat, $mid, $text, $kb);
+            $r = Rich::editMsg($chat, $mid, $text, $kb);
             if (!empty($r['ok']) || stripos((string) ($r['description'] ?? ''), 'not modified') !== false) {
                 return $mid;
             }
         }
-        $r = $tg->send($chat, $text, $kb !== null ? ['reply_markup' => $kb] : []);
+        $r = Rich::send($chat, $text, $kb);
         return (int) ($r['result']['message_id'] ?? 0);
     }
 
@@ -119,7 +119,7 @@ final class Giveaway
         $uid = (int) $from['id'];
         $id  = substr(md5($uid . '|' . $q . '|' . intdiv(time(), 600)), 0, 10);
         Store::set('gw_draft', $id, ['q' => mb_substr($q, 0, 300), 'owner' => $uid]);
-        return Ui::richArticle('gwi_' . $id, 'gift', '🎁 قرعه‌کشی: ' . mb_substr($q, 0, 60), 'بزن تا بسازمش',
+        return Ui::article('gwi_' . $id, 'gift', '🎁 قرعه‌کشی: ' . mb_substr($q, 0, 60), 'بزن تا بسازمش',
             "<b>🎁 قرعه‌کشی</b>\n\n⏳ دارم آماده‌اش می‌کنم...", ikb([[btn('⏳ صبر کن...', 'noop', null)]]));
     }
 
@@ -178,9 +178,9 @@ final class Giveaway
         }
     }
 
-    private static function plainFor(array $g): array
+    private static function isChannel(array $g): bool
     {
-        return ($g['type'] ?? '') === 'channel' ? ['no_rich' => true] : [];
+        return ($g['type'] ?? '') === 'channel';
     }
 
     private static function refreshPublic(array $g): void
@@ -188,7 +188,9 @@ final class Giveaway
         if (!empty($g['imid'])) {
             Rich::editInline($g['imid'], self::publicText($g, self::count($g['id'])), self::inlineKeyboard($g));
         } else {
-            App::tg()->editMessage($g['chat'], (int) $g['msg'], self::publicText($g, self::count($g['id'])), self::joinKeyboard($g['id']), self::plainFor($g));
+            $txt = self::publicText($g, self::count($g['id']));
+            $kb  = self::joinKeyboard($g['id']);
+            self::isChannel($g) ? App::tg()->editMessage($g['chat'], (int) $g['msg'], $txt, $kb) : Rich::editMsg($g['chat'], (int) $g['msg'], $txt, $kb);
         }
     }
 
@@ -197,7 +199,7 @@ final class Giveaway
         if (!empty($g['imid'])) {
             Rich::editInline($g['imid'], $text, $kb);
         } else {
-            App::tg()->editMessage($g['chat'], (int) $g['msg'], $text, $kb, self::plainFor($g));
+            self::isChannel($g) ? App::tg()->editMessage($g['chat'], (int) $g['msg'], $text, $kb) : Rich::editMsg($g['chat'], (int) $g['msg'], $text, $kb);
         }
     }
 
@@ -214,9 +216,7 @@ final class Giveaway
             return;
         }
         $bot = App::botUsername();
-        $tg->reply($msg, "🎁 برای تنظیم قرعه‌کشی بیا پیوی 👇", [
-            'reply_markup' => ikb([[urlBtn('⚙️ تنظیم قرعه‌کشی', "https://t.me/{$bot}?start=gw_" . $msg['chat']['id'], 'success')]]),
-        ]);
+        Rich::replyTo($msg, "🎁 برای تنظیم قرعه‌کشی بیا پیوی 👇", ikb([[urlBtn('⚙️ تنظیم قرعه‌کشی', "https://t.me/{$bot}?start=gw_" . $msg['chat']['id'], 'success')]]));
     }
 
     public static function clear(int $uid): void
@@ -275,7 +275,7 @@ final class Giveaway
             }
             $w['g']['prize'] = $text;
             $w['step']       = 'winners';
-            $r = $tg->send($chat, '🏆 جایزه: <b>' . h($text) . "</b>\n\n👑 <b>چند نفر برنده بشن؟</b>\nاز دکمه‌ها انتخاب کن یا یه عدد (تا " . fa(self::MAX_WIN) . ') بفرست.', ['reply_markup' => self::winnersKeyboard()]);
+            $r = Rich::send($chat, '🏆 جایزه: <b>' . h($text) . "</b>\n\n👑 <b>چند نفر برنده بشن؟</b>\nاز دکمه‌ها انتخاب کن یا یه عدد (تا " . fa(self::MAX_WIN) . ') بفرست.', self::winnersKeyboard());
             $w['m'] = (int) ($r['result']['message_id'] ?? 0);
             Store::set('gw_wiz', (string) $uid, $w);
             return true;
@@ -524,7 +524,7 @@ final class Giveaway
                 self::dropKeyboard($chat, $w);
                 $r = $tg->call('deleteMessage', ['chat_id' => $chat, 'message_id' => $mid], 8);
                 if (empty($r['ok'])) {
-                    $tg->editMessage($chat, $mid, '👌 ساخت قرعه‌کشی لغو شد.');
+                    Rich::editMsg($chat, $mid, '👌 ساخت قرعه‌کشی لغو شد.');
                 }
             }
             $tg->answer($cq, '👌 ساخت قرعه‌کشی لغو شد');
@@ -546,7 +546,7 @@ final class Giveaway
             $w['step']     = 'confirm';
             Store::set('gw_wiz', (string) $uid, $w);
             $g = $w['g'] + ['ends' => $w['g']['dur'] ? time() + $w['g']['dur'] : 0];
-            $tg->editMessage($chat, $mid, "👀 <b>پیش‌نمایش:</b>\n\n" . self::publicText($g, 0) . "\n\n" . divider() . "\n"
+            Rich::editMsg($chat, $mid, "👀 <b>پیش‌نمایش:</b>\n\n" . self::publicText($g, 0) . "\n\n" . divider() . "\n"
                 . 'منتشرش کنم تو «<b>' . h($g['chat']['title']) . '</b>»؟', ikb([
                     [btn('✅ انتشار', 'gw:go', 'success'), btn('❌ لغو', 'gw:x', null)],
                 ]));
@@ -585,7 +585,7 @@ final class Giveaway
             if ($ok && $imid) {
                 Rich::editInline($imid, self::publicText($g, self::count($g['id'])), self::managerKeyboard($g, $act));
             } elseif ($ok) {
-                $tg->editMessage($chat, $mid, self::managerText($g), self::managerKeyboard($g, $act));
+                Rich::editMsg($chat, $mid, self::managerText($g), self::managerKeyboard($g, $act));
             }
             $tg->answer($cq);
             return;
@@ -625,7 +625,7 @@ final class Giveaway
             }
             return;
         }
-        $tg->editMessage($chat, $mid, self::managerText($g), self::managerKeyboard($g));
+        Rich::editMsg($chat, $mid, self::managerText($g), self::managerKeyboard($g));
     }
 
     private static function publish(array $cq, int $uid, int|string $chat, int $mid): void
@@ -656,7 +656,7 @@ final class Giveaway
             'total'    => 0,
             'bot'      => App::botIndex(),
         ];
-        $r = $tg->send($t['id'], self::publicText($g, 0), ['reply_markup' => self::joinKeyboard($id)] + self::plainFor($g));
+        $r = self::isChannel($g) ? $tg->send($t['id'], self::publicText($g, 0), ['reply_markup' => self::joinKeyboard($id)]) : Rich::send($t['id'], self::publicText($g, 0), self::joinKeyboard($id));
         if (empty($r['ok'])) {
             $tg->alert($cq, '❌ نتونستم تو «' . $t['title'] . '» پیام بفرستم؛' . "\n" . 'دسترسی‌هام رو چک کن.');
             return;
@@ -669,7 +669,7 @@ final class Giveaway
         self::clear($uid);
         Users::hit('gw:create');
         $tg->answer($cq, '🎉 منتشر شد!');
-        $tg->editMessage($chat, $mid, self::managerText($g), self::managerKeyboard($g));
+        Rich::editMsg($chat, $mid, self::managerText($g), self::managerKeyboard($g));
     }
 
     private static function join(array $cq, array $g): void
@@ -804,7 +804,7 @@ final class Giveaway
         }
         [$mc, $mm] = $g['mgr'] + [0, 0];
         if ($mc && $mm) {
-            $tg->editMessage($mc, (int) $mm, self::managerText($g), self::managerKeyboard($g));
+            Rich::editMsg($mc, (int) $mm, self::managerText($g), self::managerKeyboard($g));
         } elseif ($inline) {
             $tg->call('sendMessage', ['chat_id' => (int) $g['owner'], 'text' => self::resultText($g, $again), 'parse_mode' => 'HTML'], 10);
         }

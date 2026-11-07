@@ -48,98 +48,14 @@ final class Rich
         return false;
     }
 
-    public static function convert(string $method, array $params, bool $force = false): ?array
+    public static function usable(?array $kb): bool
     {
-        if ($method === 'answerInlineQuery' || $method === 'answerGuestQuery') {
-            return self::convertResults($method, $params);
-        }
-        if ($method === 'sendPhoto') {
-            return self::convertPhoto($params);
-        }
-        if (($method !== 'sendMessage' && $method !== 'editMessageText') || isset($params['rich_message'])) {
-            return null;
-        }
-        $text = $params['text'] ?? null;
-        if (!is_string($text) || trim($text) === '' || mb_strlen($text) > 30000) {
-            return null;
-        }
-        $pm = $params['parse_mode'] ?? null;
-        if ($pm !== null && $pm !== 'HTML') {
-            return null;
-        }
-        $kb  = is_array($params['reply_markup'] ?? null) ? $params['reply_markup'] : null;
-        $has = self::hasButtons($kb);
-        if ($has ? !self::supports($kb) : (!$force || $method === 'sendMessage')) {
-            return null;
-        }
-        $allowed = ['chat_id', 'message_id', 'inline_message_id', 'text', 'parse_mode', 'reply_markup', 'link_preview_options', 'reply_parameters', 'message_thread_id', 'disable_notification', 'rich_image'];
-        if (array_diff(array_keys($params), $allowed) !== []) {
-            return null;
-        }
-        $img  = is_string($params['rich_image'] ?? null) && str_starts_with($params['rich_image'], 'https://') ? $params['rich_image'] : null;
-        $rich = self::payload($pm === 'HTML' ? $text : h($text), $has ? $kb : null, $img, isset($params['inline_message_id']));
-        $keep = ['chat_id', 'message_id', 'inline_message_id', 'reply_parameters', 'message_thread_id', 'disable_notification'];
-        $out  = ['rich_message' => $rich] + array_intersect_key($params, array_flip($keep));
-        return [$method === 'sendMessage' ? 'sendRichMessage' : 'editMessageText', $out];
+        return self::hasButtons($kb) && self::supports($kb);
     }
 
-    private static function convertPhoto(array $params): ?array
+    private static function notModified(?array $r): bool
     {
-        $photo = $params['photo'] ?? null;
-        $cap   = $params['caption'] ?? null;
-        $kb    = is_array($params['reply_markup'] ?? null) ? $params['reply_markup'] : null;
-        if (!is_string($photo) || !str_starts_with($photo, 'https://') || !is_string($cap) || trim($cap) === '' || !self::hasButtons($kb) || !self::supports($kb)) {
-            return null;
-        }
-        $pm = $params['parse_mode'] ?? null;
-        if ($pm !== null && $pm !== 'HTML') {
-            return null;
-        }
-        $allowed = ['chat_id', 'photo', 'caption', 'parse_mode', 'reply_markup', 'reply_parameters', 'message_thread_id', 'disable_notification'];
-        if (array_diff(array_keys($params), $allowed) !== []) {
-            return null;
-        }
-        $keep = ['chat_id', 'reply_parameters', 'message_thread_id', 'disable_notification'];
-        return ['sendRichMessage', ['rich_message' => self::payload($pm === 'HTML' ? $cap : h($cap), $kb, $photo)] + array_intersect_key($params, array_flip($keep))];
-    }
-
-    private static function convertResults(string $method, array $params): ?array
-    {
-        $key  = $method === 'answerInlineQuery' ? 'results' : 'result';
-        $data = $params[$key] ?? null;
-        if (is_string($data)) {
-            $data = json_decode($data, true);
-        }
-        if (!is_array($data)) {
-            return null;
-        }
-        $single = $method === 'answerGuestQuery';
-        $list   = $single ? [$data] : $data;
-        $changed = false;
-        foreach ($list as $i => $r) {
-            if (!is_array($r) || ($r['type'] ?? '') !== 'article' || !is_string($r['input_message_content']['message_text'] ?? null)) {
-                continue;
-            }
-            $kb = is_array($r['reply_markup'] ?? null) ? $r['reply_markup'] : null;
-            if (!self::hasButtons($kb) || !self::supports($kb)) {
-                continue;
-            }
-            $c  = $r['input_message_content'];
-            $lp = $c['link_preview_options'] ?? null;
-            if (($c['parse_mode'] ?? 'HTML') !== 'HTML' && ($c['parse_mode'] ?? null) !== null) {
-                continue;
-            }
-            $img  = (is_array($lp) && !empty($lp['url']) && is_string($r['thumbnail_url'] ?? null) && str_starts_with($r['thumbnail_url'], 'https://') && !str_contains($r['thumbnail_url'], 'raw.githubusercontent.com')) ? $r['thumbnail_url'] : null;
-            $html = ($c['parse_mode'] ?? null) === 'HTML' ? $c['message_text'] : h($c['message_text']);
-            $list[$i]['input_message_content'] = self::inlineContent($html, $kb, $img);
-            unset($list[$i]['reply_markup']);
-            $changed = true;
-        }
-        if (!$changed) {
-            return null;
-        }
-        $params[$key] = $single ? $list[0] : $list;
-        return [$method, $params];
+        return stripos((string) ($r['description'] ?? ''), 'not modified') !== false;
     }
 
     public static function supports(?array $kb): bool
@@ -194,9 +110,57 @@ final class Rich
         return !empty($r['ok']) || stripos((string) ($r['description'] ?? ''), 'not modified') !== false;
     }
 
-    public static function editInline(string $inlineId, string $html, ?array $kb = null): ?array
+    public static function editInline(string $inlineId, string $html, ?array $kb = null, ?string $img = null, bool $isHtml = true, ?array $preview = null): ?array
     {
-        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($html, $kb, null, true)], 10);
+        $tg   = App::tg();
+        $body = $isHtml ? $html : h($html);
+        if (self::usable($kb)) {
+            return $tg->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($body, $kb, $img, true)], 10);
+        }
+        $r = $tg->editInline($inlineId, $html, $kb, $isHtml, $preview);
+        if (empty($r['ok']) && !self::notModified($r) && !self::hasButtons($kb)) {
+            $r2 = $tg->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($body, null, $img, true)], 10);
+            if (!empty($r2['ok'])) {
+                return $r2;
+            }
+        }
+        return $r;
+    }
+
+    public static function editMsg(int|string $chatId, int $mid, string $html, ?array $kb = null, ?string $img = null): ?array
+    {
+        $tg = App::tg();
+        if (self::usable($kb)) {
+            return $tg->call('editMessageText', ['chat_id' => $chatId, 'message_id' => $mid, 'rich_message' => self::payload($html, $kb, $img)], 10);
+        }
+        $r = $tg->editMessage($chatId, $mid, $html, $kb);
+        if (empty($r['ok']) && !self::notModified($r) && !self::hasButtons($kb)) {
+            $r2 = $tg->call('editMessageText', ['chat_id' => $chatId, 'message_id' => $mid, 'rich_message' => self::payload($html, null, $img)], 10);
+            if (!empty($r2['ok'])) {
+                return $r2;
+            }
+        }
+        return $r;
+    }
+
+    public static function send(int|string $chatId, string $html, ?array $kb = null, ?int $replyTo = null, ?string $img = null, array $plain = []): ?array
+    {
+        if (self::hasButtons($kb) && !self::supports($kb)) {
+            return App::tg()->send($chatId, $html, ($replyTo ? ['reply_parameters' => ['message_id' => $replyTo, 'allow_sending_without_reply' => true]] : []) + ['reply_markup' => $kb] + $plain);
+        }
+        if (!self::hasButtons($kb) && $img === null) {
+            return App::tg()->send($chatId, $html, ($replyTo ? ['reply_parameters' => ['message_id' => $replyTo, 'allow_sending_without_reply' => true]] : []) + $plain);
+        }
+        $r = self::sendHtml($chatId, $html, $replyTo, self::hasButtons($kb) ? $kb : null, $img);
+        if (!empty($r['ok']) && !empty($r['result']['message_id'])) {
+            self::mark((int) ($r['result']['chat']['id'] ?? $chatId), (int) $r['result']['message_id']);
+        }
+        return $r;
+    }
+
+    public static function replyTo(array $msg, string $html, ?array $kb = null, ?string $img = null, array $plain = []): ?array
+    {
+        return self::send($msg['chat']['id'], $html, $kb, (int) $msg['message_id'], $img, $plain);
     }
 
     public static function inlineContent(string $html, ?array $kb = null, ?string $img = null): array

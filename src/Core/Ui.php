@@ -51,7 +51,7 @@ final class Ui
         return self::ICON_BASE . rawurlencode($dir) . '/3D/' . $file . '_3d.png';
     }
 
-    public static function article(string $id, string $icon, string $title, string $desc, string $text, ?array $markup = null, bool $html = true): array
+    public static function article(string $id, string $icon, string $title, string $desc, string $text, ?array $markup = null, bool $html = true, ?string $img = null): array
     {
         $clean = preg_replace('/^[\x{1F000}-\x{1FAFF}\x{2190}-\x{21FF}\x{2300}-\x{23FF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{FE0F}\x{200D}\s]+/u', '', $title);
         $r = [
@@ -71,18 +71,10 @@ final class Ui
         if (!$html) {
             unset($r['input_message_content']['parse_mode']);
         }
-        if ($markup !== null) {
+        if (Rich::usable($markup)) {
+            $r['input_message_content'] = Rich::inlineContent($html ? $text : h($text), $markup, $img);
+        } elseif ($markup !== null) {
             $r['reply_markup'] = $markup;
-        }
-        return $r;
-    }
-
-    public static function richArticle(string $id, string $icon, string $title, string $desc, string $text, ?array $markup = null): array
-    {
-        $r = self::article($id, $icon, $title, $desc, $text, $markup);
-        if (Rich::supports($markup)) {
-            $r['input_message_content'] = Rich::inlineContent($text, $markup);
-            unset($r['reply_markup']);
         }
         return $r;
     }
