@@ -237,6 +237,7 @@ final class Downloader
                 'parse_mode'           => 'HTML',
                 'reply_markup'         => $kb,
                 'link_preview_options' => $preview ?? ['is_disabled' => true],
+                'rich_image'           => $preview['url'] ?? null,
             ]);
             return;
         }

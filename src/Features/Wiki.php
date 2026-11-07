@@ -85,6 +85,6 @@ final class Wiki
             return;
         }
         Users::hit('wiki');
-        $tg->reply($msg, self::text($p), ['reply_markup' => self::keyboard($p), 'link_preview_options' => ['url' => $p['url'], 'prefer_small_media' => true]]);
+        $tg->reply($msg, self::text($p), ['reply_markup' => self::keyboard($p), 'link_preview_options' => ['url' => $p['url'], 'prefer_small_media' => true], 'rich_image' => ($p['thumb'] ?? '') !== '' ? $p['thumb'] : null]);
     }
 }

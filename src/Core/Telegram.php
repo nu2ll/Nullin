@@ -31,6 +31,23 @@ final class Telegram
 
     public function call(string $method, array $params = [], int $timeout = 20): ?array
     {
+        $conv = empty($params['no_rich']) ? Rich::convert($method, $params) : null;
+        unset($params['no_rich'], $params['rich_image']);
+        if ($conv !== null) {
+            return $this->callPlain($conv[0], $conv[1], $timeout);
+        }
+        $r = $this->callPlain($method, $params, $timeout);
+        if ($method === 'editMessageText' && empty($r['ok']) && stripos((string) ($r['description'] ?? ''), 'not modified') === false && ($c2 = Rich::convert($method, $params, true)) !== null) {
+            $r2 = $this->callPlain($c2[0], $c2[1], $timeout);
+            if (!empty($r2['ok'])) {
+                return $r2;
+            }
+        }
+        return $r;
+    }
+
+    private function callPlain(string $method, array $params = [], int $timeout = 20): ?array
+    {
         if ($this->premium && ($alt = Premium::apply($method, $params)) !== null) {
             $r = $this->exec($method, $alt, $timeout);
             if ($r === null || !empty($r['ok']) || !preg_match('/emoji|entit|icon|button/i', (string) ($r['description'] ?? ''))) {
@@ -169,9 +186,9 @@ final class Telegram
         ]);
     }
 
-    public function editMessage(int|string $chatId, int $messageId, string $text, ?array $markup = null): ?array
+    public function editMessage(int|string $chatId, int $messageId, string $text, ?array $markup = null, array $extra = []): ?array
     {
-        return $this->call('editMessageText', [
+        return $this->call('editMessageText', $extra + [
             'chat_id'              => $chatId,
             'message_id'           => $messageId,
             'text'                 => $text,

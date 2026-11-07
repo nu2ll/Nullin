@@ -230,6 +230,7 @@ final class GuestHandler
             'parse_mode'           => 'HTML',
             'reply_markup'         => $o['kb'] ?? null,
             'link_preview_options' => $o['preview'] ?? ['is_disabled' => true],
+            'rich_image'           => $o['img'] ?? null,
         ]);
         if (empty($r['ok'])) {
             $tg->editInline($imid, $o['text'], $o['kb'] ?? null);

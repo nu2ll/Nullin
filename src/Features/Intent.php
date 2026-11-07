@@ -91,6 +91,7 @@ final class Intent
         $sent = $tg->reply($msg, $o['text'], array_filter([
             'reply_markup'         => $o['kb'] ?? null,
             'link_preview_options' => $o['preview'] ?? null,
+            'rich_image'           => $o['img'] ?? null,
         ]));
         if (!empty($o['retry']) && ($rmid = (int) ($sent['result']['message_id'] ?? 0)) > 0) {
             AnswerButtons::attach((int) $chat, $rmid, $o['retry'] + ['o' => (int) $msg['message_id']], false);
@@ -135,7 +136,7 @@ final class Intent
                     return ['text' => '📖 تو ویکی‌پدیا چیزی درباره‌ی «' . h(mb_substr($arg, 0, 80)) . '» پیدا نکردم.'];
                 }
                 Users::hit('wiki');
-                return ['text' => Wiki::text($p), 'kb' => Wiki::keyboard($p), 'preview' => ['url' => $p['url'], 'prefer_small_media' => true]];
+                return ['text' => Wiki::text($p), 'kb' => Wiki::keyboard($p), 'preview' => ['url' => $p['url'], 'prefer_small_media' => true], 'img' => ($p['thumb'] ?? '') !== '' ? $p['thumb'] : null];
 
             case 'weather':
                 $d = $arg !== '' ? Weather::fetch($arg) : null;

@@ -178,12 +178,17 @@ final class Giveaway
         }
     }
 
+    private static function plainFor(array $g): array
+    {
+        return ($g['type'] ?? '') === 'channel' ? ['no_rich' => true] : [];
+    }
+
     private static function refreshPublic(array $g): void
     {
         if (!empty($g['imid'])) {
             Rich::editInline($g['imid'], self::publicText($g, self::count($g['id'])), self::inlineKeyboard($g));
         } else {
-            App::tg()->editMessage($g['chat'], (int) $g['msg'], self::publicText($g, self::count($g['id'])), self::joinKeyboard($g['id']));
+            App::tg()->editMessage($g['chat'], (int) $g['msg'], self::publicText($g, self::count($g['id'])), self::joinKeyboard($g['id']), self::plainFor($g));
         }
     }
 
@@ -192,7 +197,7 @@ final class Giveaway
         if (!empty($g['imid'])) {
             Rich::editInline($g['imid'], $text, $kb);
         } else {
-            App::tg()->editMessage($g['chat'], (int) $g['msg'], $text, $kb);
+            App::tg()->editMessage($g['chat'], (int) $g['msg'], $text, $kb, self::plainFor($g));
         }
     }
 
@@ -578,9 +583,9 @@ final class Giveaway
         if (in_array($act, ['d', 'c', 'r'], true)) {
             $ok = ($act === 'r') ? $g['status'] === 'done' : $g['status'] === 'live';
             if ($ok && $imid) {
-                $tg->call('editMessageReplyMarkup', ['inline_message_id' => $imid, 'reply_markup' => self::managerKeyboard($g, $act)]);
+                Rich::editInline($imid, self::publicText($g, self::count($g['id'])), self::managerKeyboard($g, $act));
             } elseif ($ok) {
-                $tg->call('editMessageReplyMarkup', ['chat_id' => $chat, 'message_id' => $mid, 'reply_markup' => self::managerKeyboard($g, $act)]);
+                $tg->editMessage($chat, $mid, self::managerText($g), self::managerKeyboard($g, $act));
             }
             $tg->answer($cq);
             return;
@@ -616,7 +621,7 @@ final class Giveaway
             if ($g['status'] === 'live') {
                 self::refreshPublic($g);
             } else {
-                $tg->call('editMessageReplyMarkup', ['inline_message_id' => $imid, 'reply_markup' => self::inlineKeyboard($g)]);
+                Rich::editInline($imid, self::publicText($g, self::count($g['id'])), self::inlineKeyboard($g));
             }
             return;
         }
@@ -651,7 +656,7 @@ final class Giveaway
             'total'    => 0,
             'bot'      => App::botIndex(),
         ];
-        $r = $tg->send($t['id'], self::publicText($g, 0), ['reply_markup' => self::joinKeyboard($id)]);
+        $r = $tg->send($t['id'], self::publicText($g, 0), ['reply_markup' => self::joinKeyboard($id)] + self::plainFor($g));
         if (empty($r['ok'])) {
             $tg->alert($cq, '❌ نتونستم تو «' . $t['title'] . '» پیام بفرستم؛' . "\n" . 'دسترسی‌هام رو چک کن.');
             return;
