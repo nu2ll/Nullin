@@ -58,6 +58,11 @@ final class Rich
         return stripos((string) ($r['description'] ?? ''), 'not modified') !== false;
     }
 
+    private static function invalid(?array $r): bool
+    {
+        return stripos((string) ($r['description'] ?? ''), 'invalid message content') !== false;
+    }
+
     public static function supports(?array $kb): bool
     {
         foreach ((array) ($kb['inline_keyboard'] ?? []) as $row) {
@@ -70,13 +75,13 @@ final class Rich
         return true;
     }
 
-    public static function buttonsHtml(?array $kb, bool $linkDefault = false): string
+    public static function buttonsHtml(?array $kb, bool $linkDefault = false, bool $forceLink = false): string
     {
         $out = '';
         foreach ((array) ($kb['inline_keyboard'] ?? []) as $row) {
             $r = '';
             foreach ((array) $row as $b) {
-                $style = isset($b['style']) ? ' style="' . h((string) $b['style']) . '"' : (($linkDefault && isset($b['callback_data'])) ? ' style="link"' : '');
+                $style = ($forceLink && isset($b['callback_data'])) ? ' style="link"' : (isset($b['style']) ? ' style="' . h((string) $b['style']) . '"' : (($linkDefault && isset($b['callback_data'])) ? ' style="link"' : ''));
                 $label = h((string) ($b['text'] ?? ''));
                 if (isset($b['callback_data'])) {
                     $r .= '<tg-button type="callback_data"' . $style . ' data="' . h((string) $b['callback_data']) . '">' . $label . '</tg-button>';
@@ -95,9 +100,9 @@ final class Rich
         return $out;
     }
 
-    private static function payload(string $html, ?array $kb, ?string $img, bool $linkDefault = false): array
+    private static function payload(string $html, ?array $kb, ?string $img, bool $linkDefault = false, bool $forceLink = false): array
     {
-        $body = '<p>' . str_replace("\n", '<br>', $html) . '</p>' . self::buttonsHtml($kb, $linkDefault);
+        $body = '<p>' . str_replace("\n", '<br>', $html) . '</p>' . self::buttonsHtml($kb, $linkDefault, $forceLink);
         if ($img !== null && preg_match('#^https://#', $img)) {
             return ['html' => '<img src="tg://photo?id=thumb"/>' . $body, 'is_rtl' => true, 'media' => [['id' => 'thumb', 'media' => ['type' => 'photo', 'media' => $img]]]];
         }
@@ -115,7 +120,14 @@ final class Rich
         $tg   = App::tg();
         $body = $isHtml ? $html : h($html);
         if (self::usable($kb)) {
-            return $tg->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($body, $kb, $img, true)], 10);
+            $r = $tg->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($body, $kb, $img, true)], 10);
+            if (empty($r['ok']) && self::invalid($r)) {
+                $r = $tg->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($body, $kb, $img, true, true)], 10);
+            }
+            if (empty($r['ok']) && self::invalid($r) && $img !== null) {
+                $r = $tg->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($body, $kb, null, true, true)], 10);
+            }
+            return $r;
         }
         $r = $tg->editInline($inlineId, $html, $kb, $isHtml, $preview);
         if (empty($r['ok']) && !self::notModified($r) && !self::hasButtons($kb)) {
