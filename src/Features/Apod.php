@@ -50,34 +50,58 @@ final class Apod
 
     private static function fetch(?string $date): ?array
     {
-        $q = ['api_key' => (string) App::cfg('nasa_key', 'DEMO_KEY'), 'thumbs' => 'true'] + ($date !== null ? ['date' => $date] : []);
-        $r = Http::request('GET', 'https://api.nasa.gov/planetary/apod?' . http_build_query($q), [
+        $base = 'https://science.nasa.gov/wp-json/wp/v2/apod-basic';
+        $url  = $date !== null ? $base . '/' . substr($date, 2, 2) . substr($date, 5, 2) . substr($date, 8, 2) : $base . '?per_page=1';
+        $r    = Http::request('GET', $url, [
             'timeout' => 15,
             'headers' => ['Accept: application/json', 'User-Agent: NulliniBot/3.0 (https://t.me/NullinBot)'],
         ]);
         $j = ($r['code'] ?? 0) === 200 ? json_decode((string) ($r['body'] ?? ''), true) : null;
-        if (!is_array($j) || trim((string) ($j['title'] ?? '')) === '' || trim((string) ($j['explanation'] ?? '')) === ''
-            || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($j['date'] ?? ''))) {
+        if (is_array($j) && isset($j[0]) && is_array($j[0])) {
+            $j = $j[0];
+        }
+        $title = is_array($j) ? self::clean((string) ($j['title'] ?? '')) : '';
+        $expl  = is_array($j) ? self::clean((string) ($j['explanation'] ?? '')) : '';
+        $hd    = is_array($j) ? (string) ($j['hdurl'] ?? '') : '';
+        if (!is_array($j) || $title === '' || $expl === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($j['date'] ?? '')) || !str_starts_with($hd, 'https://')) {
             logWarn('apod', 'nasa http ' . (int) ($r['code'] ?? 0) . ' ' . ($date ?? 'today') . ' ' . (string) ($r['error'] ?? ''));
             return null;
         }
-        $tr = self::translate(trim((string) $j['title']), (string) $j['explanation']);
+        $tr = self::translate($title, $expl);
         if ($tr === null) {
             logWarn('apod', 'translate failed ' . (string) $j['date']);
             return null;
         }
-        $image = ($j['media_type'] ?? '') === 'image';
-        $url   = (string) ($j['url'] ?? '');
+        $credit = self::clean((string) ($j['copyright'] ?? ''));
+        $credit = mbTrim((string) preg_replace('/^(?:image\s+)?(?:credit|copyright)(?:\s*(?:&|and)\s*(?:credit|copyright))?\s*[:\-]\s*/iu', '', $credit));
         return [
             'date'   => (string) $j['date'],
             'title'  => $tr[0],
             'text'   => $tr[1],
-            'credit' => mbTrim((string) preg_replace('/\s+/u', ' ', (string) ($j['copyright'] ?? ''))),
-            'media'  => $image ? 'image' : 'video',
-            'url'    => $url,
-            'hd'     => (string) ($j['hdurl'] ?? ''),
-            'thumb'  => $image ? $url : (string) ($j['thumbnail_url'] ?? ''),
+            'credit' => $credit,
+            'media'  => ($j['media_type'] ?? '') === 'image' ? 'image' : 'video',
+            'url'    => self::sized($hd, 1600),
+            'hd'     => $hd,
+            'thumb'  => self::sized($hd, 320),
+            'page'   => (string) ($j['permalink'] ?? ''),
         ];
+    }
+
+    // عنوان، توضیح و کپی‌رایت از ناسا HTML میاد
+    private static function clean(string $html): string
+    {
+        $t = preg_replace('#<\s*(?:br\s*/?|/p)\s*>#i', ' ', $html);
+        $t = html_entity_decode(strip_tags((string) $t), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return mbTrim((string) preg_replace('/\s+/u', ' ', $t));
+    }
+
+    // عکس‌ها از CDN ناسا میان؛ پهنا رو کوچیک می‌کنیم تا تلگرام قبولش کنه
+    private static function sized(string $url, int $w): string
+    {
+        if (!str_contains($url, 'assets.science.nasa.gov/dynamicimage/')) {
+            return $url;
+        }
+        return strtok($url, '?') . '?w=' . $w . '&fit=clip';
     }
 
     private static function translate(string $title, string $text): ?array
@@ -98,7 +122,7 @@ final class Apod
 
     public static function page(array $r): string
     {
-        return 'https://apod.nasa.gov/apod/ap' . date('ymd', strtotime($r['date'] . ' 12:00:00 UTC')) . '.html';
+        return ($r['page'] ?? '') !== '' ? (string) $r['page'] : 'https://science.nasa.gov/apod/';
     }
 
     public static function text(array $r, bool $birthday = false): string
@@ -120,7 +144,7 @@ final class Apod
             $row[] = urlBtn('🌌 صفحه‌ی ناسا', self::page($r), null);
             return ikb([$row]);
         }
-        return ikb([[urlBtn('▶️ دیدن ویدیو', $r['url'], null)], [urlBtn('🌌 صفحه‌ی ناسا', self::page($r), null)]]);
+        return ikb([[urlBtn('▶️ دیدن ویدیو', self::page($r), null)]]);
     }
 
     public static function inline(array $r, bool $birthday = false): array
@@ -164,7 +188,7 @@ final class Apod
         $bot  = (string) App::botIndex();
         $fid  = $r['fid'][$bot] ?? null;
         if (!is_string($fid) || $fid === '') {
-            $fid = Wiki::photoId((string) $r['url'], 25);
+            $fid = Wiki::photoId((string) $r['url'], 25) ?? Wiki::photoId((string) $r['hd'], 25);
             if ($fid === null) {
                 logWarn('apod', 'photo upload failed ' . $date);
                 if ($id === 'apt_today') {
