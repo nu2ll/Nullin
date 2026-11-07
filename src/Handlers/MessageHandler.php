@@ -123,7 +123,8 @@ final class MessageHandler
         }
 
         if ($group && $question === '' && !$hasMedia && !isset($msg['reply_to_message']) && ($mentioned || $startsWithName)) {
-            Rich::replyTo($msg, Ui::hello(), Ui::groupKeyboard());
+            $r = Rich::replyTo($msg, Ui::hello(), Ui::groupKeyboard());
+            AI::markMsg($msg['chat']['id'], $r['result']['message_id'] ?? 0);
             return;
         }
 
@@ -191,7 +192,8 @@ final class MessageHandler
                     return true;
                 }
                 if (!$private) {
-                    Rich::send($chatId, Ui::groupText(), Ui::groupKeyboard());
+                    $r = Rich::send($chatId, Ui::groupText(), Ui::groupKeyboard());
+                    AI::markMsg($chatId, $r['result']['message_id'] ?? 0);
                     return true;
                 }
                 Ui::sendMain($chatId, $from);
@@ -399,7 +401,8 @@ final class MessageHandler
             return;
         }
         if (in_array($new, ['member', 'administrator'], true) && in_array($old, ['left', 'kicked'], true)) {
-            Rich::send($u['chat']['id'], Ui::groupText(), Ui::groupKeyboard());
+            $r = Rich::send($u['chat']['id'], Ui::groupText(), Ui::groupKeyboard());
+            AI::markMsg($u['chat']['id'], $r['result']['message_id'] ?? 0);
         }
     }
 }
