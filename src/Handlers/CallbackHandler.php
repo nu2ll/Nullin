@@ -120,6 +120,11 @@ final class CallbackHandler
             return;
         }
 
+        if (str_starts_with($data, 'unit:')) {
+            UnitConvert::onCallback($cq, substr($data, 5), $imid);
+            return;
+        }
+
         if (str_starts_with($data, 'pass:')) {
             Rich::editInline($imid, Tools::passwordText((int) substr($data, 5)), Tools::passwordKeyboard());
             $tg->answer($cq, '🔑 پسورد جدید ساخته شد');

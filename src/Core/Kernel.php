@@ -7,6 +7,7 @@ final class Kernel
     private const TTL = [
         'games'           => 7 * 86400,
         'calc'            => 7 * 86400,
+        'unit'            => 7 * 86400,
         'owner'           => 14 * 86400,
         'weather'         => 14 * 86400,
         'weather_pending' => 2 * 86400,

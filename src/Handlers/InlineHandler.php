@@ -590,6 +590,7 @@ final class InlineHandler
             Ui::article('chess', 'chess', '♟️ شطرنج', 'با ربات در ۳ سطح سختی، یا با دوستت', Chess::intro(), Chess::modeKeyboard()),
             Ui::article('calc', 'calc', '🧮 ماشین‌حساب', 'با پرانتز و توان', Calculator::render('0'), Calculator::keyboard()),
             Ui::article('rates', 'rates', '💱 نرخ ارز و طلا', 'دلار، یورو، سکه، تتر، بیت‌کوین...', "<b>💱 نرخ لحظه‌ای بازار</b>\n\nبرای دیدن قیمت‌ها دکمه‌ی زیر رو بزن 👇", Currency::pendingKeyboard()),
+            Ui::article('unit', 'unit', '⚖️ تبدیل واحد', 'طول، وزن، دما، حجم، سرعت و...', UnitConvert::render(UnitConvert::initial()), UnitConvert::keyboard(UnitConvert::initial())),
             Ui::article('date', 'date', '📅 تاریخ و ساعت', 'شمسی و میلادی، به وقت ایران', Tools::dateText()),
             Ui::article('pass', 'pass', '🔑 پسورد ساز', 'یه رمز قوی و غیرقابل حدس', Tools::passwordText(16), Tools::passwordKeyboard()),
             Ui::article('ttt', 'ttt', '⭕ دوز', 'دوز کلاسیک، با ربات یا دوستت', TicTacToe::intro(), TicTacToe::modeKeyboard()),
@@ -618,7 +619,7 @@ final class InlineHandler
             Ui::article('help_funstat', 'funstat', '🔍 استعلام کاربر', 'id [آیدی عددی]', Ui::guide('funstat'), Ui::tryKeyboard('funstat')),
         ];
 
-        $swMap = ['info' => 'userinfo', 'chess' => 'chess', 'ttt' => 'ttt', 'c4' => 'c4', 'rps' => 'rps', 'math' => 'math', 'calc' => 'calc', 'rates' => 'rates', 'date' => 'date', 'pass' => 'password', 'coin' => 'coin', 'fal' => 'fal',
+        $swMap = ['info' => 'userinfo', 'chess' => 'chess', 'ttt' => 'ttt', 'c4' => 'c4', 'rps' => 'rps', 'math' => 'math', 'calc' => 'calc', 'unit' => 'unit', 'rates' => 'rates', 'date' => 'date', 'pass' => 'password', 'coin' => 'coin', 'fal' => 'fal',
             'help_image' => 'image', 'help_whisper' => 'whisper', 'help_giveaway' => 'giveaway', 'help_like' => 'like', 'help_wiki' => 'wiki', 'help_ai' => 'ai', 'help_translate' => 'translate', 'help_search' => 'search',
             'help_font' => 'font', 'help_weather' => 'weather', 'help_qr' => 'qr', 'help_short' => 'short', 'help_roast' => 'roast', 'help_love' => 'love', 'help_nid' => 'nid', 'help_funstat' => 'funstat', 'help_linkcheck' => 'linkcheck'];
         $items = array_values(array_filter($items, static fn($r) => !isset($swMap[$r['id']]) || Switches::on($swMap[$r['id']])));

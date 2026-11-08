@@ -540,6 +540,35 @@ check('gamekit ensure keeps same game', GameKit::ensure('smoke_imid', 'ttt', ['i
 check('gamekit ensure new game', GameKit::ensure('smoke_imid', 'c4', ['id' => 9, 'first_name' => 'Z'])['p1']['id'], 9);
 Store::delete(GameKit::NS, 'smoke_imid');
 
+
+$us = UnitConvert::initial();
+check('unit initial', [$us['cat'], $us['from'], $us['to'], $us['expr']], ['length', 'km', 'mi', '0']);
+check('unit render zero', str_contains(UnitConvert::render($us), '۰ کیلومتر'), true);
+$us = UnitConvert::press(UnitConvert::press($us, '1'), '0');
+check('unit digits', $us['expr'], '10');
+check('unit render km to mi', str_contains(UnitConvert::render($us), '۶٫۲۱۳۷۱ مایل'), true);
+check('unit dot once', UnitConvert::press(UnitConvert::press(UnitConvert::press($us, '.'), '5'), '.')['expr'], '10.5');
+check('unit neg', UnitConvert::press($us, 'neg')['expr'], '-10');
+check('unit back', UnitConvert::press($us, 'back')['expr'], '1');
+check('unit back to zero', UnitConvert::press(UnitConvert::press($us, 'back'), 'back')['expr'], '0');
+check('unit clear', UnitConvert::press($us, 'C')['expr'], '0');
+check('unit swap', [UnitConvert::press($us, 'swap')['from'], UnitConvert::press($us, 'swap')['to']], ['mi', 'km']);
+check('unit category', UnitConvert::press($us, 'cat_temp')['from'], 'c');
+check('unit category keeps number', UnitConvert::press($us, 'cat_temp')['expr'], '10');
+$pick = UnitConvert::press($us, 'pick_to');
+check('unit pick mode', $pick['pick'], 'to');
+check('unit pick set', UnitConvert::press($pick, 'set_m')['to'], 'm');
+check('unit pick set clears', UnitConvert::press($pick, 'set_m')['pick'], null);
+check('unit pick same swaps', UnitConvert::press($pick, 'set_km')['from'], 'mi');
+check('unit pick wrong unit', UnitConvert::press($pick, 'set_kg'), $pick);
+check('unit set without pick', UnitConvert::press($us, 'set_m'), $us);
+check('unit max length', strlen(UnitConvert::press(['expr' => '123456789012345'] + $us, '1')['expr']), 15);
+check('unit temp f to c', round(UnitConvert::convert(100, 'temp', 'f', 'c'), 2), 37.78);
+check('unit temp c to k', UnitConvert::convert(0, 'temp', 'c', 'k'), 273.15);
+check('unit data gb to mb', UnitConvert::convert(1, 'data', 'gb', 'mb'), 1024.0);
+check('unit keyboard rows', count(UnitConvert::keyboard($us)['inline_keyboard']), 7);
+check('unit pick keyboard last row', count(UnitConvert::keyboard($pick)['inline_keyboard'][count(UnitConvert::keyboard($pick)['inline_keyboard']) - 1]), 1);
+
 @unlink($db);
 @unlink($db . '-wal');
 @unlink($db . '-shm');

@@ -44,6 +44,7 @@ final class Ui
         'linkcheck' => ['Shield', 'shield'],
         'short'    => ['Link', 'link'],
         'like'     => ['Red heart', 'red_heart'],
+        'unit'     => ['Straight ruler', 'straight_ruler'],
     ];
 
     public static function icon(string $key): string

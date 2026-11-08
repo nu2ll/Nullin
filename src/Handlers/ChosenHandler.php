@@ -2,7 +2,7 @@
 
 final class ChosenHandler
 {
-    public const OWNED = ['calc', 'coin', 'fal', 'pass'];
+    public const OWNED = ['calc', 'unit', 'coin', 'fal', 'pass'];
 
     private const GAMES = ['rps' => 'rps', 'ttt' => 'ttt', 'c4' => 'c4', 'math' => 'math', 'chess' => 'chess'];
 
