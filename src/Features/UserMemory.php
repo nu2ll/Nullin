@@ -179,10 +179,10 @@ final class UserMemory
         if ($x[2] === 'y') {
             self::clear($uid);
             $tg->answer($cq, '✅ پاک شد');
-            Rich::edit((int) $m['chat']['id'], (int) $m['message_id'], "✅ <b>پاک شد</b>\nحافظه‌م درباره‌ات خالی شد؛\nاز اول باهم آشنا می‌شیم 🙂");
+            Rich::edit((int) $m['chat']['id'], (int) $m['message_id'], "✅ <b>پاک شد</b>\nحافظه‌م درباره‌ات خالی شد؛ از اول باهم آشنا می‌شیم 🙂");
             return;
         }
         $tg->answer($cq);
-        Rich::edit((int) $m['chat']['id'], (int) $m['message_id'], "👌 باشه، چیزی پاک نشد\nهمه‌چی سر جاشه.");
+        Rich::edit((int) $m['chat']['id'], (int) $m['message_id'], "👌 باشه، چیزی پاک نشد همه‌چی سر جاشه.");
     }
 }

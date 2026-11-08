@@ -237,7 +237,7 @@ check('photo unescape', Scrape::unescape('https:\\/\\/x.com\\/a.jpg?b=1\\u0026c=
 check('intent download', Intent::parse('[[download | https://youtu.be/x]]'), ['download', 'https://youtu.be/x']);
 check('help page 1', Ui::helpPage('ai'), 1);
 check('help page 2', Ui::helpPage('group'), 2);
-check('help menu split', count(Ui::helpMenu(true, 1)['inline_keyboard']) + count(Ui::helpMenu(true, 2)['inline_keyboard']), 16);
+check('help menu split', count(Ui::helpMenu(true, 1)['inline_keyboard']) + count(Ui::helpMenu(true, 2)['inline_keyboard']), 15);
 $hm = static function (int $page): array {
     $out = [];
     foreach (Ui::helpMenu(true, $page)['inline_keyboard'] as $row) {
@@ -264,7 +264,7 @@ $p2 = $hm(2);
 check('help whisper beside linkcheck above font', [$p1[2], $p1[3]], [['help:whisper', 'help:linkcheck'], ['help:font', 'help:download']]);
 check('help qr beside short, love beside group', [$p2[1], $p2[2]], [['help:qr', 'help:short'], ['help:love', 'help:group']]);
 check('help next arrow', Ui::helpMenu(true, 1)['inline_keyboard'][5][0]['text'], '➡️ صفحه‌ی بعد');
-check('help prev arrow', Ui::helpMenu(true, 2)['inline_keyboard'][7][0]['text'], 'صفحه‌ی قبل ⬅️');
+check('help prev arrow', Ui::helpMenu(true, 2)['inline_keyboard'][6][0]['text'], 'صفحه‌ی قبل ⬅️');
 check('roast token user', Roast::token('نالینی @ali_reza رو روست کن'), '@ali_reza');
 check('roast token id', Roast::token('روست کن ۱۲۳۴۵۶۷۸۹'), '123456789');
 check('roast token me', Roast::token('me'), 'me');
