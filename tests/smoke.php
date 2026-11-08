@@ -219,7 +219,7 @@ check('ai clean', AI::clean('**سلام** دنیا'), 'سلام دنیا');
 check('ai html', AI::toHtml("a<b\n```php\necho 1;\n```"), "a&lt;b\n<pre>echo 1;</pre>");
 
 check('whisper kb token', Whisper::pendingKeyboard('0123456789abcdef')['inline_keyboard'][0][0]['callback_data'], 'wh:show:0123456789abcdef');
-check('weather kb hash', Weather::keyboard('0123456789abcdef')['inline_keyboard'][0][0]['callback_data'], 'weather:refresh:0123456789abcdef');
+check('weather kb hash', Weather::keyboard('0123456789abcdef')['inline_keyboard'][0][0]['callback_data'], 'weather:now:0123456789abcdef');
 
 check('dl yt', Downloader::match('https://youtu.be/dQw4w9WgXcQ')['site'] ?? '', 'youtube');
 check('dl insta no scheme', Downloader::match('www.instagram.com/reel/abc123/')['url'] ?? '', 'https://www.instagram.com/reel/abc123/');
