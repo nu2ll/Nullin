@@ -381,6 +381,7 @@ Switches::toggle('qr');
 check('switch text counts off', str_contains(Switches::text(), 'خاموش: ۱ از ' . fa((string) count(Switches::TOOLS))), true);
 Switches::toggle('qr');
 $kbButtons = array_merge(...Switches::keyboard()['inline_keyboard']);
+check('switch keyboard pairs', array_values(array_unique(array_map('count', array_slice(Switches::keyboard()['inline_keyboard'], 0, -1)))), [2]);
 check('switch keyboard buttons', count($kbButtons), count(Switches::TOOLS) + 2);
 check('switch keyboard callbacks short', array_filter($kbButtons, static fn($b) => strlen($b['callback_data']) > 64), []);
 check('switch keyboard toggles', count(array_filter($kbButtons, static fn($b) => str_starts_with($b['callback_data'], 'tl:t:'))), count(Switches::TOOLS));

@@ -477,6 +477,7 @@ final class Ui
         'love'      => '💘 تطابق عشقی',
         'roast'     => '🔥 روست',
         'nid'       => '🪪 کد ملی',
+        'unit'      => '⚖️ تبدیل واحد',
         'funstat'   => '🔍 استعلام کاربر',
         'linkcheck' => '🛡 ردیاب اشتراک',
         'games'     => '🎮 بازی‌ها',
@@ -628,6 +629,13 @@ final class Ui
                 . "• " . $c('meli 0012345678') . "\n\n"
                 . "⚠️ فقط ساختار رو چک می‌کنه، نه ثبت‌احوال رو.",
 
+            'unit' => "<b>⚖️ تبدیل واحد</b>\n"
+                . "طول، وزن، حجم، سرعت، مساحت، دیتا و دما\n"
+                . "• از منوی اصلی:\n"
+                . "<code>{$b}</code>\n"
+                . "💡 دسته و واحدها رو با دکمه انتخاب کن و عدد رو بزن؛\n"
+                . "⇄ جای مبدأ و مقصد رو عوض می‌کنه.",
+
             'funstat' => "<b>🔍 استعلام کاربر</b>\n"
                 . "آمار فعالیت یه کاربر تلگرام\n"
                 . "با آیدی عددیش.\n\n"
@@ -663,7 +671,7 @@ final class Ui
 
     private const HELP_LAYOUT = [
         1 => [['ai', 'image'], ['translate', 'search'], ['whisper', 'linkcheck'], ['font', 'download'], ['giveaway', 'wiki']],
-        2 => [['weather', 'calc'], ['qr', 'short'], ['love', 'group'], ['like'], ['roast', 'nid'], ['funstat', 'games']],
+        2 => [['weather', 'calc'], ['qr', 'short'], ['love', 'group'], ['like', 'unit'], ['roast', 'nid'], ['funstat', 'games']],
     ];
 
     public static function helpPage(string $key): int
@@ -700,7 +708,7 @@ final class Ui
     }
 
     private const TRY_PREFIX = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'love ', 'like' => 'like ', 'roast' => 'roast ',
-        'nid' => 'meli ', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'calc' => '2+2', 'linkcheck' => 'st '];
+        'nid' => 'meli ', 'unit' => 'تبدیل', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'calc' => '2+2', 'linkcheck' => 'st '];
 
     private static function tryButton(string $key): array
     {
