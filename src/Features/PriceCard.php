@@ -213,14 +213,44 @@ final class PriceCard
             return $cache[$k];
         }
         $sym = self::EZ[$k] ?? null;
-        $key = trim((string) env('EZRATE_KEY', ''));
-        if ($sym === null || $key === '') {
+        $keys = array_values(array_filter(array_map('trim', explode(',', (string) env('EZRATE_KEYS', (string) env('EZRATE_KEY', ''))))));
+        if ($sym === null || $keys === []) {
             return $cache[$k] = [];
         }
         try {
             $url  = 'https://api.ezrate.me/v1/history/' . $sym . '?interval=1h&from=' . gmdate('Y-m-d', time() - 2 * 86400)
                   . '&to=' . gmdate('Y-m-d', time() + 86400);
-            $j    = Http::getJson($url, ['X-API-Key: ' . $key], 8);
+            $j  = null;
+            $bf = sys_get_temp_dir() . '/nl_ezrate_blocked.json';
+            $blocked = is_file($bf) ? json_decode((string) @file_get_contents($bf), true) : null;
+            $blocked = is_array($blocked) ? $blocked : [];
+            $now = time();
+            foreach ($blocked as $bk => $until) {
+                if ((int) $until <= $now) {
+                    unset($blocked[$bk]);
+                }
+            }
+            foreach ($keys as $key) {
+                $kid = substr(hash('sha256', $key), 0, 16);
+                if (isset($blocked[$kid])) {
+                    continue;   // سهمیه‌ی این کلید تا ساعت ریست تموم شده؛ ردش کن
+                }
+                $j = Http::getJson($url, ['X-API-Key: ' . $key], 8);
+                if (is_array($j) && isset($j['error'])) {
+                    $code = (string) ($j['error']['code'] ?? '');
+                    $ts   = strtotime((string) ($j['meta']['reset_at'] ?? ''));
+                    if ($code === 'rate_limited') {
+                        $blocked[$kid] = $ts !== false && $ts > $now ? $ts : $now + 900;
+                    } else {
+                        $blocked[$kid] = $now + 600;   // کلید نامعتبر/خطای دیگه: ۱۰ دقیقه کنار
+                    }
+                    @file_put_contents($bf, json_encode($blocked), LOCK_EX);
+                    $j = null;
+                    continue;   // کلید بعدی
+                }
+                break;
+            }
+            @file_put_contents($bf, json_encode($blocked), LOCK_EX);
             $rows = is_array($j) ? ($j['data'] ?? null) : null;
             if (!is_array($rows)) {
                 return $cache[$k] = [];
