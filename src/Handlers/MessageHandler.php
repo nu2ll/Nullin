@@ -97,6 +97,8 @@ final class MessageHandler
                 Rich::sendHtml($msg['chat']['id'], Membership::text(), null, Membership::keyboard($missing));
                 return;
             }
+        } elseif ($group && empty($msg['is_automatic_forward']) && Membership::gateGroup($msg)) {
+            return;
         }
 
         if ($price !== null && $link === null) {
@@ -159,6 +161,9 @@ final class MessageHandler
         $to   = $m[2] ?? '';
         $args = trim($m[3] ?? '');
         if ($to !== '' && strcasecmp($to, App::botUsername()) !== 0) {
+            return true;
+        }
+        if (!$private && Membership::gateGroup($msg)) {
             return true;
         }
         Users::hit("cmd:{$cmd}");

@@ -15,6 +15,12 @@ final class GuestHandler
         $q    = mbTrim(preg_replace('/^(?:نالینی|نالین|nullini|nullin)(?=[\s،,:!؟?.]|$)/iu', '', $q) ?? $q, " \t\n،,:");
         Users::hit('guest');
 
+        $missing = Membership::missing((int) ($from['id'] ?? 0));
+        if ($missing) {
+            self::send($qid, Membership::text(), Membership::keyboard($missing, false));
+            return;
+        }
+
         $reply    = $msg['reply_to_message'] ?? null;
         $rt       = $reply ? trim((string) ($reply['text'] ?? $reply['caption'] ?? '')) : '';
         $hasMedia = Assistant::hasMedia($msg) || ($reply && Assistant::hasMedia($reply));

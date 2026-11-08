@@ -55,8 +55,19 @@ return [
         'branch' => env('DATA_BRANCH', 'data'),
     ],
 
+    // REQUIRED_CHANNELS: comma separated. Each item can be a channel/group:
+    //   @username                      (public channel or group)
+    //   -100123456789|https://t.me/+invite|Title   (private group/channel: id|link|title)
     'required_channels' => env('REQUIRED_CHANNELS', '@NullHubs') === '-' ? [] : array_map(
-        static fn(string $c) => ['title' => ltrim($c, '@'), 'chat_id' => '@' . ltrim($c, '@'), 'url' => 'https://t.me/' . ltrim($c, '@')],
+        static function (string $c): array {
+            $p  = array_map('trim', explode('|', trim($c)));
+            $id = $p[0];
+            if (preg_match('/^-?\d+$/', $id)) {
+                return ['title' => $p[2] ?? 'گروه', 'chat_id' => (int) $id, 'url' => $p[1] ?? ''];
+            }
+            $u = ltrim($id, '@');
+            return ['title' => $p[2] ?? $u, 'chat_id' => '@' . $u, 'url' => $p[1] ?? ('https://t.me/' . $u)];
+        },
         envList('REQUIRED_CHANNELS', ['@NullHubs'])
     ),
 

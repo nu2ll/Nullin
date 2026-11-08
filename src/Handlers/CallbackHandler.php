@@ -22,6 +22,18 @@ final class CallbackHandler
             return;
         }
 
+        // Forced-join gate for every button press (private, group, inline messages)
+        if ($data !== 'joincheck' && $uid > 0) {
+            $missing = Membership::missing($uid);
+            if ($missing) {
+                $tg->alert($cq, '⏳ هنوز عضو نشدی! اول عضو شو بعد دکمه رو بزن.');
+                if (($cq['message']['chat']['type'] ?? '') === 'private') {
+                    Rich::sendHtml($cq['message']['chat']['id'], Membership::text(), null, Membership::keyboard($missing));
+                }
+                return;
+            }
+        }
+
         if (str_starts_with($data, 'dl:')) {
             Downloader::onCallback($cq, $data);
             return;
@@ -166,7 +178,9 @@ final class CallbackHandler
                 return;
             }
             $tg->call('deleteMessage', ['chat_id' => $chatId, 'message_id' => $msgId], 8);
-            Ui::sendMain($chatId, $cq['from']);
+            if (($cq['message']['chat']['type'] ?? '') === 'private') {
+                Ui::sendMain($chatId, $cq['from']);
+            }
             $tg->answer($cq, '✅ خوش اومدی!');
             return;
         }

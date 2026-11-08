@@ -52,8 +52,7 @@ final class Giveaway
         }
         $text = "🎁 <b>ساخت قرعه‌کشی</b>\n\n"
             . "🎯 قرعه‌کشی کجا برگزار بشه؟\n"
-            . "از دکمه‌های پایین\nکانال یا گروهت رو انتخاب کن 👇\n\n"
-            . "<i>💡 یا یه پیام از کانال فوروارد کن،\nیا آیدیش رو بفرست (مثل @mychannel)</i>";
+            . "از دکمه‌ها کانال یا گروهت رو انتخاب کن،\nیا آیدیش رو بفرست.";
         $a = Rich::send($chat, $text, self::cancelKeyboard());
         $k = $tg->send($chat, '👇', ['reply_markup' => self::targetKeyboard()]);
         Store::set('gw_wiz', (string) $uid, ['step' => 'target', 'g' => [], 'm' => (int) ($a['result']['message_id'] ?? 0), 'k' => (int) ($k['result']['message_id'] ?? 0)]);
