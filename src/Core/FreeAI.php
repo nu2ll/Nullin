@@ -84,15 +84,12 @@ final class FreeAI
                 $pool = array_values(array_filter(self::ordered($prov), static fn($m) => preg_match(self::VISION, $m) === 1));
                 usort($pool, static fn($a, $b) => preg_match('/qwen/i', $b) <=> preg_match('/qwen/i', $a));
                 foreach ($pool as $m) {
-                    if (self::isCooling($prov, $m)) {
+                    if (self::allCooling($prov, $m)) {
                         continue;
                     }
                     $r = self::call($prov, $m, $messages, $opt);
                     if ($r['text'] !== null) {
                         return $r['text'];
-                    }
-                    if ($r['kind'] === 'failed') {
-                        self::coolFor($prov, $m, $r['seen']);
                     }
                 }
                 return null;
@@ -211,7 +208,7 @@ final class FreeAI
         }
 
         foreach ($chain as $model) {
-            if (self::isCooling($prov, $model)) {
+            if (self::allCooling($prov, $model)) {
                 continue;
             }
             if ($deadline - microtime(true) < 2) {
@@ -221,22 +218,33 @@ final class FreeAI
             if ($r['text'] !== null) {
                 return $r['text'];
             }
-            if ($r['kind'] === 'failed') {
-                self::coolFor($prov, $model, $r['seen']);
-            }
         }
         return null;
     }
 
-    private static function coolKey(string $prov, string $model): string
+    private static function coolKey(string $prov, string $model, string $key): string
     {
-        return 'cool_' . $prov . '_' . substr(md5($model), 0, 10);
+        return 'cool_' . substr(md5($key), 0, 10) . '_' . $prov . ':' . $model;
     }
 
-    private static function isCooling(string $prov, string $model): bool
+    private static function isCooling(string $prov, string $model, string $key): bool
     {
-        $c = Store::get('ai', self::coolKey($prov, $model));
+        $c = Store::get('ai', self::coolKey($prov, $model, $key));
         return is_array($c) && (int) ($c['until'] ?? 0) > time();
+    }
+
+    private static function allCooling(string $prov, string $model): bool
+    {
+        $keys = self::keys($prov);
+        if (!$keys) {
+            return true;
+        }
+        foreach ($keys as $key) {
+            if (!self::isCooling($prov, $model, $key)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static function retrySeconds(string $raw): int
@@ -251,30 +259,33 @@ final class FreeAI
         return $sec;
     }
 
-    private static function coolFor(string $prov, string $model, array $seen): void
+    private static function coolOne(string $prov, string $model, string $key, int $code, string $raw): void
     {
-        if (isset($seen[429])) {
-            $wait = self::retrySeconds((string) $seen[429]);
-            if (preg_match('/per ?day|\bTPD\b|\bRPD\b|daily/i', (string) $seen[429])) {
+        if ($code === 429) {
+            $wait = self::retrySeconds($raw);
+            if (preg_match('/per day|\b(?:TPD|RPD|ASD)\b/i', $raw)) {
                 $until = $wait > 0 ? time() + min($wait + 30, 86400) : (new DateTime('tomorrow', new DateTimeZone('UTC')))->getTimestamp() + 60;
                 $why   = 'سهمیه‌ی روزانه تموم شد';
             } else {
-                $until = time() + max(10, min($wait > 0 ? $wait : 60, 900));
+                $until = time() + max(10, min($wait > 0 ? $wait : 60, 600));
                 $why   = 'محدودیت دقیقه‌ای';
             }
-        } elseif (isset($seen[404]) || (isset($seen[400]) && preg_match('/model.{0,80}(not found|decommission|does not exist|not supported|deprecated|no longer)/is', (string) $seen[400]))) {
+        } elseif ($code === 404 && preg_match('/model/i', $raw)) {
             $until = time() + 86400;
             $why   = 'مدل پیدا نشد';
-        } elseif (isset($seen[401]) || isset($seen[402]) || isset($seen[403])) {
-            $until = time() + 3600;
+        } elseif ($code === 400 && in_array((string) ((json_decode($raw, true)['error']['code'] ?? '')), ['model_decommissioned', 'model_terms_required'], true)) {
+            $until = time() + 86400;
+            $why   = 'مدل بازنشسته شده یا نیاز به پذیرش شرایط داره';
+        } elseif (in_array($code, [401, 402, 403], true)) {
+            $until = (new DateTime('tomorrow', new DateTimeZone('UTC')))->getTimestamp() + 60;
             $why   = 'کلید نامعتبر یا بدون دسترسی';
-        } elseif (array_intersect_key($seen, [0 => 1, 408 => 1, 500 => 1, 502 => 1, 503 => 1, 504 => 1])) {
+        } elseif (in_array($code, [0, 408, 500, 502, 503, 504], true)) {
             $until = time() + 120;
             $why   = 'شلوغه / جواب نداد';
         } else {
             return;
         }
-        Store::set('ai', self::coolKey($prov, $model), ['until' => $until, 'why' => $why, 'model' => $prov . ':' . $model]);
+        Store::set('ai', self::coolKey($prov, $model, $key), ['until' => $until, 'why' => $why, 'model' => $prov . ':' . $model]);
     }
 
     private static function call(string $prov, string $model, array $messages, array $opt): array
@@ -319,11 +330,14 @@ final class FreeAI
                 return ['text' => null, 'kind' => 'timeout', 'seen' => $seen];
             }
             $idx = ($start + $i) % $n;
+            if (self::isCooling($prov, $model, $keys[$idx])) {
+                continue;
+            }
             if ($tav && $rounds >= WebSearch::MAX_ROUNDS) {
                 $payload['tool_choice'] = 'none';
             }
             $r   = $prov !== 'groq' && is_callable($opt['stream'] ?? null)
-                ? self::streamOnce($url, $payload, $keys[$idx], (int) max(5, min($left, 55)), $opt['stream'])
+                ? self::streamOnce($url, $payload, $keys[$idx], (int) max(5, min($left, 60)), $opt['stream'])
                 : Http::postJson($url, $payload, ['Authorization: Bearer ' . $keys[$idx]], (int) max(5, min($left, $cap)));
 
             AI::noteKey($prov, $keys[$idx], (int) $r['code']);
@@ -341,8 +355,8 @@ final class FreeAI
                 }
                 $text = self::extract($r['data']);
                 if ($text === null) {
-                    logWarn('ai', "{$route}: empty reply");
-                    return ['text' => null, 'kind' => 'empty', 'seen' => []];
+                    logWarn('ai', "{$route} key{$idx}: empty reply");
+                    continue;
                 }
                 if (!$tav) {
                     AI::$sources = [];
@@ -359,12 +373,18 @@ final class FreeAI
             }
 
             logWarn('ai', "{$route} key{$idx} HTTP {$r['code']}: " . mb_substr((string) ($r['data']['error']['message'] ?? $r['raw']), 0, 160));
-            if ($r['code'] === 400 && isset($payload['reasoning_effort']) && stripos((string) $r['raw'], 'reasoning') !== false) {
+            if ($r['code'] === 400 && isset($payload['reasoning_effort']) && preg_match('/reasoning/i', (string) $r['raw']) === 1) {
                 unset($payload['reasoning_effort']);
                 $i--;
                 continue;
             }
-            if (($search || $tav) && in_array($r['code'], [400, 429], true) && preg_match('/tool|search|browser|function/i', (string) $r['raw']) === 1) {
+            if ($r['code'] === 400 && !$merged && preg_match('/system/i', (string) $r['raw']) === 1 && self::mergeSystem($payload['messages']) !== $payload['messages']) {
+                $payload['messages'] = self::mergeSystem($payload['messages']);
+                $merged              = true;
+                $i--;
+                continue;
+            }
+            if (($search || $tav) && $r['code'] === 400 && preg_match('/tool|function/i', (string) $r['raw']) === 1) {
                 unset($payload['tools'], $payload['tool_choice']);
                 $payload['messages'] = $orig;
                 $search              = false;
@@ -372,13 +392,8 @@ final class FreeAI
                 $i--;
                 continue;
             }
-            if ($r['code'] === 400 && !$merged && preg_match('/instruction|system/i', (string) $r['raw'])) {
-                $payload['messages'] = self::mergeSystem($payload['messages']);
-                $merged              = true;
-                $i--;
-                continue;
-            }
             $seen[$r['code']] = (string) $r['raw'];
+            self::coolOne($prov, $model, $keys[$idx], (int) $r['code'], (string) $r['raw']);
             if (!in_array($r['code'], [0, 401, 402, 403, 408, 429, 500, 502, 503, 504], true)) {
                 break;
             }

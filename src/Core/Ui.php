@@ -597,11 +597,11 @@ final class Ui
 
             'qr' => "<b>🔳 QR کد</b>\n"
                 . "هر متن یا لینکی رو به QR تبدیل کن.\n\n"
-                . "• " . $c('qr https://t.me/nullini'),
+                . "• " . $c('qr https://t.me/NullHubs'),
 
             'short' => "<b>🔗 کوتاه‌کننده لینک</b>\n"
                 . "هر لینک بلندی رو کوتاه کن.\n\n"
-                . "• " . $c('sh https://t.me/nullini'),
+                . "• " . $c('sh https://t.me/NullHubs'),
 
             'like' => "<b>❤️ لایک‌ساز</b>\n"
                 . "هر متنی بنویسی با دکمه‌ی ❤️ و شمارنده می‌فرستمش؛\n"

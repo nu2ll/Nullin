@@ -150,19 +150,6 @@ final class AI
         return array_values(array_unique(array_merge(self::models('smart'), self::models('lite'))));
     }
 
-    private static function startIndex(int $count): int
-    {
-        if ($count <= 1) {
-            return 0;
-        }
-        $idx = 0;
-        Store::update('ai', 'rr', static function ($s) use (&$idx, $count) {
-            $idx = ((int) ($s['i'] ?? 0)) % $count;
-            return ['i' => ($idx + 1) % $count];
-        });
-        return $idx;
-    }
-
     private static function coolKey(string $key, string $model): string
     {
         return 'cool_' . substr(md5($key), 0, 10) . '_' . $model;
@@ -326,7 +313,7 @@ final class AI
         }
 
         $n     = count($keys);
-        $start = self::startIndex($n);
+        $start = random_int(0, $n - 1);
 
         $chain = $only !== null ? [$only] : self::models($opt['tier'] ?? 'smart');
         foreach ($chain as $model) {
@@ -366,7 +353,7 @@ final class AI
                     }
                 }
                 $r = is_callable($opt['stream'] ?? null)
-                    ? self::geminiStream($model, $payload, $key, (int) max(5, min($left, 55)), $opt['stream'])
+                    ? self::geminiStream($model, $payload, $key, (int) max(5, min($left, 60)), $opt['stream'])
                     : Http::postJson(sprintf(self::API, rawurlencode($model)), $payload, ['x-goog-api-key: ' . $key], (int) max(3, min($left, 10)));
 
                 self::noteKey('gemini', $key, (int) $r['code']);
@@ -397,7 +384,7 @@ final class AI
                         return $text;
                     }
                     logWarn('ai', "{$model}: empty reply (" . ($r['data']['candidates'][0]['finishReason'] ?? $r['data']['promptFeedback']['blockReason'] ?? '?') . ')');
-                    continue 2;
+                    continue;
                 }
 
                 $raw = (string) $r['raw'];
@@ -405,36 +392,50 @@ final class AI
 
                 switch (true) {
                     case $r['code'] === 429:
-                        if (preg_match('/per ?day|PerDay|daily/i', $raw)) {
+                        $wait  = 0;
+                        $quota = [];
+                        foreach ((array) ($r['data']['error']['details'] ?? []) as $d) {
+                            if (!is_array($d)) {
+                                continue;
+                            }
+                            if (isset($d['retryDelay'])) {
+                                $wait = (int) ceil((float) $d['retryDelay']);
+                            }
+                            foreach ((array) ($d['violations'] ?? []) as $v) {
+                                $quota[] = (string) ($v['quotaId'] ?? '');
+                            }
+                        }
+                        $daily = $quota !== [] ? preg_match('/PerDay/i', implode(' ', $quota)) === 1 : preg_match('/per ?day/i', $raw) === 1;
+                        if ($daily) {
                             self::cool($key, $model, self::quotaResetAt(), 'سهمیه‌ی روزانه تموم شد');
                         } else {
-                            $wait = preg_match('/"retryDelay"\s*:\s*"(\d+)/', $raw, $w) ? (int) $w[1] : 60;
-                            self::cool($key, $model, time() + max(10, min($wait, 600)), 'محدودیت دقیقه‌ای');
+                            self::cool($key, $model, time() + max(10, min($wait > 0 ? $wait : 60, 600)), 'محدودیت دقیقه‌ای');
                         }
                         break;
-                    case $r['code'] === 400 && $tav && preg_match('/tool|function|declaration/i', $raw) === 1:
+                    case $r['code'] === 400 && $tav:
                         $tav    = false;
                         $extra  = [];
                         $rounds = 0;
                         $i--;
                         break;
-                    case $r['code'] === 400 && $thinking && stripos($raw, 'think') !== false:
+                    case $r['code'] === 400 && $thinking && !$gemma:
                         $thinking = null;
                         $i--;
                         break;
                     case $r['code'] === 400:
-                        if (preg_match('/model.{0,80}(not found|not supported|not available|is not enabled|unsupported)/is', $raw)) {
-                            self::cool($key, $model, time() + 3600, 'برای این کلید در دسترس نیست');
-                        }
                         continue 3;
                     case $r['code'] === 404:
-                        self::cool($key, $model, time() + 86400, 'مدل پیدا نشد');
+                        if (preg_match('/model/i', $raw)) {
+                            self::cool($key, $model, time() + 86400, 'مدل پیدا نشد');
+                        }
                         continue 3;
-                    case $r['code'] === 401 || $r['code'] === 403:
-                        self::cool($key, $model, time() + 3600, 'کلید نامعتبر یا بدون دسترسی');
+                    case in_array($r['code'], [401, 402, 403], true):
+                        self::cool($key, $model, self::quotaResetAt(), 'کلید نامعتبر یا بدون دسترسی');
                         break;
-                    case $r['code'] === 0 || $r['code'] === 503 || $r['code'] === 504:
+                    case in_array($r['code'], [0, 408, 500, 502, 503, 504], true):
                         self::cool($key, $model, time() + 120, 'شلوغه / جواب نداد');
+                        break;
+                    default:
                         continue 3;
                 }
             }
@@ -501,7 +502,7 @@ final class AI
         }
         $deadline ??= microtime(true) + 90;
         $n         = count($keys);
-        $start     = self::startIndex($n);
+        $start     = random_int(0, $n - 1);
         $voiceName = VoicePick::valid($voice) ?? VoicePick::DEFAULT;
 
         foreach (self::TTS_MODELS as $model) {
@@ -641,7 +642,7 @@ final class AI
             . "\n\n✅ آماده (Gemini): " . fa((string) max(0, $ready)) . ' مدل'
             . "\n🔎 سرچ: " . (self::searchOn() ? 'روشن' : 'خاموش')
             . "\n\n🔑 <b>وضعیت کلیدها</b> (ریست: " . Jalali::time(self::quotaResetAt()) . ")\n"
-            . self::keyReport('gemini', 'Gemini', self::keys(), $all) . "\n" . self::keyReport('groq', 'Groq', FreeAI::keys('groq'), []);
+            . self::keyReport('gemini', 'Gemini', self::keys(), $all) . "\n" . self::keyReport('groq', 'Groq', FreeAI::keys('groq'), array_map(static fn($e) => 'groq:' . $e['id'], FreeAI::models('groq')));
     }
 
     private static function keyReport(string $prov, string $name, array $keys, array $models): string

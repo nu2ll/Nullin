@@ -53,9 +53,9 @@ final class ImageGen
         $err  = (string) ($r['data']['errors'][0]['message'] ?? '');
         $ecode = (int) ($r['data']['errors'][0]['code'] ?? 0);
         logWarn('image', "cloudflare failed (HTTP {$r['code']}, code {$ecode}): " . mb_substr($err !== '' ? $err : (string) $r['raw'], 0, 160));
-        if ($ecode === 3036 || ($r['code'] === 429 && stripos($err, 'allocation') !== false)) {
+        if ($ecode === 3036) {
             self::$quotaOut = true;
-        } elseif ($ecode === 3030 || preg_match('/nsfw|safety|inappropriate|moderat/i', $err)) {
+        } elseif ($ecode === 3030) {
             self::$notice  = $err;
             self::$failMsg = "😕 سرویس عکس به این درخواست گیر داد؛\nیه‌کم جمله‌ت رو عوض کن و دوباره بنویس.";
         }

@@ -454,7 +454,7 @@ final class Business
             if ($left < 2) {
                 return null;
             }
-            $r = $call($k, (int) min($left, 55));
+            $r = $call($k, (int) min($left, 60));
             AI::noteKey('groq', $k, $r['code']);
             if ($r['text'] !== null) {
                 return $r['text'];
@@ -480,15 +480,15 @@ final class Business
         for ($try = 0; $try < 4; $try++) {
             $r   = Http::postJson(self::CHAT_URL, $payload, ['Authorization: Bearer ' . $key], $timeout);
             $raw = (string) ($r['raw'] ?? '');
-            if ($r['code'] === 400 && isset($payload['reasoning_effort']) && stripos($raw, 'reasoning') !== false) {
+            if ($r['code'] === 400 && isset($payload['reasoning_effort']) && preg_match('/reasoning/i', $raw) === 1) {
                 unset($payload['reasoning_effort']);
                 continue;
             }
-            if (isset($payload['tools']) && in_array($r['code'], [400, 429], true) && preg_match('/tool|search|browser|function/i', $raw) === 1) {
+            if ($r['code'] === 400 && isset($payload['tools']) && preg_match('/tool|function/i', $raw) === 1) {
                 unset($payload['tools']);
                 continue;
             }
-            if ($r['code'] === 400 && !$merged && preg_match('/instruction|system/i', $raw) === 1) {
+            if ($r['code'] === 400 && !$merged && preg_match('/system/i', $raw) === 1 && FreeAI::mergeSystem($payload['messages']) !== $payload['messages']) {
                 $payload['messages'] = FreeAI::mergeSystem($payload['messages']);
                 $merged              = true;
                 continue;

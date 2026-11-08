@@ -62,5 +62,5 @@ return [
 
     'creator_name'     => env('CREATOR_NAME', 'Arown'),
     'creator_username' => env('CREATOR_USERNAME', 'nxqyz'),
-    'channel_url'      => env('CHANNEL_URL', 'https://t.me/nullini'),
+    'channel_url'      => env('CHANNEL_URL', 'https://t.me/NullHubs'),
 ];
