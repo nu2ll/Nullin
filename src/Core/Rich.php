@@ -38,24 +38,29 @@ final class Rich
         return $id > 0 ? $id : null;
     }
 
-    public static function table(array $head, array $rows): string
+    public static function mdTable(array $head, array $rows): string
     {
-        $o = '<table>';
-        if ($head) {
-            $o .= '<tr>';
-            foreach ($head as $c) {
-                $o .= '<th>' . $c . '</th>';
-            }
-            $o .= '</tr>';
-        }
+        $l = ['| ' . implode(' | ', $head) . ' |', '|' . str_repeat(' --- |', count($head))];
         foreach ($rows as $r) {
-            $o .= '<tr>';
-            foreach ($r as $c) {
-                $o .= '<td>' . $c . '</td>';
-            }
-            $o .= '</tr>';
+            $l[] = '| ' . implode(' | ', $r) . ' |';
         }
-        return $o . '</table>';
+        return implode("\n", $l);
+    }
+
+    private static function mdPayload(string $md, ?array $kb): array
+    {
+        $btn = self::buttonsHtml($kb);
+        return ['markdown' => self::markdown($md) . ($btn !== '' ? "\n\n" . $btn : '')];
+    }
+
+    public static function inlineContentMd(string $md, ?array $kb = null): array
+    {
+        return ['rich_message' => self::mdPayload($md, $kb)];
+    }
+
+    public static function editInlineMd(string $inlineId, string $md, ?array $kb = null): ?array
+    {
+        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::mdPayload($md, $kb)], 10);
     }
 
     public static function hasButtons(?array $kb): bool

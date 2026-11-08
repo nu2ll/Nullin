@@ -66,15 +66,18 @@ final class Currency
     private static function chg(array $feed, string $key): ?float
     {
         $row = $feed[$key] ?? null;
-        if (!is_array($row)) {
-            return null;
+        $v   = null;
+        if (is_array($row)) {
+            $raw = (string) ($row['dp'] ?? '');
+            if (preg_match('/\d+(?:\.\d+)?/', str_replace(['٫', ','], ['.', ''], $raw), $m) === 1) {
+                $v = (float) $m[0];
+                $v = (($row['dt'] ?? '') === 'low' || str_contains($raw, '-')) ? -$v : $v;
+            }
         }
-        $raw = (string) ($row['dp'] ?? '');
-        if (preg_match('/\d+(?:\.\d+)?/', str_replace(['٫', ','], ['.', ''], $raw), $m) !== 1) {
-            return null;
+        if ($v === null || abs($v) < 0.005) {
+            return PriceCard::changeByFeedKey($key, $feed) ?? $v;
         }
-        $v = (float) $m[0];
-        return (($row['dt'] ?? '') === 'low' || str_contains($raw, '-')) ? -$v : $v;
+        return $v;
     }
 
     public static function rates(): ?array
@@ -190,7 +193,7 @@ final class Currency
     {
         $now  = time();
         $r    = self::rates();
-        $head = '<b>💱 نرخ لحظه‌ای بازار</b>' . "\n🕒 " . Jalali::fullDate($now) . ' · ' . Jalali::time($now);
+        $head = '**💱 نرخ لحظه‌ای بازار**' . "\n🕒 " . Jalali::fullDate($now) . ' · ' . Jalali::time($now);
 
         if ($r === null) {
             return $head . "\n\n⚠️ الان به منبع قیمت‌ها دسترسی ندارم؛\nچند لحظه دیگه دوباره بزن.";
@@ -207,24 +210,24 @@ final class Currency
                 ['🔹 گرم ۱۸ عیار', self::tomanFa($g['gram']) . ' ت', self::pct($chg['gold']['gram'] ?? null)],
                 ['🌕 انس جهانی', self::usdFa($g['ounce']), self::pct($chg['gold']['ounce'] ?? null)],
             ];
-            $table = Rich::table(['طلا', 'قیمت', 'تغییر'], $rows);
+            $table = Rich::mdTable(['طلا', 'قیمت', 'تغییر'], $rows);
         } elseif ($view === 'crypto') {
             $title = '🪙 ارز دیجیتال';
             $rows  = [];
             foreach ($r['crypto'] as $label => $v) {
                 $rows[] = [$label, self::usdFa($v), self::pct($chg['crypto'][$label] ?? null)];
             }
-            $table = Rich::table(['ارز', 'قیمت', 'تغییر'], $rows);
+            $table = Rich::mdTable(['ارز', 'قیمت', 'تغییر'], $rows);
         } else {
             $title = '💵 ارزها';
             $rows  = [['💵 تتر', self::tomanFa($r['tether']) . ' ت', self::pct($chg['tether'] ?? null)]];
             foreach ($r['fiat'] as $label => $v) {
                 $rows[] = [$label, self::tomanFa($v) . ' ت', self::pct($chg['fiat'][$label] ?? null)];
             }
-            $table = Rich::table(['ارز', 'قیمت', 'تغییر'], $rows);
+            $table = Rich::mdTable(['ارز', 'قیمت', 'تغییر'], $rows);
         }
 
-        return $head . "\n\n<b>{$title}</b>\n" . $table . "\n<i>ت = تومان · منبع: بازار آزاد</i>";
+        return $head . "\n\n**{$title}**\n\n" . $table . "\n\n_ت = تومان · منبع: بازار آزاد_";
     }
 
     public static function keyboard(string $view = 'fiat'): array
@@ -249,10 +252,7 @@ final class Currency
             $tg->alert($cq, '⚠️ الان نتونستم نرخ‌ها رو بگیرم؛' . "\n" . 'یه‌کم دیگه امتحان کن.');
             return;
         }
-        $r = Rich::editInline($imid, self::richMessage($view), self::keyboard($view));
-        if (empty($r['ok']) && stripos((string) ($r['description'] ?? ''), 'not modified') === false) {
-            Rich::editInline($imid, self::message(), self::keyboard($view));
-        }
+        Rich::editInlineMd($imid, self::richMessage($view), self::keyboard($view));
         $tg->answer($cq, str_starts_with($data, 'rates:refresh') ? '🔄 به‌روز شد' : null);
     }
 }

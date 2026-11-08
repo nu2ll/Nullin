@@ -125,6 +125,16 @@ final class PriceCard
         ];
     }
 
+    public static function changeByFeedKey(string $feedKey, ?array $feed): ?float
+    {
+        foreach (self::ASSETS as $k => $a) {
+            if ($a[0] === $feedKey) {
+                return self::quote($k, $feed)['dp'] ?? null;
+            }
+        }
+        return null;
+    }
+
     private static function quote(string $k, ?array $feed): ?array
     {
         $fq = $feed !== null ? self::feedQuote($k, $feed[self::ASSETS[$k][0]] ?? null) : null;

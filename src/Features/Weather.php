@@ -73,11 +73,6 @@ final class Weather
         });
     }
 
-    private static function cacheKey(array $loc): string
-    {
-        return 'wt2_' . round($loc['lat'], 2) . '_' . round($loc['lon'], 2);
-    }
-
     public static function fetch(string $city): ?array
     {
         if (mbTrim($city) === '') {
@@ -87,7 +82,7 @@ final class Weather
         if ($loc === null) {
             return null;
         }
-        return Store::remember('cache', self::cacheKey($loc), 600, static function () use ($loc) {
+        return (static function () use ($loc) {
             $w = Http::getJson(self::FORECAST . '?' . http_build_query([
                 'latitude'      => $loc['lat'],
                 'longitude'     => $loc['lon'],
@@ -110,7 +105,7 @@ final class Weather
                 'raw'      => $w,
                 'air'      => $a['current'] ?? null,
             ];
-        });
+        })();
     }
 
     private static function codeText(int $code): string
@@ -200,9 +195,9 @@ final class Weather
         $daily = $w['daily'];
         $code  = (int) ($cur['weather_code'] ?? 0);
         $isDay = !empty($cur['is_day']);
-        $local = isset($cur['time']) ? fa(substr((string) $cur['time'], 11, 5)) : Jalali::time(time());
-        $place = h($d['location']['name']) . ($d['location']['country'] !== '' ? ' · ' . h($d['location']['country']) : '');
-        $head  = self::codeEmoji($code, $isDay) . " <b>آب‌وهوای {$place}</b>\n🕒 " . Jalali::fullDate(time()) . " · ساعت محلی {$local}\n";
+        $local = isset($w['utc_offset_seconds']) ? fa(gmdate('H:i', time() + (int) $w['utc_offset_seconds'])) : Jalali::time(time());
+        $place = $d['location']['name'] . ($d['location']['country'] !== '' ? ' · ' . $d['location']['country'] : '');
+        $head  = self::codeEmoji($code, $isDay) . " **آب‌وهوای {$place}**\n🕒 " . Jalali::fullDate(time()) . " · ساعت محلی {$local}\n\n";
 
         if ($view === 'days') {
             $rows = [];
@@ -219,11 +214,11 @@ final class Weather
                     $rain > 0 ? fa($rain) . '٪' : '—',
                 ];
             }
-            return $head . Rich::table(['روز', 'وضعیت', 'بیشینه / کمینه', '☔ بارش'], $rows);
+            return $head . Rich::mdTable(['روز', 'وضعیت', 'بیشینه / کمینه', '☔ بارش'], $rows);
         }
 
         $rows = [
-            ['🌡 دما', '<b>' . self::deg($cur['temperature_2m'] ?? 0) . '</b> (حس ' . self::deg($cur['apparent_temperature'] ?? 0) . ')'],
+            ['🌡 دما', '**' . self::deg($cur['temperature_2m'] ?? 0) . '** (حس ' . self::deg($cur['apparent_temperature'] ?? 0) . ')'],
             ['↕️ بیشینه / کمینه', self::deg($daily['temperature_2m_max'][0] ?? 0) . ' / ' . self::deg($daily['temperature_2m_min'][0] ?? 0)],
             ['☁️ وضعیت', self::codeText($code)],
             ['💧 رطوبت', fa((int) ($cur['relative_humidity_2m'] ?? 0)) . '٪'],
@@ -241,7 +236,7 @@ final class Weather
             $pm     = $d['air']['pm2_5'] ?? null;
             $rows[] = ['🫁 کیفیت هوا', self::aqi((int) $d['air']['us_aqi']) . ($pm !== null ? ' (PM2.5: ' . fa(round((float) $pm, 1)) . ')' : '')];
         }
-        return $head . Rich::table([], $rows);
+        return $head . Rich::mdTable(['مورد', 'مقدار'], $rows);
     }
 
     public static function keyboard(string $hash = '', string $view = 'now'): array
@@ -272,19 +267,13 @@ final class Weather
             $tg->alert($cq, '⚠️ اطلاعات این پیام پیدا نشد؛' . "\n" . 'دوباره از منو بگیرش.');
             return;
         }
-        if ($refresh && ($loc = self::locate($city))) {
-            Store::delete('cache', self::cacheKey($loc));
-        }
         $data = self::fetch($city);
         if ($data === null) {
             $tg->alert($cq, '⚠️ الان نتونستم آب‌وهوا رو بگیرم؛' . "\n" . 'یه‌کم دیگه امتحان کن.');
             return;
         }
         $kb = self::keyboard($hash !== '' ? $hash : substr(md5(mb_strtolower($city)), 0, 16), $view);
-        $r  = Rich::editInline($imid, self::richFormat($data, $view), $kb);
-        if (empty($r['ok']) && stripos((string) ($r['description'] ?? ''), 'not modified') === false) {
-            Rich::editInline($imid, self::format($data), $kb);
-        }
+        Rich::editInlineMd($imid, self::richFormat($data, $view), $kb);
         $tg->answer($cq, $refresh ? '🔄 به‌روز شد' : null);
     }
 }

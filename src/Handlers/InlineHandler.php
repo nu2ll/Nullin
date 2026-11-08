@@ -390,14 +390,19 @@ final class InlineHandler
         $hash = substr(md5(mb_strtolower($city)), 0, 16);
         Store::set('weather_pending', $hash, $city);
         $loc = $data['location'];
-        self::answer([Ui::article(
+        $kb      = Weather::keyboard($hash);
+        $article = Ui::article(
             "wt_{$hash}",
             'weather',
             '🌦 ' . $loc['name'] . ' · ' . round((float) $data['current']['temp_c']) . '°',
             ($data['current']['condition']['text'] ?? '') . ' · ' . ($loc['country'] ?? ''),
-            Weather::richFormat($data),
-            Weather::keyboard($hash)
-        )], 60, false);
+            Weather::format($data),
+            $kb
+        );
+        if (Rich::usable($kb)) {
+            $article['input_message_content'] = Rich::inlineContentMd(Weather::richFormat($data), $kb);
+        }
+        self::answer([$article], 60, false);
     }
 
     private static function nid(string $raw): void
