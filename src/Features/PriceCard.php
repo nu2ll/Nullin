@@ -54,7 +54,7 @@ final class PriceCard
         return $map[self::norm($name)] ?? null;
     }
 
-    public static function match(string $text, bool $loose): ?array
+    public static function match(string $text, bool $loose, bool $trailing = false): ?array
     {
         $t = en(mbTrim($text));
         $t = strtr($t, ['٬' => ',', '،' => ',', '٫' => '.']);
@@ -74,6 +74,16 @@ final class PriceCard
                 default  => 1,
             };
             $name = $m[3];
+        } elseif ($trailing && self::find($t) === null && preg_match('/^(.+?)\s*(\d[\d,]*(?:\.\d+)?)\s*(هزار|میلیون|میلیارد)?$/u', $t, $m)) {
+            // «دلار ۱۰۰» یا «دلار ۲ میلیون» (مقدار بعد از اسم؛ فقط تو اینلاین)
+            $amount = (float) str_replace(',', '', $m[2]);
+            $amount *= match ($m[3] ?? '') {
+                'هزار'   => 1e3,
+                'میلیون' => 1e6,
+                'میلیارد' => 1e9,
+                default  => 1,
+            };
+            $name = mbTrim($m[1]);
         } elseif (!$loose) {
             return null;
         }
@@ -348,17 +358,12 @@ final class PriceCard
         return $bytes;
     }
 
-    public static function send(array $msg, array $m): void
+    // همه‌ی متن‌ها و داده‌ی کارت؛ $chart=false یعنی نمودار (درخواست‌های شبکه‌ی اضافه) نگیر
+    private static function parts(array $m, ?array $feed, bool $chart): ?array
     {
-        $tg     = App::tg();
-        $chatId = $msg['chat']['id'];
-        $tg->action($chatId, 'upload_photo');
-
-        $feed = Currency::feed();
-        $q    = self::quote($m['asset'], $feed);
+        $q = self::quote($m['asset'], $feed);
         if ($q === null) {
-            $tg->reply($msg, "⚠️ الان به منبع قیمت‌ها دسترسی ندارم؛\nچند لحظه دیگه دوباره بزن.");
-            return;
+            return null;
         }
         [, , $noun, $unit, $sym, $mode] = self::ASSETS[$m['asset']];
         $isU    = $mode === 'usd';
@@ -383,41 +388,110 @@ final class PriceCard
         if ($usdQ !== null) {
             $g1[] = '🇮🇷 معادل: ' . fa(self::fmt($total * $usdQ)) . ' تومان';
         }
-        $g2 = [];
+        $g2   = [];
         $line = '';
         if ($q['h'] !== null && $q['l'] !== null) {
             $line = '🟢 سقف: ' . fa($money($q['h'])) . '   🔴 کف: ' . fa($money($q['l'])) . '   ';
         }
         $g2[] = $line . '⌚ ساعت: ' . fa($time);
-        $btn = static fn(string $label, string $copy, string $style): string
-            => '<tg-button type="copy_text" text="' . h($copy) . '" style="' . $style . '">' . h($label) . '</tg-button>';
-        $rich = '<img src="tg://photo?id=card"/>'
-              . '<blockquote><p>' . $head . '</p>'
-              . '<blockquote><p>' . implode('<br>', $g1) . '</p>'
-              . '<blockquote><p>' . implode('<br>', $g2) . '</p></blockquote>'
-              . '</blockquote></blockquote>';
-        if ($q['h'] !== null && $q['l'] !== null) {
-            $rich .= '<tg-button-row>'
-                   . $btn('🟢 سقف: ' . fa($money($q['h'])), $money($q['h']), 'success')
-                   . $btn('🔴 کف: ' . fa($money($q['l'])), $money($q['l']), 'danger')
-                   . '</tg-button-row>';
-        }
-        $rich .= '<tg-button-row>' . $btn('💰 کپی کل: ' . fa($money($total)) . " {$cur}", $money($total), 'primary') . '</tg-button-row>';
 
-        $png = self::render([
-            'title'  => fa($title) . " — {$where}",
-            'unit'   => $cur,
-            'value'  => $money($total),
-            'pct'    => round($pct, 2),
-            'points' => array_map(static fn($v) => $v * $amount, self::points($m['asset'], $q)),
-            'dec'    => $isU ? (abs($total) >= 1000 ? 0 : (abs($total) >= 1 ? 2 : 5)) : 0,
-            'sym'    => $sym,
-            'icon'   => $m['asset'],
-            'tag'    => $isU ? 'USD' : 'IRT',
-            'footer' => '@' . App::botUsername(),
-        ]);
+        $rows = [];
+        if ($q['h'] !== null && $q['l'] !== null) {
+            $rows[] = [
+                copyBtn('🟢 سقف: ' . fa($money($q['h'])), $money($q['h']), 'success'),
+                copyBtn('🔴 کف: ' . fa($money($q['l'])), $money($q['l']), 'danger'),
+            ];
+        }
+        $rows[] = [copyBtn('💰 کپی کل: ' . fa($money($total)) . " {$cur}", $money($total), 'primary')];
+
+        return [
+            'title'  => fa($title),
+            'head'   => $head,
+            'g1'     => $g1,
+            'g2'     => $g2,
+            'kb'     => ikb($rows),
+            'render' => [
+                'title'  => fa($title) . " — {$where}",
+                'unit'   => $cur,
+                'value'  => $money($total),
+                'pct'    => round($pct, 2),
+                'points' => $chart ? array_map(static fn($v) => $v * $amount, self::points($m['asset'], $q)) : [],
+                'dec'    => $isU ? (abs($total) >= 1000 ? 0 : (abs($total) >= 1 ? 2 : 5)) : 0,
+                'sym'    => $sym,
+                'icon'   => $m['asset'],
+                'tag'    => $isU ? 'USD' : 'IRT',
+                'footer' => '@' . App::botUsername(),
+            ],
+        ];
+    }
+
+    public static function send(array $msg, array $m): void
+    {
+        $tg     = App::tg();
+        $chatId = $msg['chat']['id'];
+        $tg->action($chatId, 'upload_photo');
+
+        $p = self::parts($m, Currency::feed(), true);
+        if ($p === null) {
+            $tg->reply($msg, "⚠️ الان به منبع قیمت‌ها دسترسی ندارم؛\nچند لحظه دیگه دوباره بزن.");
+            return;
+        }
+        $rich = '<img src="tg://photo?id=card"/>'
+              . '<blockquote><p>' . $p['head'] . '</p>'
+              . '<blockquote><p>' . implode('<br>', $p['g1']) . '</p>'
+              . '<blockquote><p>' . implode('<br>', $p['g2']) . '</p></blockquote>'
+              . '</blockquote></blockquote>'
+              . Rich::buttonsHtml($p['kb']);
+
+        $png = self::render($p['render']);
         if ($png !== null) {
             $tg->sendRichCard($chatId, $png, $rich, (int) $msg['message_id']);
+        }
+    }
+
+    private static function inlineText(array $p): string
+    {
+        return $p['head'] . "\n" . implode("\n", $p['g1']) . "\n" . implode("\n", $p['g2']);
+    }
+
+    // نتیجه‌ی اینلاین: اول متن می‌ره، بعد از انتخاب onChosen کارت (عکس) رو جایگزین می‌کنه
+    public static function inlineArticle(array $m): ?array
+    {
+        $p = self::parts($m, Currency::feed(), false);
+        if ($p === null) {
+            return null;
+        }
+        $key = substr(md5($m['asset'] . '|' . $m['amount']), 0, 12);
+        Store::set('pc_pending', $key, ['asset' => $m['asset'], 'amount' => (float) $m['amount']]);
+        return Ui::article('pc_' . $key, 'rates', '💵 ' . $p['title'], implode(' · ', $p['g1']), self::inlineText($p), $p['kb']);
+    }
+
+    public static function onChosen(string $key, string $imid): void
+    {
+        $m = Store::get('pc_pending', $key);
+        if (!is_array($m) || !isset($m['asset'], $m['amount']) || !isset(self::ASSETS[$m['asset']])) {
+            return;
+        }
+        $p = self::parts($m, Currency::feed(), true);
+        if ($p === null) {
+            return;
+        }
+        $text = self::inlineText($p);
+        $fid  = null;
+        $png  = self::render($p['render']);
+        $chat = (string) App::cfg('storage_chat', '');
+        $chat = $chat !== '' ? $chat : (string) (App::cfg('admins', [])[0] ?? '');
+        if ($png !== null && $chat !== '') {
+            $fid = App::tg()->photoFileId($chat, $png);
+        }
+        if ($fid === null) {
+            logWarn('pricecard', 'inline card: no file_id (check STORAGE_CHAT_ID)');
+        }
+        $r = $fid !== null
+            ? Rich::editInlinePhoto($imid, $text, $fid, $p['kb'])
+            : Rich::editInline($imid, $text, $p['kb']);
+        if (empty($r['ok'])) {
+            logWarn('pricecard', 'inline edit failed: ' . (string) ($r['description'] ?? ''));
         }
     }
 }

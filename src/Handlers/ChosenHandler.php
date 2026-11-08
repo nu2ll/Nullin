@@ -50,6 +50,9 @@ final class ChosenHandler
         if (str_starts_with($id, 'wh_')) {
             Whisper::bind(substr($id, 3), $imid);
         }
+        if (str_starts_with($id, 'pc_')) {
+            PriceCard::onChosen(substr($id, 3), $imid);
+        }
         if (str_starts_with($id, 'wt_')) {
             $city = Store::get('weather_pending', substr($id, 3));
             if (is_string($city)) {

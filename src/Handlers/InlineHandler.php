@@ -78,6 +78,10 @@ final class InlineHandler
             }
         }
 
+        if (Switches::on('rates') && ($pm = PriceCard::match($query, true, true)) !== null) {
+            self::price($pm);
+            return;
+        }
         if (Switches::on('calc') && Calculator::looksLikeExpression($query)) {
             self::quickCalc($query);
             return;
@@ -93,6 +97,16 @@ final class InlineHandler
             'cache_time'      => $cache,
             'is_personal'     => $personal,
         ] + ($next !== '' ? ['next_offset' => $next] : []));
+    }
+
+    private static function price(array $m): void
+    {
+        $a = PriceCard::inlineArticle($m);
+        if ($a === null) {
+            self::fail('pc_fail', '⚠️ قیمت‌ها در دسترس نیست', 'چند لحظه‌ی دیگه دوباره امتحان کن', "⚠️ الان به منبع قیمت‌ها دسترسی ندارم؛\nچند لحظه دیگه دوباره بزن.");
+            return;
+        }
+        self::answer([$a], 20, false);
     }
 
     private static function guide(string $key, string $icon, string $title, string $desc): void
