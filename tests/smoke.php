@@ -184,14 +184,14 @@ check('start text', str_contains(Ui::startText(['id' => 1, 'first_name' => '<b>x
 check('icon url', str_starts_with(Ui::icon('chess'), 'https://raw.githubusercontent.com/'), true);
 check('calc done', Calculator::render('8', true), "<b>🧮 ماشین‌حساب نالین</b>\n\n= <b>8</b>");
 check('calc typing no preview', str_contains(Calculator::render('2+3'), '='), false);
-check('commands admin', count(Ui::commands('admin')), 21);
-check('commands private', count(Ui::commands('private')), 11);
+check('commands admin', count(Ui::commands('admin')), 22);
+check('commands private', count(Ui::commands('private')), 12);
 check('ping text', str_starts_with(Ui::ping(123), "پینگ: ۱۲۳ میلی‌ثانیه\n"), true);
 check('switch default on', Switches::on('chess'), true);
 Switches::toggle('image');
 check('switch off', Switches::on('image'), false);
 check('commands hide img', in_array('img', array_column(Ui::commands('private'), 'command'), true), false);
-check('commands private off', count(Ui::commands('private')), 10);
+check('commands private off', count(Ui::commands('private')), 11);
 Switches::toggle('image');
 check('switch back on', Switches::on('image'), true);
 check('commands show img', in_array('img', array_column(Ui::commands('private'), 'command'), true), true);
@@ -237,7 +237,7 @@ check('photo unescape', Scrape::unescape('https:\\/\\/x.com\\/a.jpg?b=1\\u0026c=
 check('intent download', Intent::parse('[[download | https://youtu.be/x]]'), ['download', 'https://youtu.be/x']);
 check('help page 1', Ui::helpPage('ai'), 1);
 check('help page 2', Ui::helpPage('group'), 2);
-check('help menu split', count(Ui::helpMenu(true, 1)['inline_keyboard']) + count(Ui::helpMenu(true, 2)['inline_keyboard']), 15);
+check('help menu split', count(Ui::helpMenu(true, 1)['inline_keyboard']) + count(Ui::helpMenu(true, 2)['inline_keyboard']), 16);
 $hm = static function (int $page): array {
     $out = [];
     foreach (Ui::helpMenu(true, $page)['inline_keyboard'] as $row) {
@@ -264,7 +264,7 @@ $p2 = $hm(2);
 check('help whisper beside linkcheck above font', [$p1[2], $p1[3]], [['help:whisper', 'help:linkcheck'], ['help:font', 'help:download']]);
 check('help qr beside short, love beside group', [$p2[1], $p2[2]], [['help:qr', 'help:short'], ['help:love', 'help:group']]);
 check('help next arrow', Ui::helpMenu(true, 1)['inline_keyboard'][5][0]['text'], '➡️ صفحه‌ی بعد');
-check('help prev arrow', Ui::helpMenu(true, 2)['inline_keyboard'][6][0]['text'], 'صفحه‌ی قبل ⬅️');
+check('help prev arrow', Ui::helpMenu(true, 2)['inline_keyboard'][7][0]['text'], 'صفحه‌ی قبل ⬅️');
 check('roast token user', Roast::token('نالینی @ali_reza رو روست کن'), '@ali_reza');
 check('roast token id', Roast::token('روست کن ۱۲۳۴۵۶۷۸۹'), '123456789');
 check('roast token me', Roast::token('me'), 'me');
@@ -373,7 +373,7 @@ check('switch unknown toggle ignored', Switches::on('no_such_tool'), true);
 Switches::setAll(false);
 check('switch all off', array_filter(array_keys(Switches::TOOLS), static fn($k) => Switches::on($k)), []);
 check('switch guard off', Switches::guard('ai'), false);
-check('commands all off private', array_column(Ui::commands('private'), 'command'), ['start', 'help', 'voice', 'ping']);
+check('commands all off private', array_column(Ui::commands('private'), 'command'), ['start', 'help', 'voice', 'forget', 'ping']);
 Switches::setAll(true);
 check('switch guard on', Switches::guard('ai'), true);
 check('switch text no off line', str_contains(Switches::text(), 'خاموش:'), false);
