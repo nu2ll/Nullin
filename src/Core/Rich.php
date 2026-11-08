@@ -38,6 +38,26 @@ final class Rich
         return $id > 0 ? $id : null;
     }
 
+    public static function table(array $head, array $rows): string
+    {
+        $o = '<table>';
+        if ($head) {
+            $o .= '<tr>';
+            foreach ($head as $c) {
+                $o .= '<th>' . $c . '</th>';
+            }
+            $o .= '</tr>';
+        }
+        foreach ($rows as $r) {
+            $o .= '<tr>';
+            foreach ($r as $c) {
+                $o .= '<td>' . $c . '</td>';
+            }
+            $o .= '</tr>';
+        }
+        return $o . '</table>';
+    }
+
     public static function hasButtons(?array $kb): bool
     {
         foreach ((array) ($kb['inline_keyboard'] ?? []) as $row) {

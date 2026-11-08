@@ -91,7 +91,7 @@ final class CallbackHandler
             Currency::onCallback($cq, $data, $imid);
             return;
         }
-        if (str_starts_with($data, 'weather:refresh')) {
+        if (str_starts_with($data, 'weather:')) {
             Weather::onCallback($cq, $imid, $data);
             return;
         }

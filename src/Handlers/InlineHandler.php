@@ -395,7 +395,7 @@ final class InlineHandler
             'weather',
             '🌦 ' . $loc['name'] . ' · ' . round((float) $data['current']['temp_c']) . '°',
             ($data['current']['condition']['text'] ?? '') . ' · ' . ($loc['country'] ?? ''),
-            Weather::format($data),
+            Weather::richFormat($data),
             Weather::keyboard($hash)
         )], 60, false);
     }

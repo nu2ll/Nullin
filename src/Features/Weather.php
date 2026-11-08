@@ -193,16 +193,75 @@ final class Weather
         return implode("\n", $l);
     }
 
-    public static function keyboard(string $hash = ''): array
+    public static function richFormat(array $d, string $view = 'now'): string
     {
-        return ikb([[btn('🔄 بروزرسانی', $hash === '' ? 'weather:refresh' : 'weather:refresh:' . $hash)]]);
+        $w     = $d['raw'];
+        $cur   = $w['current'];
+        $daily = $w['daily'];
+        $code  = (int) ($cur['weather_code'] ?? 0);
+        $isDay = !empty($cur['is_day']);
+        $local = isset($cur['time']) ? fa(substr((string) $cur['time'], 11, 5)) : Jalali::time(time());
+        $place = h($d['location']['name']) . ($d['location']['country'] !== '' ? ' · ' . h($d['location']['country']) : '');
+        $head  = self::codeEmoji($code, $isDay) . " <b>آب‌وهوای {$place}</b>\n🕒 " . Jalali::fullDate(time()) . " · ساعت محلی {$local}\n";
+
+        if ($view === 'days') {
+            $rows = [];
+            foreach ([0 => 'امروز', 1 => 'فردا', 2 => 'پس‌فردا'] as $i => $name) {
+                if (!isset($daily['temperature_2m_max'][$i])) {
+                    continue;
+                }
+                $c      = (int) ($daily['weather_code'][$i] ?? 0);
+                $rain   = (int) ($daily['precipitation_probability_max'][$i] ?? 0);
+                $rows[] = [
+                    $name,
+                    self::codeEmoji($c) . ' ' . self::codeText($c),
+                    self::deg($daily['temperature_2m_max'][$i]) . ' / ' . self::deg($daily['temperature_2m_min'][$i]),
+                    $rain > 0 ? fa($rain) . '٪' : '—',
+                ];
+            }
+            return $head . Rich::table(['روز', 'وضعیت', 'بیشینه / کمینه', '☔ بارش'], $rows);
+        }
+
+        $rows = [
+            ['🌡 دما', '<b>' . self::deg($cur['temperature_2m'] ?? 0) . '</b> (حس ' . self::deg($cur['apparent_temperature'] ?? 0) . ')'],
+            ['↕️ بیشینه / کمینه', self::deg($daily['temperature_2m_max'][0] ?? 0) . ' / ' . self::deg($daily['temperature_2m_min'][0] ?? 0)],
+            ['☁️ وضعیت', self::codeText($code)],
+            ['💧 رطوبت', fa((int) ($cur['relative_humidity_2m'] ?? 0)) . '٪'],
+            ['⛅ ابر', fa((int) ($cur['cloud_cover'] ?? 0)) . '٪'],
+            ['💨 باد', fa((int) round((float) ($cur['wind_speed_10m'] ?? 0))) . ' کیلومتر/ساعت (از ' . self::windDir((float) ($cur['wind_direction_10m'] ?? 0)) . ')'],
+            ['🧭 فشار', fa((int) round((float) ($cur['surface_pressure'] ?? 0))) . ' میلی‌بار'],
+        ];
+        if (!empty($daily['precipitation_probability_max'][0])) {
+            $rows[] = ['☔ احتمال بارش', fa((int) $daily['precipitation_probability_max'][0]) . '٪'];
+        }
+        if (!empty($daily['sunrise'][0]) && !empty($daily['sunset'][0])) {
+            $rows[] = ['🌅 طلوع / 🌇 غروب', fa(substr((string) $daily['sunrise'][0], 11, 5)) . ' / ' . fa(substr((string) $daily['sunset'][0], 11, 5))];
+        }
+        if (isset($d['air']['us_aqi'])) {
+            $pm     = $d['air']['pm2_5'] ?? null;
+            $rows[] = ['🫁 کیفیت هوا', self::aqi((int) $d['air']['us_aqi']) . ($pm !== null ? ' (PM2.5: ' . fa(round((float) $pm, 1)) . ')' : '')];
+        }
+        return $head . Rich::table([], $rows);
+    }
+
+    public static function keyboard(string $hash = '', string $view = 'now'): array
+    {
+        $sfx  = $hash === '' ? '' : ':' . $hash;
+        $tabs = [
+            $view === 'now' ? btn('🌡 اکنون ✓', 'weather:now' . $sfx, 'success') : btn('🌡 اکنون', 'weather:now' . $sfx, 'primary'),
+            $view === 'days' ? btn('📆 ۳ روز آینده ✓', 'weather:days' . $sfx, 'success') : btn('📆 ۳ روز آینده', 'weather:days' . $sfx, 'primary'),
+        ];
+        return ikb([$tabs, [btn('🔄 بروزرسانی', 'weather:refresh:' . $view . $sfx, 'danger')]]);
     }
 
     public static function onCallback(array $cq, string $imid, string $data = ''): void
     {
-        $tg   = App::tg();
-        $city = Store::get('weather', $imid);
-        $hash = preg_match('/^weather:refresh:(\w{16})$/', $data, $m) ? $m[1] : '';
+        $tg      = App::tg();
+        $city    = Store::get('weather', $imid);
+        $matched = preg_match('/^weather:(now|days|refresh)(?::(now|days))?(?::(\w{16}))?$/', $data, $m) === 1;
+        $hash    = $matched ? ($m[3] ?? '') : '';
+        $refresh = $matched && $m[1] === 'refresh';
+        $view    = $matched ? ($m[1] === 'refresh' ? (($m[2] ?? '') !== '' ? $m[2] : 'now') : $m[1]) : 'now';
         if ((!is_string($city) || $city === '') && $hash !== '') {
             $city = Store::get('weather_pending', $hash);
             if (is_string($city) && $city !== '') {
@@ -213,7 +272,7 @@ final class Weather
             $tg->alert($cq, '⚠️ اطلاعات این پیام پیدا نشد؛' . "\n" . 'دوباره از منو بگیرش.');
             return;
         }
-        if ($loc = self::locate($city)) {
+        if ($refresh && ($loc = self::locate($city))) {
             Store::delete('cache', self::cacheKey($loc));
         }
         $data = self::fetch($city);
@@ -221,7 +280,11 @@ final class Weather
             $tg->alert($cq, '⚠️ الان نتونستم آب‌وهوا رو بگیرم؛' . "\n" . 'یه‌کم دیگه امتحان کن.');
             return;
         }
-        Rich::editInline($imid, self::format($data), self::keyboard($hash !== '' ? $hash : substr(md5(mb_strtolower($city)), 0, 16)));
-        $tg->answer($cq, '🔄 به‌روز شد');
+        $kb = self::keyboard($hash !== '' ? $hash : substr(md5(mb_strtolower($city)), 0, 16), $view);
+        $r  = Rich::editInline($imid, self::richFormat($data, $view), $kb);
+        if (empty($r['ok']) && stripos((string) ($r['description'] ?? ''), 'not modified') === false) {
+            Rich::editInline($imid, self::format($data), $kb);
+        }
+        $tg->answer($cq, $refresh ? '🔄 به‌روز شد' : null);
     }
 }

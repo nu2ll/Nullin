@@ -63,6 +63,20 @@ final class Currency
         return is_numeric($clean) ? (float) $clean : null;
     }
 
+    private static function chg(array $feed, string $key): ?float
+    {
+        $row = $feed[$key] ?? null;
+        if (!is_array($row)) {
+            return null;
+        }
+        $raw = (string) ($row['dp'] ?? '');
+        if (preg_match('/\d+(?:\.\d+)?/', str_replace(['٫', ','], ['.', ''], $raw), $m) !== 1) {
+            return null;
+        }
+        $v = (float) $m[0];
+        return (($row['dt'] ?? '') === 'low' || str_contains($raw, '-')) ? -$v : $v;
+    }
+
     public static function rates(): ?array
     {
         return Store::remember('cache', 'rates', 120, static function () {
@@ -70,13 +84,15 @@ final class Currency
             if ($feed === null) {
                 return null;
             }
-            $out = ['fiat' => [], 'crypto' => [], 'gold' => []];
+            $out = ['fiat' => [], 'crypto' => [], 'gold' => [], 'chg' => ['fiat' => [], 'crypto' => [], 'gold' => [], 'tether' => null]];
             foreach (self::FIAT as $label => $key) {
-                $rial                = self::num($feed, $key);
-                $out['fiat'][$label] = $rial !== null ? $rial / 10 : null;
+                $rial                        = self::num($feed, $key);
+                $out['fiat'][$label]         = $rial !== null ? $rial / 10 : null;
+                $out['chg']['fiat'][$label]  = self::chg($feed, $key);
             }
             foreach (self::CRYPTO as $label => $key) {
-                $out['crypto'][$label] = self::num($feed, $key);
+                $out['crypto'][$label]        = self::num($feed, $key);
+                $out['chg']['crypto'][$label] = self::chg($feed, $key);
             }
             $tether          = self::num($feed, 'crypto-tether-irr');
             $gram            = self::num($feed, 'geram18');
@@ -87,6 +103,13 @@ final class Currency
                 'gram'    => $gram !== null ? $gram / 10 : null,
                 'mesghal' => $gram !== null ? $gram / 10 * self::MESGHAL_GRAMS : null,
                 'ounce'   => self::num($feed, 'ons'),
+            ];
+            $out['chg']['tether'] = self::chg($feed, 'crypto-tether-irr');
+            $out['chg']['gold']   = [
+                'coin'    => self::chg($feed, 'sekee'),
+                'gram'    => self::chg($feed, 'geram18'),
+                'mesghal' => self::chg($feed, 'geram18'),
+                'ounce'   => self::chg($feed, 'ons'),
             ];
             return $out;
         });
@@ -137,9 +160,80 @@ final class Currency
         return implode("\n", $l);
     }
 
-    public static function keyboard(): array
+    private static function faNum(string $n): string
     {
-        return ikb([[btn('🔄 بروزرسانی', 'rates:refresh')]]);
+        return strtr(fa($n), [',' => '٬', '.' => '٫']);
+    }
+
+    private static function tomanFa(?float $v): string
+    {
+        return $v === null ? '—' : self::faNum(number_format($v));
+    }
+
+    private static function usdFa(?float $v): string
+    {
+        return $v === null ? '—' : '$' . self::faNum(substr(self::usd($v), 1));
+    }
+
+    private static function pct(?float $v): string
+    {
+        if ($v === null) {
+            return '—';
+        }
+        if (abs($v) < 0.005) {
+            return '▫️ ۰٪';
+        }
+        return ($v > 0 ? '🟢 ▲ ' : '🔴 ▼ ') . self::faNum(number_format(abs($v), 2)) . '٪';
+    }
+
+    public static function richMessage(string $view = 'fiat'): string
+    {
+        $now  = time();
+        $r    = self::rates();
+        $head = '<b>💱 نرخ لحظه‌ای بازار</b>' . "\n🕒 " . Jalali::fullDate($now) . ' · ' . Jalali::time($now);
+
+        if ($r === null) {
+            return $head . "\n\n⚠️ الان به منبع قیمت‌ها دسترسی ندارم؛\nچند لحظه دیگه دوباره بزن.";
+        }
+
+        $chg = $r['chg'] ?? [];
+        $g   = $r['gold'];
+
+        if ($view === 'gold') {
+            $title = '🥇 طلا و سکه';
+            $rows  = [
+                ['🪙 سکه امامی', self::tomanFa($g['coin']) . ' ت', self::pct($chg['gold']['coin'] ?? null)],
+                ['🔸 مثقال طلا', self::tomanFa($g['mesghal']) . ' ت', self::pct($chg['gold']['mesghal'] ?? null)],
+                ['🔹 گرم ۱۸ عیار', self::tomanFa($g['gram']) . ' ت', self::pct($chg['gold']['gram'] ?? null)],
+                ['🌕 انس جهانی', self::usdFa($g['ounce']), self::pct($chg['gold']['ounce'] ?? null)],
+            ];
+            $table = Rich::table(['طلا', 'قیمت', 'تغییر'], $rows);
+        } elseif ($view === 'crypto') {
+            $title = '🪙 ارز دیجیتال';
+            $rows  = [];
+            foreach ($r['crypto'] as $label => $v) {
+                $rows[] = [$label, self::usdFa($v), self::pct($chg['crypto'][$label] ?? null)];
+            }
+            $table = Rich::table(['ارز', 'قیمت', 'تغییر'], $rows);
+        } else {
+            $title = '💵 ارزها';
+            $rows  = [['💵 تتر', self::tomanFa($r['tether']) . ' ت', self::pct($chg['tether'] ?? null)]];
+            foreach ($r['fiat'] as $label => $v) {
+                $rows[] = [$label, self::tomanFa($v) . ' ت', self::pct($chg['fiat'][$label] ?? null)];
+            }
+            $table = Rich::table(['ارز', 'قیمت', 'تغییر'], $rows);
+        }
+
+        return $head . "\n\n<b>{$title}</b>\n" . $table . "\n<i>ت = تومان · منبع: بازار آزاد</i>";
+    }
+
+    public static function keyboard(string $view = 'fiat'): array
+    {
+        $tabs = [];
+        foreach (['fiat' => '💵 ارز', 'gold' => '🥇 طلا', 'crypto' => '🪙 کریپتو'] as $k => $label) {
+            $tabs[] = $k === $view ? btn($label . ' ✓', 'rates:' . $k, 'success') : btn($label, 'rates:' . $k, 'primary');
+        }
+        return ikb([$tabs, [btn('🔄 بروزرسانی', 'rates:refresh:' . $view, 'danger')]]);
     }
 
     public static function pendingKeyboard(): array
@@ -149,12 +243,16 @@ final class Currency
 
     public static function onCallback(array $cq, string $data, string $imid): void
     {
-        $tg = App::tg();
+        $tg   = App::tg();
+        $view = preg_match('/^rates:(?:refresh:)?(fiat|gold|crypto)$/', $data, $m) === 1 ? $m[1] : 'fiat';
         if (self::rates() === null) {
             $tg->alert($cq, '⚠️ الان نتونستم نرخ‌ها رو بگیرم؛' . "\n" . 'یه‌کم دیگه امتحان کن.');
             return;
         }
-        Rich::editInline($imid, self::message(), self::keyboard());
-        $tg->answer($cq, $data === 'rates:refresh' ? '🔄 به‌روز شد' : null);
+        $r = Rich::editInline($imid, self::richMessage($view), self::keyboard($view));
+        if (empty($r['ok']) && stripos((string) ($r['description'] ?? ''), 'not modified') === false) {
+            Rich::editInline($imid, self::message(), self::keyboard($view));
+        }
+        $tg->answer($cq, str_starts_with($data, 'rates:refresh') ? '🔄 به‌روز شد' : null);
     }
 }
