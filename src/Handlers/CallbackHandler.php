@@ -71,6 +71,15 @@ final class CallbackHandler
             return;
         }
 
+        if (str_starts_with($data, 'rates:')) {
+            Currency::onCallback($cq, $data, $imid ?: null);
+            return;
+        }
+        if (str_starts_with($data, 'weather:')) {
+            Weather::onCallback($cq, $imid ?: null, $data);
+            return;
+        }
+
         if (!$imid) {
             self::privateButtons($cq, $data);
             return;
@@ -103,15 +112,6 @@ final class CallbackHandler
             Whisper::onCallback($cq, $data, $imid);
             return;
         }
-        if (str_starts_with($data, 'rates:')) {
-            Currency::onCallback($cq, $data, $imid);
-            return;
-        }
-        if (str_starts_with($data, 'weather:')) {
-            Weather::onCallback($cq, $imid, $data);
-            return;
-        }
-
         $owner = Store::get('owner', $imid);
         if ($owner === null) {
             Store::set('owner', $imid, $uid);
