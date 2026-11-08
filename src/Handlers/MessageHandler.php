@@ -169,6 +169,10 @@ final class MessageHandler
         }
 
         switch ($cmd) {
+            case 'forget':
+                UserMemory::clear((int) $from['id']);
+                $tg->reply($msg, '✅ همه‌ی چیزهایی که ازت یادم بود پاک شد.');
+                return true;
             case 'start':
                 if ($private) {
                     $missing = Membership::missing((int) $from['id']);

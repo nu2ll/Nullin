@@ -409,7 +409,7 @@ final class Assistant
         $tg->action($chatId, 'typing');
         Users::hit($chatType === 'private' ? 'ai:private' : 'ai:group');
 
-        $ctx = ['user_name' => $service ? '' : userName($from), 'service' => $service, 'chat_type' => $chatType];
+        $ctx = ['user_name' => $service ? '' : userName($from), 'user_id' => $userId, 'service' => $service, 'chat_type' => $chatType];
         if (in_array($chatType, ['group', 'supergroup'], true)) {
             $info              = self::chatInfo($chatId);
             $ctx['chat_title'] = $info['title'];
@@ -602,7 +602,7 @@ final class Assistant
         $text    = (string) $rec['q'];
         $content = $media ? array_merge($media, [['type' => 'text', 'text' => $text]]) : $text;
 
-        $ctx = ['user_name' => $service ? '' : userName($cq['from'] ?? []), 'service' => $service, 'chat_type' => $chatType];
+        $ctx = ['user_name' => $service ? '' : userName($cq['from'] ?? []), 'user_id' => (int) ($cq['from']['id'] ?? 0), 'service' => $service, 'chat_type' => $chatType];
         if (in_array($chatType, ['group', 'supergroup'], true)) {
             $info              = self::chatInfo($chatId);
             $ctx['chat_title'] = $info['title'];
@@ -759,7 +759,7 @@ final class Assistant
             $text    = (string) $rec['q'] . $note;
             $content = $media ? array_merge($media, [['type' => 'text', 'text' => $text]]) : $text;
 
-            $ctx = ['user_name' => $service ? '' : userName($cq['from'] ?? []), 'service' => $service, 'chat_type' => $chatType];
+            $ctx = ['user_name' => $service ? '' : userName($cq['from'] ?? []), 'user_id' => (int) ($cq['from']['id'] ?? 0), 'service' => $service, 'chat_type' => $chatType];
             if (in_array($chatType, ['group', 'supergroup'], true)) {
                 $info              = self::chatInfo($chatId);
                 $ctx['chat_title'] = $info['title'];

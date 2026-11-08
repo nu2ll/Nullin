@@ -207,7 +207,7 @@ final class InlineHandler
             Downloader::guest($from, $link, $imid);
             return true;
         }
-        $ctx  = ['user_name' => userName($from), 'chat_type' => 'guest'];
+        $ctx  = ['user_name' => userName($from), 'user_id' => (int) ($from['id'] ?? 0), 'chat_type' => 'guest'];
         $live = App::cfg('ai_stream', true) ? new LiveReply(['chat' => ['id' => 0, 'type' => 'inline'], 'message_id' => 0], $imid, self::aiHead($q), false) : null;
         $live?->watch();
         $opt  = ['reaction' => false] + ($live ? ['on_text' => $live->feed(...)] : []);
@@ -255,7 +255,7 @@ final class InlineHandler
         if ($kind === 'ai') {
             $live   = App::cfg('ai_stream', true) ? new LiveReply(['chat' => ['id' => 0, 'type' => 'inline'], 'message_id' => 0], $imid, self::aiHead($q), false) : null;
             $live?->watch();
-            $res    = AI::reply($q, ['user_name' => $name, 'chat_type' => 'inline'], [], ['reaction' => false] + ($live ? ['on_text' => $live->feed(...)] : []));
+            $res    = AI::reply($q, ['user_name' => $name, 'user_id' => $uid, 'chat_type' => 'inline'], [], ['reaction' => false] + ($live ? ['on_text' => $live->feed(...)] : []));
             $live?->stop();
             $answer = $res['answer'] ?? AI::FAIL_TEXT;
             if ($res['answer'] === null) {

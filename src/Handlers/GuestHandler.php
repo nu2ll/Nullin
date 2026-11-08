@@ -85,7 +85,7 @@ final class GuestHandler
         $body    = trim(implode("\n", $notes) . ($q !== '' ? "\n\n{$q}" : ''));
         $content = $parts ? array_merge($parts, [['type' => 'text', 'text' => $body ?: 'سلام']]) : ($body ?: 'سلام');
 
-        $ctx  = ['user_name' => userName($from), 'chat_type' => 'guest'];
+        $ctx  = ['user_name' => userName($from), 'user_id' => (int) ($from['id'] ?? 0), 'chat_type' => 'guest'];
         $live = $imid !== null && App::cfg('ai_stream', true) ? new LiveReply($msg, $imid, '', false) : null;
         $live?->watch();
         $opt  = ['reaction' => false] + ($live ? ['on_text' => $live->feed(...)] : []);

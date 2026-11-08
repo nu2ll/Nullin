@@ -369,7 +369,7 @@ final class AnswerButtons
         }
         $done = false;
         try {
-            $ctx = ['user_name' => userName($cq['from'] ?? []), 'chat_type' => 'guest'];
+            $ctx = ['user_name' => userName($cq['from'] ?? []), 'user_id' => (int) ($cq['from']['id'] ?? 0), 'chat_type' => 'guest'];
             if ($retry) {
                 $q   = (string) $rec['q'];
                 $opt = ['max_len' => PHP_INT_MAX, 'reaction' => false] + ($live && App::cfg('ai_stream', true) ? ['on_text' => $live->feed(...)] : []);

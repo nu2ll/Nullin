@@ -315,9 +315,14 @@ final class FreeAI
         if ($tav) {
             $payload['tools'] = [['type' => 'function', 'function' => WebSearch::declaration()]];
         }
+        $memUid   = (int) ($opt['memory_uid'] ?? 0);
+        $mem      = $prov === 'groq' && $memUid > 0;
+        if ($mem) {
+            $payload['tools'] = array_merge($payload['tools'] ?? [], UserMemory::tools('openai'));
+        }
         $orig     = $payload['messages'];
         $rounds   = 0;
-        $cap      = $prov === 'groq' ? ($search || $tav ? 20 : 10) : (int) ($opt['per_try'] ?? 45);
+        $cap      = $prov === 'groq' ? ($search || $tav || $mem ? 20 : 10) : (int) ($opt['per_try'] ?? 45);
         $url      = self::PROVIDERS[$prov]['url'] . '/chat/completions';
         $n        = count($keys);
         $start    = random_int(0, $n - 1);
@@ -333,7 +338,7 @@ final class FreeAI
             if (self::isCooling($prov, $model, $keys[$idx])) {
                 continue;
             }
-            if ($tav && $rounds >= WebSearch::MAX_ROUNDS) {
+            if (($tav || $mem) && $rounds >= WebSearch::MAX_ROUNDS) {
                 $payload['tool_choice'] = 'none';
             }
             $r   = $prov !== 'groq' && is_callable($opt['stream'] ?? null)
@@ -343,12 +348,19 @@ final class FreeAI
             AI::noteKey($prov, $keys[$idx], (int) $r['code']);
             if ($r['code'] === 200 && $r['data'] !== null) {
                 $msg = $r['data']['choices'][0]['message'] ?? [];
-                if ($tav && $rounds < WebSearch::MAX_ROUNDS && !empty($msg['tool_calls'])) {
+                if (($tav || $mem) && $rounds < WebSearch::MAX_ROUNDS && !empty($msg['tool_calls'])) {
                     $rounds++;
                     $payload['messages'][] = ['role' => 'assistant', 'content' => (string) ($msg['content'] ?? ''), 'tool_calls' => $msg['tool_calls']];
                     foreach ((array) $msg['tool_calls'] as $tc) {
-                        $args                  = json_decode((string) ($tc['function']['arguments'] ?? ''), true);
-                        $payload['messages'][] = ['role' => 'tool', 'tool_call_id' => (string) ($tc['id'] ?? ''), 'content' => WebSearch::run((string) (is_array($args) ? ($args['query'] ?? '') : ''), $deadline)];
+                        $fname = (string) ($tc['function']['name'] ?? '');
+                        $args  = json_decode((string) ($tc['function']['arguments'] ?? ''), true);
+                        $args  = is_array($args) ? $args : [];
+                        if (UserMemory::isTool($fname)) {
+                            $res = $mem ? UserMemory::handle($memUid, $fname, $args) : 'error: memory is disabled';
+                        } else {
+                            $res = WebSearch::run((string) ($args['query'] ?? ''), $deadline);
+                        }
+                        $payload['messages'][] = ['role' => 'tool', 'tool_call_id' => (string) ($tc['id'] ?? ''), 'content' => $res];
                     }
                     $i--;
                     continue;
@@ -384,11 +396,12 @@ final class FreeAI
                 $i--;
                 continue;
             }
-            if (($search || $tav) && $r['code'] === 400 && preg_match('/tool|function/i', (string) $r['raw']) === 1) {
+            if (($search || $tav || $mem) && $r['code'] === 400 && preg_match('/tool|function/i', (string) $r['raw']) === 1) {
                 unset($payload['tools'], $payload['tool_choice']);
                 $payload['messages'] = $orig;
                 $search              = false;
                 $tav                 = false;
+                $mem                 = false;
                 $i--;
                 continue;
             }
