@@ -73,6 +73,10 @@ final class Intent
         if ($o === null) {
             return false;
         }
+        if (!empty($o['md'])) {
+            $r = Rich::sendMd($chat, $o['md'], $o['kb'] ?? null, (int) $msg['message_id']);
+            return !empty($r['ok']);
+        }
         if (!empty($o['live']) && $o['live']->finishHtml($o['text'])) {
             return true;
         }
@@ -146,10 +150,12 @@ final class Intent
                 if ($d === null) {
                     return ['text' => $arg === '' ? '🌦 اسم شهر رو هم بگو؛' . "\n" . 'مثلاً «هوای تهران چطوره؟»' : '❌ جایی به اسم «' . h($arg) . '» پیدا نکردم.'];
                 }
-                return ['text' => Weather::format($d)];
+                $hash = substr(md5(mb_strtolower($arg)), 0, 16);
+                Store::set('weather_pending', $hash, $arg);
+                return ['text' => Weather::format($d), 'md' => Weather::richFormat($d), 'kb' => Weather::keyboard($hash)];
 
             case 'rates':
-                return ['text' => Currency::message()];
+                return ['text' => Currency::message(), 'md' => Currency::richMessage('fiat'), 'kb' => Currency::keyboard('fiat')];
 
             case 'font':
                 return $arg === '' ? null : ['text' => Fonts::listText($arg)];

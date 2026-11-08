@@ -28,7 +28,7 @@ final class Currency
         '💠 اتریوم'    => 'crypto-ethereum',
         '🟡 بایننس'    => 'crypto-binance-coin',
         '🟣 سولانا'    => 'crypto-solana',
-        '💎 تون‌کوین'  => 'crypto-toncoin',
+        '💎 گرام'       => 'crypto-toncoin',
         '⚪ ریپل'      => 'crypto-ripple',
         '🔴 ترون'      => 'crypto-tron',
         '🐕 دوج‌کوین'  => 'crypto-dogecoin',
@@ -244,7 +244,7 @@ final class Currency
         return ikb([[btn('📊 نمایش نرخ‌ها', 'rates:show', 'success')]]);
     }
 
-    public static function onCallback(array $cq, string $data, string $imid): void
+    public static function onCallback(array $cq, string $data, ?string $imid): void
     {
         $tg   = App::tg();
         $view = preg_match('/^rates:(?:refresh:)?(fiat|gold|crypto)$/', $data, $m) === 1 ? $m[1] : 'fiat';
@@ -252,7 +252,7 @@ final class Currency
             $tg->alert($cq, '⚠️ الان نتونستم نرخ‌ها رو بگیرم؛' . "\n" . 'یه‌کم دیگه امتحان کن.');
             return;
         }
-        Rich::editInlineMd($imid, self::richMessage($view), self::keyboard($view));
+        Rich::editCbMd($cq, $imid, self::richMessage($view), self::keyboard($view));
         $tg->answer($cq, str_starts_with($data, 'rates:refresh') ? '🔄 به‌روز شد' : null);
     }
 }

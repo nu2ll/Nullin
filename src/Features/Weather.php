@@ -249,10 +249,11 @@ final class Weather
         return ikb([$tabs, [btn('🔄 بروزرسانی', 'weather:refresh:' . $view . $sfx, 'danger')]]);
     }
 
-    public static function onCallback(array $cq, string $imid, string $data = ''): void
+    public static function onCallback(array $cq, ?string $imid, string $data = ''): void
     {
         $tg      = App::tg();
-        $city    = Store::get('weather', $imid);
+        $key     = $imid ?? ((int) ($cq['message']['chat']['id'] ?? 0) . ':' . (int) ($cq['message']['message_id'] ?? 0));
+        $city    = Store::get('weather', $key);
         $matched = preg_match('/^weather:(now|days|refresh)(?::(now|days))?(?::(\w{16}))?$/', $data, $m) === 1;
         $hash    = $matched ? ($m[3] ?? '') : '';
         $refresh = $matched && $m[1] === 'refresh';
@@ -260,7 +261,7 @@ final class Weather
         if ((!is_string($city) || $city === '') && $hash !== '') {
             $city = Store::get('weather_pending', $hash);
             if (is_string($city) && $city !== '') {
-                Store::set('weather', $imid, $city);
+                Store::set('weather', $key, $city);
             }
         }
         if (!is_string($city) || $city === '') {
@@ -273,7 +274,7 @@ final class Weather
             return;
         }
         $kb = self::keyboard($hash !== '' ? $hash : substr(md5(mb_strtolower($city)), 0, 16), $view);
-        Rich::editInlineMd($imid, self::richFormat($data, $view), $kb);
+        Rich::editCbMd($cq, $imid, self::richFormat($data, $view), $kb);
         $tg->answer($cq, $refresh ? '🔄 به‌روز شد' : null);
     }
 }

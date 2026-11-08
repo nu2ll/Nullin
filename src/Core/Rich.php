@@ -50,12 +50,38 @@ final class Rich
     private static function mdPayload(string $md, ?array $kb): array
     {
         $btn = self::buttonsHtml($kb);
-        return ['markdown' => self::markdown($md) . ($btn !== '' ? "\n\n" . $btn : '')];
+        return ['markdown' => self::markdown($md) . ($btn !== '' ? "\n\n" . $btn : ''), 'is_rtl' => true];
     }
 
     public static function inlineContentMd(string $md, ?array $kb = null): array
     {
         return ['rich_message' => self::mdPayload($md, $kb)];
+    }
+
+    public static function editMdMsg(int|string $chatId, int $mid, string $md, ?array $kb = null): ?array
+    {
+        return App::tg()->call('editMessageText', ['chat_id' => $chatId, 'message_id' => $mid, 'rich_message' => self::mdPayload($md, $kb)], 10);
+    }
+
+    public static function editCbMd(array $cq, ?string $imid, string $md, ?array $kb = null): ?array
+    {
+        if ($imid !== null) {
+            return self::editInlineMd($imid, $md, $kb);
+        }
+        return self::editMdMsg($cq['message']['chat']['id'], (int) $cq['message']['message_id'], $md, $kb);
+    }
+
+    public static function sendMd(int|string $chatId, string $md, ?array $kb = null, ?int $replyTo = null): ?array
+    {
+        $r = App::tg()->call('sendRichMessage', [
+            'chat_id'          => $chatId,
+            'rich_message'     => self::mdPayload($md, $kb),
+            'reply_parameters' => $replyTo ? ['message_id' => $replyTo, 'allow_sending_without_reply' => true] : null,
+        ], 10);
+        if (!empty($r['ok']) && !empty($r['result']['message_id'])) {
+            self::mark((int) ($r['result']['chat']['id'] ?? $chatId), (int) $r['result']['message_id']);
+        }
+        return $r;
     }
 
     public static function editInlineMd(string $inlineId, string $md, ?array $kb = null): ?array

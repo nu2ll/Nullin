@@ -214,6 +214,10 @@ final class GuestHandler
             self::send($qid, $o['text'], $o['kb'] ?? null);
             return;
         }
+        if (!empty($o['md'])) {
+            Rich::editInlineMd($imid, $o['md'], $o['kb'] ?? null);
+            return;
+        }
         if (!empty($o['photo']) && is_string($o['photo']) && str_starts_with($o['photo'], 'https://')) {
             $o['photo'] = self::photoId($o['photo']) ?? $o['photo'];   // لینک → file_id؛ اگه نشد همون لینک (رفتار قبلی)
         }

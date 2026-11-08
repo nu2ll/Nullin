@@ -26,7 +26,7 @@ final class PriceCard
         'eth'  => ['crypto-ethereum', ['اتر', 'اتریوم', 'eth', 'ethereum'], 'اتریوم', 'واحد', 'Ξ', 'usd'],
         'bnb'  => ['crypto-binance-coin', ['بایننس', 'بایننس کوین', 'bnb', 'binance'], 'بایننس کوین', 'واحد', 'BNB', 'usd'],
         'sol'  => ['crypto-solana', ['سول', 'سولانا', 'sol', 'solana'], 'سولانا', 'واحد', 'SOL', 'usd'],
-        'ton'  => ['crypto-toncoin', ['تون کوین', 'تونکوین', 'toncoin'], 'تون‌کوین', 'واحد', 'TON', 'usd'],
+        'ton'  => ['crypto-toncoin', ['گرام', 'گرام کوین', 'گرامکوین', 'gram', 'gram coin', 'تون', 'تون کوین', 'تونکوین', 'ton', 'toncoin'], 'گرام', 'واحد', 'GRAM', 'usd'],
         'xrp'  => ['crypto-ripple', ['ریپل', 'xrp', 'ripple'], 'ریپل', 'واحد', 'XRP', 'usd'],
         'trx'  => ['crypto-tron', ['ترون', 'trx', 'tron'], 'ترون', 'واحد', 'TRX', 'usd'],
         'doge' => ['crypto-dogecoin', ['دوج', 'دوج کوین', 'دوجکوین', 'doge', 'dogecoin'], 'دوج‌کوین', 'واحد', 'Ð', 'usd'],
