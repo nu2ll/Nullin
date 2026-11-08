@@ -54,6 +54,10 @@ final class CallbackHandler
             VoicePick::onCallback($cq, $data);
             return;
         }
+        if (str_starts_with($data, 'mem:')) {
+            UserMemory::onCallback($cq, $data);
+            return;
+        }
 
         if (!$imid) {
             self::privateButtons($cq, $data);

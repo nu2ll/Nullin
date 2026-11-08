@@ -170,8 +170,20 @@ final class MessageHandler
 
         switch ($cmd) {
             case 'forget':
-                UserMemory::clear((int) $from['id']);
-                $tg->reply($msg, '✅ همه‌ی چیزهایی که ازت یادم بود پاک شد.');
+                $count = count(UserMemory::all((int) $from['id']));
+                if ($count === 0) {
+                    $tg->reply($msg, 'هنوز چیزی ازت تو حافظه‌م نیست 🤷');
+                    return true;
+                }
+                Rich::replyTo($msg, "🧹 <b>پاک کردن حافظه</b>\n\n"
+                    . "الان <b>" . fa((string) $count) . " مورد</b> درباره‌ات یادمه؛\n"
+                    . "اگه پاکشون کنم،\n"
+                    . "از اول باهم آشنا می‌شیم.\n\n"
+                    . "⚠️ <i>این کار برگشت نداره.</i>\n"
+                    . "مطمئنی؟", ikb([[
+                    btn('🗑 آره، پاک کن', 'mem:' . (int) $from['id'] . ':y', 'danger'),
+                    btn('↩️ نه، بمونه', 'mem:' . (int) $from['id'] . ':n', 'success'),
+                ]]));
                 return true;
             case 'start':
                 if ($private) {

@@ -7,7 +7,7 @@
  */
 final class UserMemory
 {
-    private const MAX_ITEMS = 40;
+    private const MAX_ITEMS = 200;
     private const MAX_LEN   = 300;
 
     private static function key($userId): string
@@ -158,5 +158,31 @@ final class UserMemory
         }
 
         return 'error: unknown tool';
+    }
+
+    /** دکمه‌های تأیید /forget: mem:<آیدی کاربر>:y|n */
+    public static function onCallback(array $cq, string $data): void
+    {
+        $tg  = App::tg();
+        $m   = $cq['message'] ?? null;
+        $uid = (int) ($cq['from']['id'] ?? 0);
+
+        if (!is_array($m) || !isset($m['chat']['id'], $m['message_id']) || !preg_match('/^mem:(\d+):(y|n)$/', $data, $x)) {
+            $tg->answer($cq);
+            return;
+        }
+        if ((int) $x[1] !== $uid) {
+            $tg->answer($cq, 'این دکمه مال تو نیست 🙂');
+            return;
+        }
+
+        if ($x[2] === 'y') {
+            self::clear($uid);
+            $tg->answer($cq, '✅ پاک شد');
+            Rich::edit((int) $m['chat']['id'], (int) $m['message_id'], "✅ <b>پاک شد</b>\nحافظه‌م درباره‌ات خالی شد؛\nاز اول باهم آشنا می‌شیم 🙂");
+            return;
+        }
+        $tg->answer($cq);
+        Rich::edit((int) $m['chat']['id'], (int) $m['message_id'], "👌 باشه، چیزی پاک نشد\nهمه‌چی سر جاشه.");
     }
 }

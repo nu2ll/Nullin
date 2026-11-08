@@ -391,6 +391,7 @@ final class Ui
             $c('start', '🏠 شروع'),
             $c('help', '📘 راهنما'),
             $c('voice', '🎙 انتخاب صدای نالین'),
+            $c('forget', '🧹 پاک کردن حافظه‌ی نالین'),
             $c('ping', '🏓 پینگ'),
         ];
         foreach ([['img', '🎨 ساخت عکس'], ['tr', '🌐 ترجمه'], ['ft', '✨ فونت‌ساز'], ['gw', '🎁 قرعه‌کشی'], ['wk', '📖 ویکی‌پدیا'], ['st', '🛡 ردیاب اشتراک']] as [$cmd, $desc]) {
@@ -482,6 +483,7 @@ final class Ui
         'linkcheck' => '🛡 ردیاب اشتراک',
         'games'     => '🎮 بازی‌ها',
         'group'     => '👥 در گروه',
+        'memory'    => '🧠 حافظه‌ی نالین',
     ];
 
     public static function guide(string $key): string
@@ -581,6 +583,17 @@ final class Ui
                 . "برای چند نفر هم می‌شه فرستاد؛\n"
                 . "یوزرنیم یا آیدی‌ها رو پشت هم بنویس.",
 
+            'memory' => "<b>🧠 حافظه‌ی نالین</b>\n"
+                . "چیزای مهم درباره‌ات رو یادم می‌مونه؛\n"
+                . "مثل اسم، شهر یا کارت،\n"
+                . "تو پیوی، گروه و هر چتی که صدام کنی.\n\n"
+                . "• بگو «یادت بمونه ...» تا ذخیره کنم\n"
+                . "• بگو «فلان رو فراموش کن»\n"
+                . "تا اون مورد پاک بشه\n"
+                . "• دستور:\n<code>/forget</code>\n\n"
+                . "💡 /forget همه‌ی چیزایی که\n"
+                . "ازت یادمه رو پاک می‌کنه.",
+
             'weather' => "<b>🌦 آب‌وهوا</b>\n"
                 . "وضعیت هوا و پیش‌بینی دو روز آینده‌ی هر شهری.\n\n"
                 . "• " . $c('hv tehran') . "\n"
@@ -671,7 +684,7 @@ final class Ui
 
     private const HELP_LAYOUT = [
         1 => [['ai', 'image'], ['translate', 'search'], ['whisper', 'linkcheck'], ['font', 'download'], ['giveaway', 'wiki']],
-        2 => [['weather', 'calc'], ['qr', 'short'], ['love', 'group'], ['like', 'unit'], ['roast', 'nid'], ['funstat', 'games']],
+        2 => [['weather', 'calc'], ['qr', 'short'], ['love', 'group'], ['like', 'unit'], ['roast', 'nid'], ['funstat', 'games'], ['memory']],
     ];
 
     public static function helpPage(string $key): int
@@ -722,6 +735,9 @@ final class Ui
 
     public static function guideKeyboard(string $key, bool $private): array
     {
+        if ($key === 'memory') {
+            return ikb([[btn('🔙 راهنما', 'help:p2', null)]]);
+        }
         $try = self::tryButton($key);
         if ($private && $key === 'giveaway') {
             $try = btn('🎁 بساز', 'gw:new', 'primary');
