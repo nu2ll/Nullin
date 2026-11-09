@@ -41,7 +41,7 @@ final class InlineHandler
                 'results'         => [],
                 'cache_time'      => 0,
                 'is_personal'     => true,
-                'button'          => ['text' => '🔒 اول عضو کانال نالین شو', 'start_parameter' => 'join'],
+                'button'          => ['text' => '🔒 اول عضو کانال/گروه نالین شو', 'start_parameter' => 'join'],
             ]);
             return;
         }

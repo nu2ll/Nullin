@@ -50,12 +50,17 @@ final class Giveaway
             self::askPrize($chat, $uid, $t);
             return;
         }
-        $text = "🎁 <b>ساخت قرعه‌کشی</b>\n\n"
-            . "🎯 قرعه‌کشی کجا برگزار بشه؟\n"
-            . "از دکمه‌ها کانال یا گروهت رو انتخاب کن،\nیا آیدیش رو بفرست.";
-        $a = Rich::send($chat, $text, self::cancelKeyboard());
+        $a = Rich::send($chat, self::targetText($uid), self::cancelKeyboard());
         $k = $tg->send($chat, '👇', ['reply_markup' => self::targetKeyboard()]);
         Store::set('gw_wiz', (string) $uid, ['step' => 'target', 'g' => [], 'm' => (int) ($a['result']['message_id'] ?? 0), 'k' => (int) ($k['result']['message_id'] ?? 0)]);
+    }
+
+    private static function targetText(int $uid): string
+    {
+        $head = "🎁 <b>ساخت قرعه‌کشی</b>\n\n🎯 قرعه‌کشی کجا برگزار بشه؟\n";
+        return Store::get('gw_known', (string) $uid)
+            ? $head . "از دکمه‌ها کانال یا گروهت رو انتخاب کن،\nیا آیدی جدیدی بفرست."
+            : $head . 'آیدی کانال یا گروهت رو بفرست.';
     }
 
     private static function cancelKeyboard(): array
@@ -245,13 +250,18 @@ final class Giveaway
             } elseif (preg_match('/^-\d{6,}$/', en($text))) {
                 $target = (int) en($text);
             }
+            if (!empty($msg['message_id'])) {
+                $tg->call('deleteMessage', ['chat_id' => $chat, 'message_id' => (int) $msg['message_id']], 8);
+            }
             if ($target === null) {
-                self::put($chat, (int) ($w['m'] ?? 0), "👆 از دکمه‌ها کانال یا گروهت رو انتخاب کن،\nیا آیدیش رو بفرست.", self::cancelKeyboard());
+                $w['m'] = self::put($chat, (int) ($w['m'] ?? 0), self::targetText($uid), self::cancelKeyboard());
+                Store::set('gw_wiz', (string) $uid, $w);
                 return true;
             }
             $t = self::checkTarget($uid, $target);
             if (isset($t['error'])) {
-                self::put($chat, (int) ($w['m'] ?? 0), $t['error'], self::cancelKeyboard());
+                $w['m'] = self::put($chat, (int) ($w['m'] ?? 0), $t['error'], self::cancelKeyboard());
+                Store::set('gw_wiz', (string) $uid, $w);
                 return true;
             }
             self::askPrize($chat, $uid, $t);
@@ -346,6 +356,7 @@ final class Giveaway
 
     private static function askPrize(int|string $chat, int $uid, array $t): void
     {
+        Store::set('gw_known', (string) $uid, 1);
         $old = Store::getToday('gw_wiz', (string) $uid);
         if (is_array($old)) {
             foreach (['m', 'k'] as $f) {
