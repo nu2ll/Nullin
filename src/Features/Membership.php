@@ -77,23 +77,28 @@ final class Membership
      * Sends the join prompt, first deleting the previous join prompt this user got
      * in this chat, so there is only ever one join message on screen.
      */
-    public static function prompt(int|string $chatId, int $userId, array $missing, ?int $replyTo = null, string $for = ''): void
+    public static function prompt(int|string $chatId, int $userId, array $missing, ?int $replyTo = null, string $for = '', int $trigger = 0): void
     {
         $key = $chatId . ':' . $userId;
         self::clearPrompt($chatId, $userId);
         $r   = Rich::sendHtml($chatId, self::text($for), $replyTo, self::keyboard($missing));
         $mid = (int) ($r['result']['message_id'] ?? 0);
         if ($mid > 0) {
-            Store::set('join_msg', $key, $mid);
+            Store::set('join_msg', $key, ['p' => $mid, 't' => $trigger]);
         }
     }
 
     public static function clearPrompt(int|string $chatId, int $userId): void
     {
         $key = $chatId . ':' . $userId;
-        $old = (int) Store::get('join_msg', $key, 0);
-        if ($old > 0) {
-            App::tg()->call('deleteMessage', ['chat_id' => $chatId, 'message_id' => $old], 8);
+        $old = Store::get('join_msg', $key);
+        if (is_array($old)) {
+            // the join prompt itself, plus the user's own message that triggered it (private chats only)
+            foreach ([(int) ($old['p'] ?? 0), (int) ($old['t'] ?? 0)] as $id) {
+                if ($id > 0) {
+                    App::tg()->call('deleteMessage', ['chat_id' => $chatId, 'message_id' => $id], 8);
+                }
+            }
         }
         Store::delete('join_msg', $key);
     }

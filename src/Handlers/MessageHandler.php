@@ -101,7 +101,7 @@ final class MessageHandler
         if ($private) {
             $missing = Membership::missing($userId);
             if ($missing) {
-                Membership::prompt($msg['chat']['id'], $userId, $missing);
+                Membership::prompt($msg['chat']['id'], $userId, $missing, null, '', (int) ($msg['message_id'] ?? 0));
                 return;
             }
         } elseif ($group && !is_array($msg['dice'] ?? null) && empty($msg['is_automatic_forward']) && Membership::gateGroup($msg, $link !== null ? 'download' : '')) {
@@ -243,7 +243,7 @@ final class MessageHandler
         if ($private) {
             $missing = Membership::missing((int) $from['id']);
             if ($missing) {
-                Membership::prompt($chatId, (int) $from['id'], $missing);
+                Membership::prompt($chatId, (int) $from['id'], $missing, null, '', (int) ($msg['message_id'] ?? 0));
                 return true;
             }
         }
