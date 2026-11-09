@@ -83,6 +83,15 @@ final class Giveaway
         }
     }
 
+    private static function resend(int|string $chat, int $mid, string $text, ?array $kb = null): int
+    {
+        if ($mid) {
+            App::tg()->call('deleteMessage', ['chat_id' => $chat, 'message_id' => $mid], 8);
+        }
+        $r = Rich::send($chat, $text, $kb);
+        return (int) ($r['result']['message_id'] ?? 0);
+    }
+
     private static function put(int|string $chat, int $mid, string $text, ?array $kb = null): int
     {
         $tg = App::tg();
@@ -254,13 +263,13 @@ final class Giveaway
                 $tg->call('deleteMessage', ['chat_id' => $chat, 'message_id' => (int) $msg['message_id']], 8);
             }
             if ($target === null) {
-                $w['m'] = self::put($chat, (int) ($w['m'] ?? 0), self::targetText($uid), self::cancelKeyboard());
+                $w['m'] = self::resend($chat, (int) ($w['m'] ?? 0), self::targetText($uid), self::cancelKeyboard());
                 Store::set('gw_wiz', (string) $uid, $w);
                 return true;
             }
             $t = self::checkTarget($uid, $target);
             if (isset($t['error'])) {
-                $w['m'] = self::put($chat, (int) ($w['m'] ?? 0), $t['error'], self::cancelKeyboard());
+                $w['m'] = self::resend($chat, (int) ($w['m'] ?? 0), $t['error'], self::cancelKeyboard());
                 Store::set('gw_wiz', (string) $uid, $w);
                 return true;
             }
