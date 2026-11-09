@@ -55,10 +55,10 @@ return [
         'branch' => env('DATA_BRANCH', 'data'),
     ],
 
-    // REQUIRED_CHANNELS: comma separated. Each item can be a channel/group:
+    // REQUIRED_CHATS: comma separated. Each item can be a channel/group:
     //   @username                      (public channel or group)
     //   -100123456789|https://t.me/+invite|Title   (private group/channel: id|link|title)
-    'required_channels' => env('REQUIRED_CHANNELS', '@NullHubs') === '-' ? [] : array_map(
+    'required_chats' => env('REQUIRED_CHATS', '@NullHubs') === '-' ? [] : array_map(
         static function (string $c): array {
             $p  = array_map('trim', explode('|', trim($c)));
             $id = $p[0];
@@ -68,7 +68,7 @@ return [
             $u = ltrim($id, '@');
             return ['title' => $p[2] ?? $u, 'chat_id' => '@' . $u, 'url' => $p[1] ?? ('https://t.me/' . $u)];
         },
-        envList('REQUIRED_CHANNELS', ['@NullHubs'])
+        envList('REQUIRED_CHATS', ['@NullHubs'])
     ),
 
     'creator_name'     => env('CREATOR_NAME', 'Arown'),

@@ -28,7 +28,7 @@ final class CallbackHandler
             if ($missing) {
                 $tg->alert($cq, '⏳ هنوز عضو نشدی! اول عضو شو بعد دکمه رو بزن.');
                 if (($cq['message']['chat']['type'] ?? '') === 'private') {
-                    Rich::sendHtml($cq['message']['chat']['id'], Membership::text(), null, Membership::keyboard($missing));
+                    Membership::prompt($cq['message']['chat']['id'], $uid, $missing);
                 }
                 return;
             }
@@ -81,6 +81,16 @@ final class CallbackHandler
         }
         if (str_starts_with($data, 'weather:')) {
             Weather::onCallback($cq, $imid ?: null, $data);
+            return;
+        }
+
+        if ($imid && $data === 'joincheck') {
+            if (Membership::missing($uid)) {
+                $tg->alert($cq, '⏳ هنوز عضو نشدی! اول عضو شو بعد دکمه رو بزن.');
+                return;
+            }
+            Rich::editInline($imid, "✅ <b>عضو شدی!</b>\n\nحالا دوباره نالین رو صدا بزن 😉", null);
+            $tg->answer($cq, '✅ خوش اومدی!');
             return;
         }
 
@@ -181,6 +191,7 @@ final class CallbackHandler
                 $tg->alert($cq, '⏳ هنوز عضو نشدی! اول عضو شو بعد دکمه رو بزن.');
                 return;
             }
+            Membership::clearPrompt($chatId, (int) $cq['from']['id']);
             $tg->call('deleteMessage', ['chat_id' => $chatId, 'message_id' => $msgId], 8);
             if (($cq['message']['chat']['type'] ?? '') === 'private') {
                 Ui::sendMain($chatId, $cq['from']);

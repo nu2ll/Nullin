@@ -101,10 +101,10 @@ final class MessageHandler
         if ($private) {
             $missing = Membership::missing($userId);
             if ($missing) {
-                Rich::sendHtml($msg['chat']['id'], Membership::text(), null, Membership::keyboard($missing));
+                Membership::prompt($msg['chat']['id'], $userId, $missing);
                 return;
             }
-        } elseif ($group && empty($msg['is_automatic_forward']) && Membership::gateGroup($msg)) {
+        } elseif ($group && !is_array($msg['dice'] ?? null) && empty($msg['is_automatic_forward']) && Membership::gateGroup($msg, $link !== null ? 'download' : '')) {
             return;
         }
 
@@ -240,6 +240,13 @@ final class MessageHandler
         if (!$private && Membership::gateGroup($msg)) {
             return true;
         }
+        if ($private) {
+            $missing = Membership::missing((int) $from['id']);
+            if ($missing) {
+                Membership::prompt($chatId, (int) $from['id'], $missing);
+                return true;
+            }
+        }
         Users::hit("cmd:{$cmd}");
 
         $gate = ['wk' => 'wiki', 'wiki' => 'wiki', 'giveaway' => 'giveaway', 'gw' => 'giveaway', 'image' => 'image', 'img' => 'image', 'font' => 'font', 'ft' => 'font', 'tr' => 'translate', 'translate' => 'translate', 'st' => 'linkcheck', 'monshi' => 'business'][$cmd] ?? null;
@@ -263,13 +270,6 @@ final class MessageHandler
                 ]]));
                 return true;
             case 'start':
-                if ($private) {
-                    $missing = Membership::missing((int) $from['id']);
-                    if ($missing) {
-                        Rich::sendHtml($chatId, Membership::text(), null, Membership::keyboard($missing));
-                        return true;
-                    }
-                }
                 if (str_starts_with($args, 'gw_') || $args === 'giveaway') {
                     if ($private) {
                         Giveaway::start($msg, $args);

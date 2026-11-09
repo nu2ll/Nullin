@@ -38,6 +38,13 @@ final class Kernel
     {
         App::useBot((int) ($update['_bot'] ?? 0));
         try {
+            $svc = $update['message'] ?? $update['channel_post'] ?? null;
+            if (is_array($svc) && isset($svc['new_chat_title'], $svc['chat'])) {
+                Membership::onTitle($svc['chat'], (string) $svc['new_chat_title']);
+            }
+            if (isset($update['channel_post'])) {
+                return;
+            }
             if (Ban::block($update)) {
                 return;
             }

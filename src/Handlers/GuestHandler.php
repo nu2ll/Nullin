@@ -17,7 +17,7 @@ final class GuestHandler
 
         $missing = Membership::missing((int) ($from['id'] ?? 0));
         if ($missing) {
-            self::send($qid, Membership::text(), Membership::keyboard($missing, false));
+            self::send($qid, Membership::text(), Membership::keyboard($missing));
             return;
         }
 
