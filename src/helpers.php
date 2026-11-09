@@ -34,6 +34,12 @@ function bidi(string $text): string
     return "\u{2068}{$text}\u{2069}";
 }
 
+function dirMark(string $text): string
+{
+    $first = preg_match('/\p{L}/u', $text, $m) ? $m[0] : '';
+    return ($first === '' || preg_match('/[\p{Arabic}\p{Hebrew}\p{Thaana}\p{Syriac}\p{Nko}\p{Samaritan}\p{Mandaic}]/u', $first)) ? "\u{200F}" : "\u{200E}";
+}
+
 function userName(array $from): string
 {
     $name = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? ''));

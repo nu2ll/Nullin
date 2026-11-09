@@ -10,7 +10,7 @@
 final class Cookies
 {
     private const NS   = 'ck_wait';
-    private const TTL  = 1800;
+    private const TTL  = 120;
     private const NAME = 'cookies.txt';
     private const MAX  = 2 * 1048576;
 
@@ -48,6 +48,11 @@ final class Cookies
         if ($old && !empty($old['m'])) {
             self::del($chat, (int) $old['m']);
         }
+        $other = Store::get('bc_wait', (string) $uid);
+        if (is_array($other) && !empty($other['m'])) {
+            self::del($chat, (int) $other['m']);
+        }
+        Store::delete('bc_wait', (string) $uid);
         $r   = App::tg()->send($chat, '🍪', ['reply_markup' => self::keyboard()]);
         $mid = (int) ($r['result']['message_id'] ?? 0);
         Store::set(self::NS, (string) $uid, ['m' => $mid, 'at' => time()]);

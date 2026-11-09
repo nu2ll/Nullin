@@ -483,7 +483,7 @@ final class Downloader
             $bot = App::botUsername();
             App::tg()->call('sendMessage', [
                 'chat_id'              => $job['chat'],
-                'text'                 => '🎶 <b>' . h(mb_substr($job['title'], 0, 300)) . "</b>\n" . ($job['uploader'] !== '' ? '👤 ' . h($job['uploader']) . "\n" : '') . "\n📥 <a href=\"https://t.me/{$bot}\">@{$bot}</a>",
+                'text'                 => ($d = dirMark($job['title'])) . '🎶 <b>' . h(mb_substr($job['title'], 0, 300)) . "</b>\n" . ($job['uploader'] !== '' ? $d . '👤 ' . bidi(h($job['uploader'])) . "\n" : '') . "\n" . $d . "📥 <a href=\"https://t.me/{$bot}\">@{$bot}</a>",
                 'parse_mode'           => 'HTML',
                 'link_preview_options' => ['is_disabled' => true],
             ], 20);
@@ -2019,9 +2019,10 @@ final class Downloader
     private static function caption(array $job, bool $long = false): string
     {
         $bot = App::botUsername();
-        $head = '🎬 <b>' . h(mb_substr($job['title'], 0, $long ? 3500 : 800)) . "</b>\n"
-            . ($job['uploader'] !== '' ? '👤 ' . h($job['uploader']) . "\n" : '');
-        return $head . "\n📥 <a href=\"https://t.me/{$bot}\">@{$bot}</a>";
+        $d    = dirMark($job['title']);
+        $head = $d . '🎬 <b>' . h(mb_substr($job['title'], 0, $long ? 3500 : 800)) . "</b>\n"
+            . ($job['uploader'] !== '' ? $d . '👤 ' . bidi(h($job['uploader'])) . "\n" : '');
+        return $head . "\n" . $d . "📥 <a href=\"https://t.me/{$bot}\">@{$bot}</a>";
     }
 
     private static function fileName(array $job, string $ext): string

@@ -42,6 +42,10 @@ final class CallbackHandler
             Cookies::onCallback($cq, $data);
             return;
         }
+        if (str_starts_with($data, 'bc:')) {
+            Broadcast::onCallback($cq, $data);
+            return;
+        }
         if (str_starts_with($data, 'gw:')) {
             Giveaway::onCallback($cq, $data);
             return;

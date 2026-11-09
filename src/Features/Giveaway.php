@@ -50,9 +50,17 @@ final class Giveaway
             self::askPrize($chat, $uid, $t);
             return;
         }
+        $old = Store::getToday('gw_wiz', (string) $uid);
+        if (is_array($old)) {
+            foreach (['c', 'm', 'k'] as $f) {
+                if (!empty($old[$f])) {
+                    $tg->call('deleteMessage', ['chat_id' => $chat, 'message_id' => (int) $old[$f]], 8);
+                }
+            }
+        }
         $a = Rich::send($chat, self::targetText($uid), self::cancelKeyboard());
         $k = $tg->send($chat, '👇', ['reply_markup' => self::targetKeyboard()]);
-        Store::set('gw_wiz', (string) $uid, ['step' => 'target', 'g' => [], 'm' => (int) ($a['result']['message_id'] ?? 0), 'k' => (int) ($k['result']['message_id'] ?? 0)]);
+        Store::set('gw_wiz', (string) $uid, ['step' => 'target', 'g' => [], 'c' => (int) ($msg['message_id'] ?? 0), 'm' => (int) ($a['result']['message_id'] ?? 0), 'k' => (int) ($k['result']['message_id'] ?? 0)]);
     }
 
     private static function targetText(int $uid): string
@@ -377,7 +385,7 @@ final class Giveaway
         $r = App::tg()->send($chat, ($t['type'] === 'channel' ? '📢' : '👥') . ' مقصد: <b>' . h($t['title']) . "</b>\n\n"
             . "🏆 <b>جایزه چیه؟</b>\n"
             . "بنویسش؛\nمثلاً: <code>۳ ماه تلگرام پریمیوم</code>", ['reply_markup' => ['remove_keyboard' => true]]);
-        Store::set('gw_wiz', (string) $uid, ['step' => 'prize', 'g' => ['chat' => $t], 'm' => (int) ($r['result']['message_id'] ?? 0)]);
+        Store::set('gw_wiz', (string) $uid, ['step' => 'prize', 'g' => ['chat' => $t], 'c' => (int) ($old['c'] ?? 0), 'm' => (int) ($r['result']['message_id'] ?? 0)]);
     }
 
     private static function winnersKeyboard(): array

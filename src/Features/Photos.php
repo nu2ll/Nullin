@@ -89,9 +89,10 @@ final class Photos
     {
         $info = GalleryDl::supports($link['site']) ? GalleryDl::info($link['url']) : self::$info;
         $bot  = App::botUsername();
-        $head = (($info['title'] ?? '') !== '' ? '🖼 <b>' . h((string) $info['title']) . "</b>\n" : '')
-            . (($info['uploader'] ?? '') !== '' ? '👤 ' . h((string) $info['uploader']) . "\n" : '');
-        return $head . ($head !== '' ? "\n" : '') . "📥 <a href=\"https://t.me/{$bot}\">@{$bot}</a>";
+        $d    = dirMark((string) (($info['title'] ?? '') !== '' ? $info['title'] : ($info['uploader'] ?? '')));
+        $head = (($info['title'] ?? '') !== '' ? $d . '🖼 <b>' . h((string) $info['title']) . "</b>\n" : '')
+            . (($info['uploader'] ?? '') !== '' ? $d . '👤 ' . bidi(h((string) $info['uploader'])) . "\n" : '');
+        return $head . ($head !== '' ? "\n" : '') . $d . "📥 <a href=\"https://t.me/{$bot}\">@{$bot}</a>";
     }
 
     private static function collect(string $site, string $url, int $max): array

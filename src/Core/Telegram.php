@@ -31,6 +31,13 @@ final class Telegram
 
     public function call(string $method, array $params = [], int $timeout = 20): ?array
     {
+        $r = $this->request($method, $params, $timeout);
+        MessageHandler::tidySeen($method, $params, $r);
+        return $r;
+    }
+
+    private function request(string $method, array $params, int $timeout): ?array
+    {
         if ($this->premium && ($alt = Premium::apply($method, $params)) !== null) {
             $r = $this->exec($method, $alt, $timeout);
             if ($r === null || !empty($r['ok']) || !preg_match('/emoji|entit|icon|button/i', (string) ($r['description'] ?? ''))) {

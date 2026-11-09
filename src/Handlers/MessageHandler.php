@@ -3,6 +3,10 @@
 final class MessageHandler
 {
     private const TRIGGER = '(?:نالینی|نالین|nullini|nullin)';
+    private const TIDY_SKIP = ['cookies', 'broadcast', 'giveaway', 'gw'];
+    private const TIDY_SEND = '/^send(Message|RichMessage|Photo|Video|Animation|Document|Audio|Voice|Sticker|Poll|Dice|MediaGroup)$/';
+
+    private static ?array $tidy = null;
 
     public static function handle(array $msg): void
     {
@@ -30,11 +34,14 @@ final class MessageHandler
             Roast::see($msg['reply_to_message']['from']);
         }
 
-        if ($text !== '' && $text[0] === '/' && self::command($msg, $text, $private)) {
+        if ($text !== '' && $text[0] === '/' && self::tidy($msg, $text, $private, static fn() => self::command($msg, $text, $private))) {
             return;
         }
 
         if ($private && Cookies::input($msg)) {
+            return;
+        }
+        if ($private && Broadcast::input($msg)) {
             return;
         }
         if ($private && Giveaway::input($msg)) {
@@ -146,6 +153,78 @@ final class MessageHandler
     {
         $r = $msg['reply_to_message']['from'] ?? null;
         return $r && !empty($r['is_bot']) && strcasecmp((string) ($r['username'] ?? ''), App::botUsername()) === 0;
+    }
+
+    private static function tidy(array $msg, string $text, bool $private, callable $fn): bool
+    {
+        self::$tidy = null;
+        try {
+            if (preg_match('/^\/([a-zA-Z_]+)(?:@(\w+))?(?:\s+(.*))?$/su', $text, $m) === 1) {
+                $cmd  = strtolower($m[1]);
+                $to   = $m[2] ?? '';
+                $args = trim($m[3] ?? '');
+                $skip = in_array($cmd, self::TIDY_SKIP, true) || ($cmd === 'start' && $args !== '');
+                if (!$skip && ($to === '' || strcasecmp($to, App::botUsername()) === 0)) {
+                    self::tidyBegin($msg, $cmd, $private);
+                }
+            }
+            return $fn();
+        } finally {
+            self::$tidy = null;
+        }
+    }
+
+    private static function tidyBegin(array $msg, string $cmd, bool $private): void
+    {
+        $chat = $msg['chat']['id'];
+        $uid  = (int) ($msg['from']['id'] ?? 0);
+        if (!$uid || (!$private && !self::tidyCanDelete($chat))) {
+            return;
+        }
+        $key = "{$chat}:{$uid}:{$cmd}";
+        $old = Store::get('tidy', $key);
+        if (is_array($old)) {
+            $ids = array_merge([(int) ($old['c'] ?? 0)], array_map('intval', (array) ($old['m'] ?? [])));
+            foreach (array_unique(array_filter($ids)) as $id) {
+                App::tg()->call('deleteMessage', ['chat_id' => $chat, 'message_id' => $id], 8);
+            }
+        }
+        Store::set('tidy', $key, ['c' => (int) ($msg['message_id'] ?? 0), 'm' => []]);
+        self::$tidy = ['chat' => (string) $chat, 'key' => $key];
+    }
+
+    private static function tidyCanDelete(int|string $chat): bool
+    {
+        return (bool) Store::remember('tidy_perm', (string) $chat, 120, static function () use ($chat) {
+            $r = App::tg()->call('getChatMember', ['chat_id' => $chat, 'user_id' => (int) strstr(App::tg()->token(), ':', true)], 10);
+            if (empty($r['ok'])) {
+                return null;
+            }
+            $st = (string) ($r['result']['status'] ?? '');
+            return $st === 'creator' || ($st === 'administrator' && !empty($r['result']['can_delete_messages']));
+        });
+    }
+
+    public static function tidySeen(string $method, array $params, ?array $res): void
+    {
+        if (self::$tidy === null || empty($res['ok']) || preg_match(self::TIDY_SEND, $method) !== 1) {
+            return;
+        }
+        if ((string) ($params['chat_id'] ?? '') !== self::$tidy['chat']) {
+            return;
+        }
+        $r   = $res['result'] ?? [];
+        $ids = isset($r['message_id'])
+            ? [(int) $r['message_id']]
+            : array_map(static fn($x) => (int) ($x['message_id'] ?? 0), is_array($r) ? array_values($r) : []);
+        $ids = array_values(array_filter($ids));
+        if (!$ids) {
+            return;
+        }
+        $w = Store::get('tidy', self::$tidy['key']);
+        $w = is_array($w) ? $w : ['c' => 0, 'm' => []];
+        $w['m'] = array_slice(array_merge((array) ($w['m'] ?? []), $ids), -10);
+        Store::set('tidy', self::$tidy['key'], $w);
     }
 
     private static function command(array $msg, string $text, bool $private): bool
@@ -380,32 +459,10 @@ final class MessageHandler
                 return true;
 
             case 'broadcast':
-                if (!App::isAdmin((int) $from['id'])) {
+                if (!$private || !App::isAdmin((int) $from['id'])) {
                     return false;
                 }
-                $src = $msg['reply_to_message'] ?? null;
-                if (!$src) {
-                    $tg->reply($msg, "روی پیامی که می‌خوای برای همه بره ریپلای کن\nو /broadcast بزن.");
-                    return true;
-                }
-                $st   = $tg->reply($msg, '📣 ارسال شروع شد...');
-                $stId = (int) ($st['result']['message_id'] ?? 0);
-                $ok   = 0;
-                $fail = 0;
-                Users::eachReachable(static function (int $id) use ($tg, $chatId, $src, &$ok, &$fail) {
-                    $r = $tg->call('copyMessage', ['chat_id' => $id, 'from_chat_id' => $chatId, 'message_id' => $src['message_id']], 10);
-                    if (!empty($r['ok'])) {
-                        $ok++;
-                    } else {
-                        $fail++;
-                        if ((int) ($r['error_code'] ?? 0) === 403) {
-                            Users::markBlocked($id);
-                        }
-                    }
-                    usleep(40000);
-                });
-                $done = '✅ تموم شد. موفق: ' . fa($ok) . ' · ناموفق: ' . fa($fail);
-                $stId ? Rich::editMsg($chatId, $stId, $done) : $tg->reply($msg, $done);
+                Broadcast::command($msg);
                 return true;
         }
         return false;
