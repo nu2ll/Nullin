@@ -163,46 +163,48 @@ final class MessageHandler
                 $cmd  = strtolower($m[1]);
                 $to   = $m[2] ?? '';
                 $args = trim($m[3] ?? '');
+                $uid  = (int) ($msg['from']['id'] ?? 0);
                 $skip = in_array($cmd, self::TIDY_SKIP, true) || ($cmd === 'start' && $args !== '');
-                if (!$skip && ($to === '' || strcasecmp($to, App::botUsername()) === 0)) {
-                    self::tidyBegin($msg, $cmd, $private);
+                if ($uid && !$skip && ($to === '' || strcasecmp($to, App::botUsername()) === 0)) {
+                    self::$tidy = ['chat' => (string) $msg['chat']['id'], 'key' => "{$msg['chat']['id']}:{$uid}:{$cmd}", 'new' => []];
                 }
             }
-            return $fn();
+            $handled = $fn();
+            if ($handled && self::$tidy !== null) {
+                self::tidyFinish($msg, $private);
+            }
+            return $handled;
         } finally {
             self::$tidy = null;
         }
     }
 
-    private static function tidyBegin(array $msg, string $cmd, bool $private): void
+    private static function tidyFinish(array $msg, bool $private): void
     {
-        $chat = $msg['chat']['id'];
-        $uid  = (int) ($msg['from']['id'] ?? 0);
-        if (!$uid || (!$private && !self::tidyCanDelete($chat))) {
+        $t          = self::$tidy;
+        self::$tidy = null;
+        $chat       = $msg['chat']['id'];
+        if (!$private && !self::tidyCanDelete($chat)) {
             return;
         }
-        $key = "{$chat}:{$uid}:{$cmd}";
-        $old = Store::get('tidy', $key);
+        $old = Store::get('tidy', $t['key']);
         if (is_array($old)) {
             $ids = array_merge([(int) ($old['c'] ?? 0)], array_map('intval', (array) ($old['m'] ?? [])));
             foreach (array_unique(array_filter($ids)) as $id) {
                 App::tg()->call('deleteMessage', ['chat_id' => $chat, 'message_id' => $id], 8);
             }
         }
-        Store::set('tidy', $key, ['c' => (int) ($msg['message_id'] ?? 0), 'm' => []]);
-        self::$tidy = ['chat' => (string) $chat, 'key' => $key];
+        Store::set('tidy', $t['key'], ['c' => (int) ($msg['message_id'] ?? 0), 'm' => array_slice($t['new'], -10)]);
     }
 
     private static function tidyCanDelete(int|string $chat): bool
     {
-        return (bool) Store::remember('tidy_perm', (string) $chat, 120, static function () use ($chat) {
-            $r = App::tg()->call('getChatMember', ['chat_id' => $chat, 'user_id' => (int) strstr(App::tg()->token(), ':', true)], 10);
-            if (empty($r['ok'])) {
-                return null;
-            }
-            $st = (string) ($r['result']['status'] ?? '');
-            return $st === 'creator' || ($st === 'administrator' && !empty($r['result']['can_delete_messages']));
-        });
+        $r = App::tg()->call('getChatMember', ['chat_id' => $chat, 'user_id' => (int) strstr(App::tg()->token(), ':', true)], 10);
+        if (empty($r['ok'])) {
+            return false;
+        }
+        $st = (string) ($r['result']['status'] ?? '');
+        return $st === 'creator' || ($st === 'administrator' && !empty($r['result']['can_delete_messages']));
     }
 
     public static function tidySeen(string $method, array $params, ?array $res): void
@@ -217,14 +219,7 @@ final class MessageHandler
         $ids = isset($r['message_id'])
             ? [(int) $r['message_id']]
             : array_map(static fn($x) => (int) ($x['message_id'] ?? 0), is_array($r) ? array_values($r) : []);
-        $ids = array_values(array_filter($ids));
-        if (!$ids) {
-            return;
-        }
-        $w = Store::get('tidy', self::$tidy['key']);
-        $w = is_array($w) ? $w : ['c' => 0, 'm' => []];
-        $w['m'] = array_slice(array_merge((array) ($w['m'] ?? []), $ids), -10);
-        Store::set('tidy', self::$tidy['key'], $w);
+        self::$tidy['new'] = array_merge(self::$tidy['new'], array_values(array_filter($ids)));
     }
 
     private static function command(array $msg, string $text, bool $private): bool

@@ -19,6 +19,18 @@ final class Broadcast
         return $w;
     }
 
+    public static function sweep(): void
+    {
+        $rows = Db::run('SELECT k, v FROM kv WHERE ns = ? AND updated_at < ?', [self::NS, time() - self::TTL])->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $row) {
+            $w = json_decode((string) $row['v'], true);
+            if (is_array($w) && !empty($w['m'])) {
+                self::del((int) $row['k'], (int) $w['m']);
+            }
+            Store::delete(self::NS, (string) $row['k']);
+        }
+    }
+
     private static function del(int|string $chat, ?int $mid): void
     {
         if ($mid) {
