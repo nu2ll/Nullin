@@ -70,7 +70,7 @@ final class Topics
 
     /**
      * کاربر تو General (بدون تاپیک) پیام داده ولی ربات Threaded Mode داره: ربات خودش با اسمِ ساخته‌شده توسط مدل
-     * تاپیک می‌سازه و بقیه‌ی این آپدیت (جواب، حافظه، حباب) تو همون تاپیک انجام می‌شه.
+     * تاپیک می‌سازه و بقیه‌ی این آپدیت (جواب، حافظه، حباب) تو همون تاپیک انجام می‌شه. پیام کاربر تو تاپیک تکرار نمی‌شه.
      */
     public static function adopt(array $msg, string $question): bool
     {
@@ -85,7 +85,6 @@ final class Topics
         }
         App::setThread($chat, $thread, true);
         Store::set('topics', $chat . '_' . $thread, ['name' => (string) ($r['result']['name'] ?? ''), 'auto' => false, 'named' => true, 'own' => true, 'at' => time()]);
-        App::tg()->send($chat, '<blockquote>' . h(mb_substr(trim($question), 0, 300)) . '</blockquote>');
         return true;
     }
 
@@ -99,18 +98,16 @@ final class Topics
         $chat = (int) $msg['chat']['id'];
         $key  = $chat . '_' . $thread;
         $rec  = Store::get('topics', $key);
-        // تلگرام خودش تاپیکِ تازه رو با متن اولین پیام اسم می‌ذاره؛ اون اسم هم «اسم خودکار» حساب می‌شه
-        $mine = is_array($rec) && self::isFirstMessageName((string) ($rec['name'] ?? ''), $question);
         if (is_array($rec)) {
-            if ((empty($rec['auto']) && !$mine) || !empty($rec['named'])) {
+            if (empty($rec['auto']) || !empty($rec['named'])) {
                 return;
             }
         } elseif ((int) ($msg['message_id'] ?? 0) - $thread > 3) {
             return;
         }
-        $claimed = Store::update('topics', $key, static function ($r) use ($mine) {
+        $claimed = Store::update('topics', $key, static function ($r) {
             $r = is_array($r) ? $r : [];
-            if (!empty($r['named']) || (isset($r['auto']) && !$r['auto'] && !$mine)) {
+            if (!empty($r['named']) || (isset($r['auto']) && !$r['auto'])) {
                 return null;
             }
             return ['named' => true, 'auto' => false, 'at' => time()] + $r;
@@ -122,18 +119,30 @@ final class Topics
         App::tg()->call('editForumTopic', ['chat_id' => $chat, 'message_thread_id' => $thread, 'name' => $name], 10);
     }
 
-    /** اسم تاپیک همون متن (یا ابتدای متن) اولین پیام کاربره؟ (تلگرام اسم رو تا ۱۲۸ کاراکتر می‌بُره) */
-    private static function isFirstMessageName(string $name, string $question): bool
-    {
-        $norm = static fn(string $t): string => mb_strtolower(trim(preg_replace('/\s+/u', ' ', rtrim(trim($t), '.…')) ?? $t));
-        $n = $norm($name);
-        $q = $norm($question);
-        return $n !== '' && $q !== '' && (str_starts_with($q, $n) || str_starts_with($n, $q));
-    }
-
     private static function fallbackName(string $question): string
     {
         return '💬';
+    }
+
+    /** جواب خامِ مدل رو به یه اسمِ تمیز تبدیل می‌کنه: فقط یه خط، بدون برچسب، مارک‌داون، نقل‌قول و علامتِ آخر جمله */
+    private static function cleanTitle(string $text): string
+    {
+        $text = preg_replace('~<(think|thinking|reasoning)>.*?</\1>~isu', '', $text) ?? $text;
+        $text = preg_replace('/```[a-z]*/iu', '', $text) ?? $text;
+        $line = '';
+        foreach (preg_split('/\R/u', $text) ?: [] as $l) {
+            $l = trim($l);
+            if ($l !== '') {
+                $line = $l;
+                break;
+            }
+        }
+        $quote = '"\'«»“”„‟‘’‚‹›`´';
+        $line  = preg_replace('/^(?:title|topic|name|chat\s*title|chat\s*name|عنوان|موضوع|اسم)\s*[:：]\s*/iu', '', $line) ?? $line;
+        $line  = preg_replace('/^(?:[#>\-+•·▪◦]+|\d+[.)])\s+/u', '', $line) ?? $line;
+        $line  = str_replace(['**', '__', '~~', '`'], '', $line);
+        $line  = preg_replace('/^[\s' . $quote . '*_#~|\[\]<>]+|[\s' . $quote . '*_#~|\[\]<>.!?،؛؟:;,…。！？—–-]+$/u', '', $line) ?? $line;
+        return trim($line);
     }
 
     private static function title(string $question): string
@@ -141,13 +150,13 @@ final class Topics
         $text = AI::chat([
             ['role' => 'system', 'content' => implode("\n", [
                 'You name a chat topic. Reply with ONE line only: a single fitting emoji, a space, then a very short title (2-4 words).',
-                "Write the title in the same language as the user's message. No quotes, no markdown, no trailing punctuation, at most 36 characters in total.",
+                "Write the title in the same language as the user's message.",
+                'At most 36 characters in total.',
             ])],
             ['role' => 'user', 'content' => "User: " . mb_substr($question, 0, 400)],
         ], ['tier' => 'lite', 'temperature' => 0.3, 'thinking' => null, 'section' => 'topic', 'deadline' => microtime(true) + 60]);
 
-        $line = $text !== null ? trim(strtok(trim($text), "\n") ?: '') : '';
-        $line = trim($line, " \t\"'«»*`_#");
+        $line = self::cleanTitle((string) $text);
         if ($line === '') {
             return self::fallbackName($question);
         }
