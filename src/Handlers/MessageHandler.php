@@ -269,13 +269,6 @@ final class MessageHandler
         }
 
         switch ($cmd) {
-            case 'new':
-            case 'newtopic':
-                if ($private) {
-                    Topics::create($msg);
-                    return true;
-                }
-                return false;
             case 'forget':
                 $count = count(UserMemory::all((int) $from['id']));
                 if ($count === 0) {

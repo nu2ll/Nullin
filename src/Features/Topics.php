@@ -5,7 +5,6 @@
  *
  * هر تاپیک یه گفتگوی جدا با نالینه (حافظه‌ی مکالمه‌اش از بقیه‌ی تاپیک‌ها جداست):
  *   • کلاینت تلگرام وقتی کاربر تو «تاپیک جدید» پیام می‌نویسه، خودش تاپیک می‌سازه و پیام با message_thread_id میاد
- *   • اگه کاربر تو «General» (بدون تاپیک) پیام بده و ربات Threaded Mode داشته باشه، ربات خودش تاپیک می‌سازه
  *   • اسم تاپیکِ تازه بعد از اولین جواب، خودکار با یه عنوان کوتاه + ایموجی عوض می‌شه (editForumTopic)
  *
  * چطور کار می‌کنه: Kernel::handle برای هر آپدیتِ پی‌وی، تاپیک جاری رو تو App ثبت می‌کنه (App::setThread).
@@ -16,8 +15,6 @@
  */
 final class Topics
 {
-    private const GENERIC = '/^(?:new\s*(?:topic|thread|chat)|topic|thread|general|chat|untitled|تاپیک جدید|گفتگوی جدید|گفت‌وگوی جدید|چت جدید)$/iu';
-
     public static function on(): bool
     {
         return (bool) App::cfg('topics', true);
@@ -52,7 +49,7 @@ final class Topics
         }
     }
 
-    /** پیام سرویسی «تاپیک ساخته شد»؛ اسمِ پیش‌فرض/خالی یعنی بعد از اولین جواب اسم خودکار بذار */
+    /** پیام سرویسی «تاپیک ساخته شد»؛ اسمِ خالی یعنی بعد از اولین جواب اسم خودکار بذار */
     public static function created(array $msg): bool
     {
         $ft = $msg['forum_topic_created'] ?? null;
@@ -64,7 +61,7 @@ final class Topics
             $name = trim((string) ($ft['name'] ?? ''));
             Store::set('topics', $msg['chat']['id'] . '_' . $thread, [
                 'name' => $name,
-                'auto' => $name === '' || preg_match(self::GENERIC, $name) === 1,
+                'auto' => $name === '',
                 'at'   => time(),
             ]);
         }
@@ -72,52 +69,28 @@ final class Topics
     }
 
     /**
-     * کاربر تو General (بدون تاپیک) پیام داده ولی ربات Threaded Mode داره: یه تاپیک می‌سازیم و بقیه‌ی
-     * این آپدیت (جواب، حافظه، حباب) تو همون تاپیک انجام می‌شه.
+     * کاربر تو General (بدون تاپیک) پیام داده ولی ربات Threaded Mode داره: ربات خودش با اسمِ ساخته‌شده توسط مدل
+     * تاپیک می‌سازه و بقیه‌ی این آپدیت (جواب، حافظه، حباب) تو همون تاپیک انجام می‌شه.
      */
     public static function adopt(array $msg, string $question): bool
     {
-        if (!App::cfg('topics_auto_create', true) || App::thread() > 0 || !self::enabled()) {
+        if (!App::cfg('topics_auto_create', true) || App::thread() > 0 || trim($question) === '' || !self::enabled()) {
             return false;
         }
-        $chat = (int) $msg['chat']['id'];
-        $r    = App::tg()->call('createForumTopic', [
-            'chat_id' => $chat,
-            'name'    => self::fallbackName($question),
-        ], 10);
+        $chat   = (int) $msg['chat']['id'];
+        $r      = App::tg()->call('createForumTopic', ['chat_id' => $chat, 'name' => self::title($question)], 10);
         $thread = (int) ($r['result']['message_thread_id'] ?? 0);
         if (empty($r['ok']) || $thread <= 0) {
             return false;
         }
         App::setThread($chat, $thread, true);
-        Store::set('topics', $chat . '_' . $thread, ['name' => (string) ($r['result']['name'] ?? ''), 'auto' => true, 'own' => true, 'at' => time()]);
-        if (trim($question) !== '') {
-            App::tg()->send($chat, '<blockquote>' . h(mb_substr(trim($question), 0, 300)) . '</blockquote>');
-        }
+        Store::set('topics', $chat . '_' . $thread, ['name' => (string) ($r['result']['name'] ?? ''), 'auto' => false, 'named' => true, 'own' => true, 'at' => time()]);
+        App::tg()->send($chat, '<blockquote>' . h(mb_substr(trim($question), 0, 300)) . '</blockquote>');
         return true;
     }
 
-    /** دستور /new: یه تاپیک خالی می‌سازه */
-    public static function create(array $msg): void
-    {
-        $chat = (int) $msg['chat']['id'];
-        if (!self::enabled()) {
-            App::tg()->reply($msg, "🧵 تاپیک‌ها برای این ربات روشن نیست.\n\nاز @BotFather ← Bot Settings ← <b>Threaded Mode</b> رو روشن کن.");
-            return;
-        }
-        $r      = App::tg()->call('createForumTopic', ['chat_id' => $chat, 'name' => '💬 گفتگوی جدید'], 10);
-        $thread = (int) ($r['result']['message_thread_id'] ?? 0);
-        if (empty($r['ok']) || $thread <= 0) {
-            App::tg()->reply($msg, '😕 نتونستم تاپیک بسازم؛ از خود تلگرام با «تاپیک جدید» بسازش.');
-            return;
-        }
-        Store::set('topics', $chat . '_' . $thread, ['name' => '💬 گفتگوی جدید', 'auto' => true, 'own' => true, 'at' => time()]);
-        App::setThread($chat, $thread, true);
-        App::tg()->send($chat, '🆕 <b>تاپیک جدید</b>' . "\n" . 'هرچی می‌خوای همین‌جا بپرس؛ حافظه‌ی این گفتگو از بقیه‌ی تاپیک‌ها جداست.');
-    }
-
     /** بعد از اولین جواب تو یه تاپیکِ تازه، اسمش رو با یه عنوان کوتاه + ایموجی عوض می‌کنه */
-    public static function nameAfter(array $msg, string $question, string $answer): void
+    public static function nameAfter(array $msg, string $question): void
     {
         $thread = App::thread();
         if ($thread <= 0 || !App::cfg('topics_autoname', true) || trim($question) === '') {
@@ -126,16 +99,18 @@ final class Topics
         $chat = (int) $msg['chat']['id'];
         $key  = $chat . '_' . $thread;
         $rec  = Store::get('topics', $key);
+        // تلگرام خودش تاپیکِ تازه رو با متن اولین پیام اسم می‌ذاره؛ اون اسم هم «اسم خودکار» حساب می‌شه
+        $mine = is_array($rec) && self::isFirstMessageName((string) ($rec['name'] ?? ''), $question);
         if (is_array($rec)) {
-            if (empty($rec['auto']) || !empty($rec['named'])) {
+            if ((empty($rec['auto']) && !$mine) || !empty($rec['named'])) {
                 return;
             }
         } elseif ((int) ($msg['message_id'] ?? 0) - $thread > 3) {
             return;
         }
-        $claimed = Store::update('topics', $key, static function ($r) {
+        $claimed = Store::update('topics', $key, static function ($r) use ($mine) {
             $r = is_array($r) ? $r : [];
-            if (!empty($r['named']) || (isset($r['auto']) && !$r['auto'])) {
+            if (!empty($r['named']) || (isset($r['auto']) && !$r['auto'] && !$mine)) {
                 return null;
             }
             return ['named' => true, 'auto' => false, 'at' => time()] + $r;
@@ -143,29 +118,37 @@ final class Topics
         if ($claimed === null) {
             return;
         }
-        $name = self::title($question, $answer);
+        $name = self::title($question);
         App::tg()->call('editForumTopic', ['chat_id' => $chat, 'message_thread_id' => $thread, 'name' => $name], 10);
+    }
+
+    /** اسم تاپیک همون متن (یا ابتدای متن) اولین پیام کاربره؟ (تلگرام اسم رو تا ۱۲۸ کاراکتر می‌بُره) */
+    private static function isFirstMessageName(string $name, string $question): bool
+    {
+        $norm = static fn(string $t): string => mb_strtolower(trim(preg_replace('/\s+/u', ' ', rtrim(trim($t), '.…')) ?? $t));
+        $n = $norm($name);
+        $q = $norm($question);
+        return $n !== '' && $q !== '' && (str_starts_with($q, $n) || str_starts_with($n, $q));
     }
 
     private static function fallbackName(string $question): string
     {
-        $q = trim(preg_replace('/\s+/u', ' ', $question) ?? $question);
-        return '💬 ' . ($q !== '' ? mb_substr($q, 0, 28) : 'گفتگوی جدید');
+        return '💬';
     }
 
-    private static function title(string $question, string $answer): string
+    private static function title(string $question): string
     {
         $text = AI::chat([
             ['role' => 'system', 'content' => implode("\n", [
                 'You name a chat topic. Reply with ONE line only: a single fitting emoji, a space, then a very short title (2-4 words).',
                 "Write the title in the same language as the user's message. No quotes, no markdown, no trailing punctuation, at most 36 characters in total.",
             ])],
-            ['role' => 'user', 'content' => "User: " . mb_substr($question, 0, 400) . "\nAssistant: " . mb_substr($answer, 0, 300)],
-        ], ['tier' => 'lite', 'temperature' => 0.3, 'thinking' => null, 'section' => 'topic', 'deadline' => microtime(true) + 12]);
+            ['role' => 'user', 'content' => "User: " . mb_substr($question, 0, 400)],
+        ], ['tier' => 'lite', 'temperature' => 0.3, 'thinking' => null, 'section' => 'topic', 'deadline' => microtime(true) + 60]);
 
         $line = $text !== null ? trim(strtok(trim($text), "\n") ?: '') : '';
         $line = trim($line, " \t\"'«»*`_#");
-        if ($line === '' || mb_strlen($line) < 3) {
+        if ($line === '') {
             return self::fallbackName($question);
         }
         return mb_substr($line, 0, 40);

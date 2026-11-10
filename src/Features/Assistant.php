@@ -408,9 +408,9 @@ final class Assistant
             return;
         }
 
-        // پیام تو General با ربات Threaded Mode: برای این گفتگو یه تاپیک جدید می‌سازیم
-        if ($chatType === 'private' && !$service && App::thread() === 0) {
-            Topics::adopt($msg, $question);
+        // پیام تو General: ربات تاپیک می‌سازه (با اسمِ مدل)؛ تاپیکِ تازه‌ی خود تلگرام: اسمش با مدل عوض می‌شه. هر دو قبل از شروع جواب
+        if ($chatType === 'private' && !$service && !Topics::adopt($msg, $question)) {
+            Topics::nameAfter($msg, $question);
         }
 
         $tg->action($chatId, 'typing');
@@ -593,10 +593,6 @@ final class Assistant
 
         if ($res['answer'] !== null && !$service && $chatType === 'private' && !App::isAdmin($userId)) {
             Store::set('rl', 'ai_' . $userId, time());
-        }
-
-        if ($res['answer'] !== null && !$service && $chatType === 'private') {
-            Topics::nameAfter($msg, $question, (string) $res['answer']);
         }
     }
 

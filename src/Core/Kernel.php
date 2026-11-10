@@ -60,7 +60,7 @@ final class Kernel
             } elseif (isset($update['callback_query'])) {
                 CallbackHandler::handle($update['callback_query']);
             } elseif (isset($update['stopped_message_generation'])) {
-                GenStop::onStopped($update['stopped_message_generation']);
+                LiveReply::onStopped($update['stopped_message_generation']);
             } elseif (isset($update['guest_message'])) {
                 GuestHandler::handle($update['guest_message']);
             } elseif (isset($update['my_chat_member'])) {

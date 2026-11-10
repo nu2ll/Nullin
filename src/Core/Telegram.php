@@ -4,7 +4,6 @@ final class Telegram
 {
     private string $base;
     private $ch = null;
-    private static bool $threadBroken = false;
 
     private const THREAD_METHODS = '/^(?:send(?:Message|RichMessage|MessageDraft|RichMessageDraft|Photo|Video|Animation|Document|Audio|Voice|VideoNote|Sticker|Poll|Dice|MediaGroup|Location|Venue|Contact|ChatAction|PaidMedia)|copyMessage|forwardMessage)$/';
 
@@ -36,12 +35,6 @@ final class Telegram
     {
         $params = $this->threaded($method, $params);
         $r      = $this->request($method, $params, $timeout);
-        if (isset($params['message_thread_id']) && empty($r['ok']) && preg_match('/thread.*not found|topic/i', (string) ($r['description'] ?? '')) === 1 && (int) $params['message_thread_id'] === App::thread()) {
-            // تلگرام تاپیک رو نمی‌شناسه: به‌جای گم‌شدن جواب، همون پیام تو چتِ اصلی فرستاده می‌شه
-            self::$threadBroken = true;
-            unset($params['message_thread_id']);
-            $r = $this->request($method, $params, $timeout);
-        }
         MessageHandler::tidySeen($method, $params, $r);
         return $r;
     }
@@ -50,7 +43,7 @@ final class Telegram
     private function threaded(string $method, array $params): array
     {
         $t = App::thread();
-        if ($t <= 0 || self::$threadBroken || isset($params['message_thread_id']) || !isset($params['chat_id'])
+        if ($t <= 0 || isset($params['message_thread_id']) || !isset($params['chat_id'])
             || (string) $params['chat_id'] !== (string) App::threadChat()
             || preg_match(self::THREAD_METHODS, $method) !== 1) {
             return $params;

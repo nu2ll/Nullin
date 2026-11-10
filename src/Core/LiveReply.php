@@ -24,6 +24,8 @@ final class LiveReply
     private bool $inTick  = false;
     private bool $typingOnly = false;
     private bool $stopped = false;
+    private static float $stopLast = 0.0;
+    private static bool $stopHit   = false;
 
     public function __construct(private array $msg, private ?string $imid = null, private string $head = '', private bool $reaction = true, private bool $status = false, private bool $hold = false)
     {
@@ -81,23 +83,23 @@ final class LiveReply
     public function releaseStop(): void
     {
         if ($this->draft && $this->draftId > 0) {
-            GenStop::reset($this->msg['chat']['id'], $this->draftId);
+            self::stopReset($this->msg['chat']['id'], $this->draftId);
         }
         Http::clearAbort();
     }
 
     private function armStop(): void
     {
-        if (!GenStop::enabled() || $this->draftId <= 0) {
+        if (!self::stopEnabled() || $this->draftId <= 0) {
             return;
         }
         $chat = $this->msg['chat']['id'];
         $did  = $this->draftId;
         $self = $this;
-        GenStop::reset($chat, $did);
+        self::stopReset($chat, $did);
         Http::$aborted = false;
         Http::$abort   = static function () use ($chat, $did, $self): bool {
-            if (GenStop::requested($chat, $did)) {
+            if (self::stopRequested($chat, $did)) {
                 $self->stopped = true;
                 return true;
             }
@@ -107,7 +109,64 @@ final class LiveReply
 
     private function stopOpts(bool $stoppable): array
     {
-        return $stoppable && GenStop::enabled() ? ['can_stop' => true, 'keep_on_stop' => true] : [];
+        return $stoppable && self::stopEnabled() ? ['can_stop' => true, 'keep_on_stop' => true] : [];
+    }
+
+    /*
+     * استاپ جنریشن (Bot API 10.3): حباب پیش‌نویس با can_stop فرستاده می‌شه و با زدن دکمه‌ی توقف آپدیت
+     * stopped_message_generation میاد. چون هر آپدیت تو یه پروسه‌ی جدا اجرا می‌شه، فلگ تو دیتابیس نگه داشته می‌شه:
+     *   Kernel::handle → LiveReply::onStopped()  ← فلگ رو می‌نویسه
+     *   پروسه‌ی تولید  → stopRequested()         ← هر ~۰.۳ ثانیه فلگ رو چک می‌کنه و curl رو قطع می‌کنه
+     */
+    private static function stopEnabled(): bool
+    {
+        return (bool) App::cfg('gen_stop', true);
+    }
+
+    private static function stopKey(int|string $chatId, int $draftId): string
+    {
+        return $chatId . '_' . $draftId;
+    }
+
+    /** آپدیت stopped_message_generation: { chat, draft_id, message_thread_id? } */
+    public static function onStopped(array $u): void
+    {
+        $chatId  = (int) ($u['chat']['id'] ?? 0);
+        $draftId = (int) ($u['draft_id'] ?? 0);
+        if ($chatId === 0 || $draftId === 0) {
+            return;
+        }
+        Store::set('gen_stop', self::stopKey($chatId, $draftId), ['at' => time(), 'thread' => (int) ($u['message_thread_id'] ?? 0)]);
+    }
+
+    private static function stopRequested(int|string $chatId, int $draftId): bool
+    {
+        if (self::$stopHit) {
+            return true;
+        }
+        $now = microtime(true);
+        if ($now - self::$stopLast < 0.3) {
+            return false;
+        }
+        self::$stopLast = $now;
+        try {
+            if (Store::get('gen_stop', self::stopKey($chatId, $draftId)) !== null) {
+                self::$stopHit = true;
+                return true;
+            }
+        } catch (Throwable) {
+        }
+        return false;
+    }
+
+    private static function stopReset(int|string $chatId, int $draftId): void
+    {
+        self::$stopHit  = false;
+        self::$stopLast = 0.0;
+        try {
+            Store::delete('gen_stop', self::stopKey($chatId, $draftId));
+        } catch (Throwable) {
+        }
     }
 
     private function arm(): void

@@ -785,7 +785,7 @@ final class AI
         $deadline = $opt['deadline'] ?? (microtime(true) + 60);
         $text     = self::chat($messages, [
             'tier'        => $opt['tier'] ?? 'smart',
-            'temperature' => 0.7,
+            'temperature' => 0.8,
             'deadline'    => $deadline,
             'thinking'    => self::geminiThinking(),
             'search'      => true,
@@ -796,7 +796,7 @@ final class AI
         ]);
         if ($text === null && ($opt['tier'] ?? 'smart') === 'smart' && self::hasTiers() && $deadline - microtime(true) > 5) {
             logWarn('ai', 'smart chain failed, retrying on lite');
-            $text = self::chat($messages, ['tier' => 'lite', 'temperature' => 0.7, 'deadline' => $deadline, 'thinking' => null, 'search' => true, 'force_search' => !empty($opt['force_search']), 'section' => 'chat', 'memory_uid' => $memUid, 'stream' => $opt['on_text'] ?? null]);
+            $text = self::chat($messages, ['tier' => 'lite', 'temperature' => 0.8, 'deadline' => $deadline, 'thinking' => null, 'search' => true, 'force_search' => !empty($opt['force_search']), 'section' => 'chat', 'memory_uid' => $memUid, 'stream' => $opt['on_text'] ?? null]);
         }
 
         $out = ['answer' => null, 'reaction' => null, 'image' => null, 'action' => null];
