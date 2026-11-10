@@ -20,16 +20,18 @@ final class Topics
         return (bool) App::cfg('topics', true);
     }
 
-    /** ربات تو BotFather حالت Threaded Mode داره؟ (کش ۱۰ دقیقه‌ای getMe) */
+    /** getMe بدون کش (هر بار از تلگرام می‌پرسه)؛ اگه جواب نده null */
+    private static function me(): ?array
+    {
+        $r = App::tg()->call('getMe');
+        return empty($r['ok']) ? null : (array) ($r['result'] ?? []);
+    }
+
+    /** ربات تو BotFather حالت Threaded Mode داره؟ (بدون کش) */
     public static function enabled(): bool
     {
-        if (!self::on()) {
-            return false;
-        }
-        return (bool) Store::remember('cache', 'topics_on_' . App::botIndex(), 600, static function () {
-            $me = App::tg()->call('getMe');
-            return empty($me['ok']) ? null : (bool) ($me['result']['has_topics_enabled'] ?? false);
-        });
+        $me = self::on() ? self::me() : null;
+        return $me !== null && !empty($me['has_topics_enabled']);
     }
 
     /** اول هر آپدیت صدا زده می‌شه: تاپیک جاری (اگه تو پی‌وی داخل تاپیکیم) رو تو App ثبت می‌کنه */
@@ -49,7 +51,7 @@ final class Topics
         }
     }
 
-    /** پیام سرویسی «تاپیک ساخته شد»؛ اسمِ خالی یعنی بعد از اولین جواب اسم خودکار بذار */
+    /** پیام سرویسی «تاپیک ساخته شد»؛ اسمِ خالی یا is_name_implicit (اسمی که تلگرام خودش گذاشته) یعنی بعد از اولین جواب اسم خودکار بذار */
     public static function created(array $msg): bool
     {
         $ft = $msg['forum_topic_created'] ?? null;
@@ -61,7 +63,7 @@ final class Topics
             $name = trim((string) ($ft['name'] ?? ''));
             Store::set('topics', $msg['chat']['id'] . '_' . $thread, [
                 'name' => $name,
-                'auto' => $name === '',
+                'auto' => $name === '' || !empty($ft['is_name_implicit']),
                 'at'   => time(),
             ]);
         }
@@ -74,7 +76,13 @@ final class Topics
      */
     public static function adopt(array $msg, string $question): bool
     {
-        if (!App::cfg('topics_auto_create', true) || App::thread() > 0 || trim($question) === '' || !self::enabled()) {
+        if (!App::cfg('topics_auto_create', true) || App::thread() > 0 || trim($question) === '' || !self::on()) {
+            return false;
+        }
+        // یه getMe بدون کش برای هر دو شرط: Threaded Mode خاموشه، یا «Disallow users to create new threads» روشنه
+        // (allows_users_to_create_topics تو جواب نیست/false) یا getMe جواب نداد → ربات تاپیک نمی‌سازه
+        $me = self::me();
+        if ($me === null || empty($me['has_topics_enabled']) || empty($me['allows_users_to_create_topics'])) {
             return false;
         }
         $chat   = (int) $msg['chat']['id'];
