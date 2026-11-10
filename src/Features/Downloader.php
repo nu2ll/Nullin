@@ -12,6 +12,8 @@ final class Downloader
     private const AUTO_DELAY = 30;
     private const MULTI    = ['instagram', 'pinterest', 'twitter', 'tiktok', 'reddit', 'facebook', 'snapchat'];
 
+    public const GENERIC_ERROR = "❌ نتونستم دانلودش کنم 😕\nاین لینک پشتیبانی نمی‌شه یا مشکلی داره.";
+
     private const SITES = [
         'youtube'     => ['یوتیوب', '/(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com)$/', true],
         'instagram'   => ['اینستاگرام', '/(^|\.)(instagram\.com|instagr\.am)$/', true],
@@ -24,6 +26,70 @@ final class Downloader
         'snapchat'    => ['اسنپ‌چت', '/(^|\.)snapchat\.com$/', true],
         'spotify'     => ['اسپاتیفای', '/(^|\.)(open\.spotify\.com|spotify\.link|spotify\.app\.link)$/', false],
     ];
+
+    /** برای تست: یه callable که جای درخواست واقعی شبکه می‌شینه */
+    public static $resolver = null;
+
+    /** لینک کوتاه/اشتراک‌گذاری خود پلتفرم‌ها (pin.it، vm.tiktok.com، redd.it، /share/ و...) که باید باز بشه */
+    private static function platformShort(string $site, string $rawHost, string $url): bool
+    {
+        $h    = preg_replace('/^(www|m|mobile)\./', '', $rawHost) ?? $rawHost;
+        $path = (string) parse_url($url, PHP_URL_PATH);
+        return match ($site) {
+            'pinterest'  => $h === 'pin.it',
+            'tiktok'     => str_starts_with($h, 'vm.') || str_starts_with($h, 'vt.') || preg_match('#^/t/\w+#', $path) === 1,
+            'soundcloud' => $h === 'snd.sc' || $h === 'on.soundcloud.com',
+            'reddit'     => $h === 'redd.it' || preg_match('#^/(?:r/[\w-]+/)?s/\w+#', $path) === 1,
+            'facebook'   => $h === 'fb.watch' || preg_match('#^/share/#', $path) === 1,
+            'instagram'  => preg_match('#^/share/#', $path) === 1,
+            'spotify'    => $h === 'spotify.link' || $h === 'spotify.app.link',
+            'snapchat'   => $h === 't.snapchat.com' || preg_match('#^/t/[\w-]+#', $path) === 1,
+            default      => false,
+        };
+    }
+
+    private static function isShortUrl(string $url): bool
+    {
+        $raw  = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $host = preg_replace('/^(www|m|mobile|vm|vt|music)\./', '', $raw) ?? $raw;
+        foreach (self::SITES as $key => [$name, $re]) {
+            if (preg_match($re, $host)) {
+                return self::platformShort($key, $raw, $url);
+            }
+        }
+        return false;
+    }
+
+    /** لینک کوتاه پلتفرم رو تا مقصد نهایی دنبال می‌کنه؛ اگه نشد null */
+    public static function resolveShort(string $url): ?string
+    {
+        static $cache = [];
+        if (array_key_exists($url, $cache)) {
+            return $cache[$url];
+        }
+        if (is_callable(self::$resolver)) {
+            return $cache[$url] = (self::$resolver)($url);
+        }
+        $final = null;
+        $cur   = $url;
+        for ($i = 0; $i < 4; $i++) {
+            $r   = Http::request('GET', $cur, ['follow' => false, 'max_bytes' => 2048, 'headers' => ['Accept: text/html,*/*']]);
+            $loc = (string) ($r['redirect'] ?? '');
+            if ($r['code'] < 300 || $r['code'] >= 400 || $loc === '') {
+                break;
+            }
+            if (!preg_match('#^https?://#i', $loc)) {
+                $b   = parse_url($cur);
+                $loc = ($b['scheme'] ?? 'https') . '://' . ($b['host'] ?? '') . ($loc[0] === '/' ? '' : '/') . $loc;
+            }
+            if (!self::isShortUrl($loc)) {
+                $final = $loc;
+                break;
+            }
+            $cur = $loc;
+        }
+        return $cache[$url] = $final;
+    }
 
     public static function mtproto(): bool
     {
@@ -101,7 +167,7 @@ final class Downloader
         return preg_match('#(?:instagram\.com|instagr\.am)/stories/#i', $text) === 1;
     }
 
-    public static function match(string $text): ?array
+    public static function match(string $text, int $depth = 0): ?array
     {
         $text = mbTrim($text);
         if (self::isIgStory($text)) {
@@ -117,10 +183,16 @@ final class Downloader
         if (!preg_match('#^https?://#i', $url)) {
             $url = 'https://' . $url;
         }
-        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
-        $host = preg_replace('/^(www|m|mobile|vm|vt|music)\./', '', $host) ?? $host;
+        $raw  = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $host = preg_replace('/^(www|m|mobile|vm|vt|music)\./', '', $raw) ?? $raw;
         foreach (self::SITES as $key => [$name, $re]) {
             if (preg_match($re, $host)) {
+                if ($depth < 2 && self::platformShort($key, $raw, $url) && ($final = self::resolveShort($url)) !== null) {
+                    return self::match($final, $depth + 1);
+                }
+                if (!self::isContentUrl($key, $raw, $url)) {
+                    return null;
+                }
                 if ($key === 'pinterest' && preg_match('#/pin/(?:[\w-]*?--)?(\d+)#', $url, $pm)) {
                     $url = 'https://www.pinterest.com/pin/' . $pm[1] . '/';
                 }
@@ -133,6 +205,90 @@ final class Downloader
         return null;
     }
 
+    private static function isContentUrl(string $site, string $host, string $url): bool
+    {
+        $host  = preg_replace('/^(?:www|m|mobile)\./', '', $host) ?? $host;
+        $path  = (string) parse_url($url, PHP_URL_PATH);
+        $query = (string) parse_url($url, PHP_URL_QUERY);
+        $segs  = array_values(array_filter(explode('/', $path), static fn($x) => $x !== ''));
+        $short = count($segs) === 1;
+        $hasV  = preg_match('/(?:^|&)v=\w/', $query) === 1;
+        return match ($site) {
+            'youtube'    => $host === 'youtu.be'
+                ? $short
+                : preg_match('#^/(?:shorts|live|embed|v|clip)/[\w-]+#', $path) === 1
+                    || ($path === '/watch' && preg_match('/(?:^|&)v=[\w-]+/', $query) === 1),
+            'instagram'  => preg_match('#^/(?:[\w.]+/)?(?:p|reel|tv)/[\w-]+#', $path) === 1
+                || preg_match('#^/reels/(?!audio\b)[\w-]+#', $path) === 1
+                || preg_match('#^/share/(?:(?:p|reel|reels|tv)/)?[\w-]+#', $path) === 1,
+            'tiktok'     => (str_starts_with($host, 'vm.') || str_starts_with($host, 'vt.'))
+                ? $short
+                : preg_match('#^/(?:@[^/]*/(?:video|photo)/\d+|t/\w+|v/\d+|video/\d+|embed/(?:v2/)?\d+)#', $path) === 1,
+            'twitter'    => preg_match('#^/(?:i/web/|i/)?(?:[\w]+/)?status(?:es)?/\d+#', $path) === 1
+                || preg_match('#^/i/(?:broadcasts|spaces)/\w+#', $path) === 1,
+            'soundcloud' => ($host === 'snd.sc' || $host === 'on.soundcloud.com')
+                ? $short
+                : (count($segs) >= 2
+                    && !in_array($segs[0], ['discover', 'search', 'you', 'stream', 'charts', 'upload', 'pages', 'settings', 'messages', 'notifications', 'feed', 'people', 'popular', 'mobile', 'terms-of-use', 'imprint', 'player'], true)
+                    && !(count($segs) === 2 && in_array($segs[1], ['tracks', 'albums', 'sets', 'likes', 'reposts', 'following', 'followers', 'popular-tracks', 'comments', 'spotlight', 'playlists'], true))),
+            'pinterest'  => $host === 'pin.it'
+                ? $short
+                : preg_match('#^/pin/(?:[\w-]*?--)?\d+#', $path) === 1,
+            'reddit'     => ($host === 'redd.it' || $host === 'v.redd.it')
+                ? $short
+                : preg_match('#^/(?:(?:r|user)/[\w-]+/)?comments/\w+#', $path) === 1
+                    || preg_match('#^/(?:r/[\w-]+/)?s/\w+#', $path) === 1
+                    ,
+            'facebook'   => $host === 'fb.watch'
+                ? $short
+                : (in_array($path, ['/watch', '/watch/', '/watch/live', '/watch/live/'], true) ? $hasV : false)
+                    || preg_match('#^/reel/\d+#', $path) === 1
+                    || preg_match('#/videos/(?:[\w.-]+/)?\d+#', $path) === 1
+                    || (preg_match('#^/video\.php$#', $path) === 1 && ($hasV || preg_match('/(?:^|&)id=\d/', $query) === 1))
+                    || preg_match('#^/share/[vrp]/[\w-]+#', $path) === 1
+                    || preg_match('#^/[\w.-]+/posts/[\w-]+#', $path) === 1
+                    || preg_match('#^/groups/[^/]+/(?:permalink|posts)/[\w-]+#', $path) === 1
+                    || ($path === '/story.php' && preg_match('/(?:^|&)story_fbid=\w/', $query) === 1)
+                    || (preg_match('#^/permalink\.php$#', $path) === 1 && preg_match('/(?:^|&)story_fbid=\w/', $query) === 1),
+            'snapchat'   => $host === 't.snapchat.com'
+                ? $short
+                : preg_match('#^/(?:spotlight|t)/[\w-]+#', $path) === 1
+                    || preg_match('#^/@[\w.-]+/spotlight/[\w-]+#', $path) === 1,
+            'spotify'    => ($host === 'spotify.link' || $host === 'spotify.app.link')
+                ? $segs !== []
+                : preg_match('#^/(?:intl-[\w-]+/)?(?:embed/)?(?:track|album|playlist)/[A-Za-z0-9]{22}#', $path) === 1,
+            default      => true,
+        };
+    }
+
+    public static function rejected(string $text): bool
+    {
+        $text = mbTrim($text);
+        if ($text === '' || mb_strlen($text) > 600 || !preg_match('/^((?:https?:\/\/)?(?:[\w-]+\.)+[a-z]{2,}(?:\/\S*)?)$/iu', $text, $m)) {
+            return false;
+        }
+        $url = preg_match('#^https?://#i', $m[1]) ? $m[1] : 'https://' . $m[1];
+        $raw = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $host = preg_replace('/^(www|m|mobile|vm|vt|music)\./', '', $raw) ?? $raw;
+        foreach (self::SITES as $key => [$name, $re]) {
+            if (preg_match($re, $host)) {
+                if (self::platformShort($key, $raw, $url) && ($final = self::resolveShort($url)) !== null) {
+                    return self::match($final, 1) === null;
+                }
+                return self::isIgStory($text) || !self::isContentUrl($key, $raw, $url);
+            }
+        }
+        return false;
+    }
+
+    public static function dislike(array $msg): void
+    {
+        if (!empty($msg['chat']['id']) && !empty($msg['message_id'])) {
+            App::tg()->react($msg['chat']['id'], (int) $msg['message_id'], '👎');
+            App::tg()->reply($msg, self::GENERIC_ERROR);
+        }
+    }
+
     public static function find(string $text): ?array
     {
         if (preg_match_all('#(?:https?://)?(?:[\w-]+\.)+[a-z]{2,}/\S+#iu', $text, $m)) {
@@ -143,11 +299,6 @@ final class Downloader
             }
         }
         return null;
-    }
-
-    public static function sitesText(): string
-    {
-        return '🌐 ' . implode('، ', array_column(self::SITES, 0));
     }
 
     public static function groupsEnabled(): bool
@@ -182,6 +333,7 @@ final class Downloader
             $tg->reply($msg, $stop);
             return;
         }
+        $tg->react($msg['chat']['id'], (int) $msg['message_id'], '👍');
         $sent = Rich::sendHtml($msg['chat']['id'], '🔎 دارم لینک ' . $link['name'] . ' رو بررسی می‌کنم...', (int) $msg['message_id']);
         $mid  = (int) ($sent['result']['message_id'] ?? 0);
         if (!$mid) {
@@ -1985,12 +2137,11 @@ final class Downloader
             str_contains($e, 'age') && str_contains($e, 'restrict')                 => "🔞 این ویدیو محدودیت سنی داره و\nبدون لاگین باز نمی‌شه.",
             str_contains($e, 'no video formats') || str_contains($e, 'no media')
                 || str_contains($e, 'there is no video')                             => "🖼 این پست ویدیو یا صدا نداره\n(احتمالاً فقط عکسه).",
-            str_contains($e, 'unsupported url')                                     => '🤷 این لینک پشتیبانی نمی‌شه.',
             str_contains($e, 'unavailable') || str_contains($e, '404') || str_contains($e, 'not found')
                 || str_contains($e, 'removed') || str_contains($e, 'deleted')        => '🚫 این محتوا در دسترس نیست یا پاک شده.',
             str_contains($e, 'geo') || str_contains($e, 'country')                  => '🌍 این محتوا تو منطقه‌ی سرور در دسترس نیست.',
             str_contains($e, 'rate') && str_contains($e, 'limit') || str_contains($e, '429') => '🐢 سایت گفت زیادی درخواست دادیم؛' . "\n" . 'چند دقیقه دیگه امتحان کن.',
-            default                                                                => "❌ نتونستم دانلودش کنم 😕\nلینک رو چک کن یا بعداً امتحان کن.",
+            default                                                                => self::GENERIC_ERROR,
         };
     }
 

@@ -290,6 +290,9 @@ final class FreeAI
 
     private static function call(string $prov, string $model, array $messages, array $opt): array
     {
+        if (Http::$aborted) {
+            return ['text' => null, 'kind' => 'stopped', 'seen' => []];
+        }
         $keys = self::keys($prov);
         $msgs = self::convert($messages, (self::entry($prov, $model)['vision'] ?? null) !== false);
         if ($msgs === null) {
@@ -345,6 +348,10 @@ final class FreeAI
                 ? self::streamOnce($url, $payload, $keys[$idx], (int) max(5, min($left, 60)), $opt['stream'])
                 : Http::postJson($url, $payload, ['Authorization: Bearer ' . $keys[$idx]], (int) max(5, min($left, $cap)));
 
+            if (Http::$aborted) {
+                $partial = $r['code'] === 200 ? trim((string) ($r['data']['choices'][0]['message']['content'] ?? '')) : '';
+                return ['text' => $partial !== '' ? $partial : null, 'kind' => 'stopped', 'seen' => $seen];
+            }
             AI::noteKey($prov, $keys[$idx], (int) $r['code']);
             if ($r['code'] === 200 && $r['data'] !== null) {
                 $msg = $r['data']['choices'][0]['message'] ?? [];

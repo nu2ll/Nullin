@@ -6,9 +6,7 @@ final class Spotify
     {
         $id = self::id($url);
         if ($id === null) {
-            return ['error' => preg_match('#/(artist|show|episode)/#', $url)
-                ? "🎵 فعلاً فقط لینک آهنگ، آلبوم و پلی‌لیست اسپاتیفای رو می‌گیرم."
-                : '🤷 این لینک اسپاتیفای رو نشناختم.'];
+            return ['error' => Downloader::explain('')];
         }
         $hit = Store::get('cache', 'sp:' . $id);
         if (is_array($hit)) {

@@ -32,11 +32,14 @@ final class Kernel
         'biz_wait'        => 86400,
         'tidy'            => 2 * 86400,
         'bc_last'         => 2 * 86400,
+        'gen_stop'        => 600,
+        'topics'          => 90 * 86400,
     ];
 
     public static function handle(array $update): void
     {
         App::useBot((int) ($update['_bot'] ?? 0));
+        Topics::enter($update);
         try {
             $svc = $update['message'] ?? $update['channel_post'] ?? null;
             if (is_array($svc) && isset($svc['new_chat_title'], $svc['chat'])) {
@@ -56,6 +59,8 @@ final class Kernel
                 ChosenHandler::handle($update['chosen_inline_result']);
             } elseif (isset($update['callback_query'])) {
                 CallbackHandler::handle($update['callback_query']);
+            } elseif (isset($update['stopped_message_generation'])) {
+                GenStop::onStopped($update['stopped_message_generation']);
             } elseif (isset($update['guest_message'])) {
                 GuestHandler::handle($update['guest_message']);
             } elseif (isset($update['my_chat_member'])) {

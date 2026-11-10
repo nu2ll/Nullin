@@ -45,6 +45,11 @@ final class Http
 
     public static $tick = null;
 
+    // استاپ جنریشن: اگه این کال‌بک true بده، درخواست جاری curl قطع می‌شه و $aborted روشن می‌مونه
+    // تا لایه‌های بالاتر (AI / FreeAI) بدونن دوباره‌تلاش نکنن
+    public static $abort = null;
+    public static bool $aborted = false;
+
     private static function progress(): array
     {
         return [
@@ -53,9 +58,18 @@ final class Http
                 if (self::$tick !== null) {
                     (self::$tick)();
                 }
-                return 0;
+                if (self::$abort !== null && !self::$aborted && (self::$abort)()) {
+                    self::$aborted = true;
+                }
+                return self::$aborted ? 1 : 0;
             },
         ];
+    }
+
+    public static function clearAbort(): void
+    {
+        self::$abort   = null;
+        self::$aborted = false;
     }
 
     public static function request(string $method, string $url, array $opt = []): array
@@ -89,7 +103,7 @@ final class Http
                 return strlen($buf) > $max ? 0 : strlen($data);
             };
         }
-        if (self::$tick !== null) {
+        if (self::$tick !== null || self::$abort !== null) {
             $set += self::progress();
         }
         curl_setopt_array($ch, $set);
@@ -132,7 +146,7 @@ final class Http
     {
         $err = '';
         $ch  = curl_init($url);
-        $set = self::$tick !== null ? self::progress() : [];
+        $set = (self::$tick !== null || self::$abort !== null) ? self::progress() : [];
         curl_setopt_array($ch, $set + [
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),
@@ -150,10 +164,19 @@ final class Http
                 return strlen($data);
             },
         ]);
+        if (self::$aborted) {
+            curl_close($ch);
+            return ['code' => 200, 'raw' => '', 'error' => ''];
+        }
         curl_exec($ch);
         $code  = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
         curl_close($ch);
+
+        // کاربر استاپ زده: قطع‌شدن عمدیه، خطا حساب نمی‌شه و متنی که تا اینجا رسیده نگه داشته می‌شه
+        if (self::$aborted) {
+            return ['code' => 200, 'raw' => '', 'error' => ''];
+        }
 
         return ['code' => $code, 'raw' => $err, 'error' => $error];
     }

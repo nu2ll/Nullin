@@ -25,7 +25,9 @@ final class Assistant
 
     private static function memKey(int $chatId, int $userId): string
     {
-        return "{$chatId}_{$userId}";
+        // هر تاپیکِ پی‌وی حافظه‌ی گفتگوی جدا داره
+        $t = App::thread() > 0 && (string) App::threadChat() === (string) $chatId ? App::thread() : 0;
+        return "{$chatId}_{$userId}" . ($t > 0 ? "_t{$t}" : '');
     }
 
     public static function history(int $chatId, int $userId): array
@@ -406,6 +408,11 @@ final class Assistant
             return;
         }
 
+        // پیام تو General با ربات Threaded Mode: برای این گفتگو یه تاپیک جدید می‌سازیم
+        if ($chatType === 'private' && !$service && App::thread() === 0) {
+            Topics::adopt($msg, $question);
+        }
+
         $tg->action($chatId, 'typing');
         Users::hit($chatType === 'private' ? 'ai:private' : 'ai:group');
 
@@ -491,6 +498,20 @@ final class Assistant
         $live?->start();
         $opt     = ['max_len' => PHP_INT_MAX] + ($live ? ['on_text' => $live->feed(...)] : []);
         $res     = AI::reply($content, $ctx, $history, $opt);
+
+        // استاپ جنریشن: کاربر دکمه‌ی توقفِ حباب رو زده. قطع‌کننده‌ی curl رو برمی‌داریم تا کارهای بعدی
+        // (ارسال جواب، TTS و ...) قطع نشن؛ اگه چیزی نوشته شده بود همون نصفه‌جواب ثبت می‌شه
+        $wasStopped = $live !== null && $live->stopped();
+        $live?->releaseStop();
+        if ($wasStopped) {
+            $res['action'] = null;
+            $res['image']  = null;
+            unset($res['image_partial']);
+            if (($res['answer'] ?? null) === null) {
+                $live?->stop();
+                return;
+            }
+        }
         if (!$voiceIn) {
             $live?->stop();
         }
@@ -530,6 +551,7 @@ final class Assistant
             return;
         }
         $answer = $res['answer'] ?? AI::FAIL_TEXT;
+        $shown  = $wasStopped ? $answer . "\n\n⏹ متوقف شد" : $answer;
 
         if ($res['answer'] !== null && $voiceIn) {
             self::voiceReply($msg, $res['answer'], $live);
@@ -537,10 +559,10 @@ final class Assistant
 
         $lastId = 0;
         $chunks = 1;
-        if (!$live || !$live->finish($answer)) {
-            self::typing($chatId, $answer);
-            $chunks = count(AI::chunks($answer));
-            $lastId = self::send($msg, $answer);
+        if (!$live || !$live->finish($shown)) {
+            self::typing($chatId, $shown);
+            $chunks = count(AI::chunks($shown));
+            $lastId = self::send($msg, $shown);
         } else {
             $ids    = $live->ids();
             $chunks = max(1, count($ids));
@@ -571,6 +593,10 @@ final class Assistant
 
         if ($res['answer'] !== null && !$service && $chatType === 'private' && !App::isAdmin($userId)) {
             Store::set('rl', 'ai_' . $userId, time());
+        }
+
+        if ($res['answer'] !== null && !$service && $chatType === 'private') {
+            Topics::nameAfter($msg, $question, (string) $res['answer']);
         }
     }
 

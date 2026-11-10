@@ -317,6 +317,9 @@ final class AI
 
         $chain = $only !== null ? [$only] : self::models($opt['tier'] ?? 'smart');
         foreach ($chain as $model) {
+            if (Http::$aborted) {
+                return null;
+            }
             $thinking = array_key_exists('thinking', $opt) ? $opt['thinking'] : null;
             $search   = !empty($opt['search']) && (self::searchOn() || !empty($opt['force_search'])) && !str_starts_with($model, 'gemma');
             $extra    = [];
@@ -358,6 +361,10 @@ final class AI
                     ? self::geminiStream($model, $payload, $key, (int) max(5, min($left, 60)), $opt['stream'])
                     : Http::postJson(sprintf(self::API, rawurlencode($model)), $payload, ['x-goog-api-key: ' . $key], (int) max(3, min($left, 10)));
 
+                if (Http::$aborted) {
+                    // کاربر استاپ زد: هرچی تا اینجا نوشته شده همون جواب نهاییه (اگه چیزی نیومده null)
+                    return $r['code'] === 200 && is_array($r['data'] ?? null) ? self::extractText($r['data']) : null;
+                }
                 self::noteKey('gemini', $key, (int) $r['code']);
                 if ($r['code'] === 200 && $r['data'] !== null) {
                     if (($tav || $mem) && $rounds < WebSearch::MAX_ROUNDS) {

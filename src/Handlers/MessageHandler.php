@@ -25,6 +25,11 @@ final class MessageHandler
             return;
         }
 
+        if ($private && isset($msg['forum_topic_created'])) {
+            Topics::created($msg);
+            return;
+        }
+
         if ($private) {
             Users::touch($from, str_starts_with($text, '/start'));
         } else {
@@ -57,6 +62,9 @@ final class MessageHandler
         }
 
         if ($text !== '' && Downloader::isIgStory($text)) {
+            if (Downloader::rejected($text) && Switches::on('download') && ($private || Downloader::groupsEnabled())) {
+                Downloader::dislike($msg);
+            }
             return;
         }
 
@@ -67,6 +75,12 @@ final class MessageHandler
             $bare = preg_replace('/@' . preg_quote(App::botUsername(), '/') . '\b/iu', '', $text) ?? $text;
             $bare = preg_replace('/^' . self::TRIGGER . '[\s،,:]*/iu', '', mbTrim($bare)) ?? $bare;
             $link = Downloader::match($bare);
+            if ($link === null && Downloader::rejected($bare)) {
+                if (Switches::on('download')) {
+                    Downloader::dislike($msg);
+                }
+                return;
+            }
         }
         $toolReply = self::isReplyToBot($msg)
             && !AI::isAiMsg($msg['chat']['id'], (int) ($msg['reply_to_message']['message_id'] ?? 0))
@@ -255,6 +269,13 @@ final class MessageHandler
         }
 
         switch ($cmd) {
+            case 'new':
+            case 'newtopic':
+                if ($private) {
+                    Topics::create($msg);
+                    return true;
+                }
+                return false;
             case 'forget':
                 $count = count(UserMemory::all((int) $from['id']));
                 if ($count === 0) {

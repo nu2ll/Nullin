@@ -55,7 +55,7 @@ final class Intent
         if ($name === 'download') {
             $link = Downloader::match($arg) ?? Downloader::find($arg . ' ' . (string) ($msg['reply_to_message']['text'] ?? $msg['reply_to_message']['caption'] ?? ''));
             if ($link === null) {
-                $tg->reply($msg, "🤷 این لینک رو نمی‌شناسم؛\n" . Downloader::sitesText());
+                Downloader::dislike($msg);
                 return true;
             }
             Downloader::offer($msg, $link);

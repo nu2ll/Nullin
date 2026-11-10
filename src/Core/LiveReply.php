@@ -23,6 +23,7 @@ final class LiveReply
     private bool $richMsg = false;
     private bool $inTick  = false;
     private bool $typingOnly = false;
+    private bool $stopped = false;
 
     public function __construct(private array $msg, private ?string $imid = null, private string $head = '', private bool $reaction = true, private bool $status = false, private bool $hold = false)
     {
@@ -67,6 +68,46 @@ final class LiveReply
     public function stop(): void
     {
         $this->disarm();
+        $this->releaseStop();
+    }
+
+    /** کاربر دکمه‌ی استاپِ حباب رو زده؟ (بعد از releaseStop هم true می‌مونه) */
+    public function stopped(): bool
+    {
+        return $this->stopped;
+    }
+
+    /** قطع‌کننده‌ی curl رو برمی‌داره؛ باید بعد از تموم‌شدن تولید جواب صدا زده بشه */
+    public function releaseStop(): void
+    {
+        if ($this->draft && $this->draftId > 0) {
+            GenStop::reset($this->msg['chat']['id'], $this->draftId);
+        }
+        Http::clearAbort();
+    }
+
+    private function armStop(): void
+    {
+        if (!GenStop::enabled() || $this->draftId <= 0) {
+            return;
+        }
+        $chat = $this->msg['chat']['id'];
+        $did  = $this->draftId;
+        $self = $this;
+        GenStop::reset($chat, $did);
+        Http::$aborted = false;
+        Http::$abort   = static function () use ($chat, $did, $self): bool {
+            if (GenStop::requested($chat, $did)) {
+                $self->stopped = true;
+                return true;
+            }
+            return false;
+        };
+    }
+
+    private function stopOpts(bool $stoppable): array
+    {
+        return $stoppable && GenStop::enabled() ? ['can_stop' => true, 'keep_on_stop' => true] : [];
     }
 
     private function arm(): void
@@ -143,6 +184,7 @@ final class LiveReply
             $this->sendThinking(0);
             $this->rich  = true;
             $this->draft = true;
+            $this->armStop();
             $this->arm();
             return;
         }
@@ -156,13 +198,13 @@ final class LiveReply
         $this->arm();
     }
 
-    private function sendThinking(int $n): bool
+    private function sendThinking(int $n, bool $stoppable = true): bool
     {
         $r = App::tg()->call('sendRichMessageDraft', [
             'chat_id'      => $this->msg['chat']['id'],
             'draft_id'     => $this->draftId,
             'rich_message' => ['html' => '<tg-thinking>🧠 نالین داره فکر می‌کنه… ' . $n . 's</tg-thinking>'],
-        ], 8);
+        ] + $this->stopOpts($stoppable), 8);
         return !empty($r['ok']);
     }
 
@@ -172,13 +214,13 @@ final class LiveReply
             'chat_id'      => $this->msg['chat']['id'],
             'draft_id'     => $this->draftId,
             'rich_message' => ['markdown' => Rich::markdown($text) . ' ▍'],
-        ], 8);
+        ] + $this->stopOpts(true), 8);
         return !empty($r['ok']);
     }
 
-    private function waitDraft(int $n, string $html): void
+    private function waitDraft(int $n, string $html, bool $stoppable = true): void
     {
-        $this->sendThinking($n);
+        $this->sendThinking($n, $stoppable);
     }
 
     private function frame(int $n): string
@@ -197,7 +239,7 @@ final class LiveReply
 
     public function feed(string $raw): void
     {
-        if ($this->typingOnly || $this->mode === 'silent') {
+        if ($this->typingOnly || $this->mode === 'silent' || $this->stopped) {
             return;
         }
         $this->typing();
@@ -220,11 +262,12 @@ final class LiveReply
     public function finish(string $answer): bool
     {
         $this->disarm();
+        $this->releaseStop();
         if ($this->typingOnly) {
             return false;
         }
         if ($this->draft) {
-            $this->waitDraft(0, $this->frame(0));
+            $this->waitDraft(0, $this->frame(0), false);
             $ok = $this->sync($answer, true);
             if ($ok) {
                 return true;
@@ -245,6 +288,7 @@ final class LiveReply
     public function finishHtml(string $html): bool
     {
         $this->disarm();
+        $this->releaseStop();
         if (!isset($this->ids[0])) {
             return false;
         }
@@ -273,6 +317,7 @@ final class LiveReply
 
     public function discard(): void
     {
+        $this->releaseStop();
         if (!$this->draft) {
             $this->disarm();
         }

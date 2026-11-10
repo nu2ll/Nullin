@@ -5,6 +5,9 @@ final class App
     private static array $cfg = [];
     private static array $tgs = [];
     private static int $bot = 0;
+    private static int|string $threadChat = 0;
+    private static int $thread = 0;
+    private static bool $threadOwn = false;
 
     public static function boot(): void
     {
@@ -43,6 +46,30 @@ final class App
     public static function botIndex(): int
     {
         return self::$bot;
+    }
+
+    // تاپیکِ جاریِ پی‌وی (Threaded Mode). بدون آرگومان = بیرون از تاپیک.
+    // $own یعنی خود ربات تاپیک رو ساخته (پیام کاربر تو General مونده، پس ریپلای به اون ممنوعه)
+    public static function setThread(int|string $chatId = 0, int $thread = 0, bool $own = false): void
+    {
+        self::$threadChat = $thread > 0 ? $chatId : 0;
+        self::$thread     = max(0, $thread);
+        self::$threadOwn  = $thread > 0 && $own;
+    }
+
+    public static function thread(): int
+    {
+        return self::$thread;
+    }
+
+    public static function threadChat(): int|string
+    {
+        return self::$threadChat;
+    }
+
+    public static function threadOwn(): bool
+    {
+        return self::$threadOwn;
     }
 
     public static function tgFor(int $index): Telegram

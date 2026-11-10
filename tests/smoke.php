@@ -233,6 +233,25 @@ check('dl spotify', Downloader::match('https://open.spotify.com/intl-fa/track/4u
 check('dl snapchat', Downloader::match('https://www.snapchat.com/spotlight/W7_EDlXWTBiXAEEniNoMPwAAYYWtidGhudGZpAX1TKn0JAX1TKnXJAAAAAA')['site'] ?? '', 'snapchat');
 check('dl aparat gone', Downloader::match('https://www.aparat.com/v/abc'), null);
 check('dl find in text', Downloader::find('اینو برام دانلود کن https://youtu.be/dQw4w9WgXcQ لطفا')['site'] ?? '', 'youtube');
+Downloader::$resolver = static fn(string $u): ?string => [
+    'https://pin.it/ok'             => 'https://www.pinterest.com/pin/123456/sent/?x=1',
+    'https://pin.it/board'          => 'https://www.pinterest.com/someuser/board/',
+    'https://vm.tiktok.com/ok'      => 'https://www.tiktok.com/@a/video/123',
+    'https://vm.tiktok.com/profile' => 'https://www.tiktok.com/@a',
+    'https://t.snapchat.com/ok'     => 'https://www.snapchat.com/spotlight/W7_EDl',
+    'https://t.snapchat.com/prof'   => 'https://www.snapchat.com/add/someuser',
+][$u] ?? null;
+check('dl pin.it ok', Downloader::match('https://pin.it/ok')['site'] ?? '', 'pinterest');
+check('dl pin.it board rejected', Downloader::rejected('https://pin.it/board'), true);
+check('dl pin.it board no match', Downloader::match('https://pin.it/board'), null);
+check('dl tiktok short ok', Downloader::match('https://vm.tiktok.com/ok')['url'] ?? '', 'https://www.tiktok.com/@a/video/123');
+check('dl tiktok empty handle', Downloader::match('https://www.tiktok.com/@/video/123')['site'] ?? '', 'tiktok');
+check('dl snap short ok', Downloader::match('https://t.snapchat.com/ok')['url'] ?? '', 'https://www.snapchat.com/spotlight/W7_EDl');
+check('dl snap short profile rejected', Downloader::rejected('https://t.snapchat.com/prof'), true);
+check('dl snap short unresolved accepted', Downloader::match('https://t.snapchat.com/AbCdEfGh')['site'] ?? '', 'snapchat');
+check('dl snap user spotlight', Downloader::match('https://www.snapchat.com/@user.name/spotlight/W7_EDl')['site'] ?? '', 'snapchat');
+check('dl tiktok short profile rejected', Downloader::rejected('https://vm.tiktok.com/profile'), true);
+Downloader::$resolver = null;
 check('photo unescape', Scrape::unescape('https:\\/\\/x.com\\/a.jpg?b=1\\u0026c=2'), 'https://x.com/a.jpg?b=1&c=2');
 check('intent download', Intent::parse('[[download | https://youtu.be/x]]'), ['download', 'https://youtu.be/x']);
 check('help page 1', Ui::helpPage('ai'), 1);
