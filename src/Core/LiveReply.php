@@ -128,7 +128,7 @@ final class LiveReply
         return $chatId . '_' . $draftId;
     }
 
-    /** آپدیت stopped_message_generation: { chat, draft_id, message_thread_id? } */
+    /** آپدیت stopped_message_generation: { chat, draft_id } */
     public static function onStopped(array $u): void
     {
         $chatId  = (int) ($u['chat']['id'] ?? 0);
@@ -136,7 +136,7 @@ final class LiveReply
         if ($chatId === 0 || $draftId === 0) {
             return;
         }
-        Store::set('gen_stop', self::stopKey($chatId, $draftId), ['at' => time(), 'thread' => (int) ($u['message_thread_id'] ?? 0)]);
+        Store::set('gen_stop', self::stopKey($chatId, $draftId), ['at' => time()]);
     }
 
     private static function stopRequested(int|string $chatId, int $draftId): bool

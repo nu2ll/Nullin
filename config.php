@@ -42,9 +42,6 @@ return [
     'ai_typing_effect'   => true,
     'ai_stream'          => env('AI_STREAM', '1') !== '0',
     'gen_stop'           => env('GEN_STOP', '1') !== '0',                // دکمه‌ی توقفِ حباب پیش‌نویس (Bot API 10.3)
-    'topics'             => env('TOPICS', '1') !== '0',                  // پشتیبانی از تاپیک‌ها تو پی‌وی (Threaded Mode)
-    'topics_autoname'    => env('TOPICS_AUTONAME', '1') !== '0',         // اسم‌گذاری خودکار تاپیک بعد از اولین جواب
-    'topics_auto_create' => env('TOPICS_AUTO_CREATE', '1') !== '0',      // پیام تو General → ساخت تاپیک جدید توسط ربات (با اسمِ مدل)
 
     'cloudflare_account_id' => env('CF_ACCOUNT_ID', ''),
     'cloudflare_api_token'  => env('CF_API_TOKEN', ''),

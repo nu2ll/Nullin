@@ -25,11 +25,6 @@ final class MessageHandler
             return;
         }
 
-        if ($private && isset($msg['forum_topic_created'])) {
-            Topics::created($msg);
-            return;
-        }
-
         if ($private) {
             Users::touch($from, str_starts_with($text, '/start'));
         } else {

@@ -25,9 +25,7 @@ final class Assistant
 
     private static function memKey(int $chatId, int $userId): string
     {
-        // هر تاپیکِ پی‌وی حافظه‌ی گفتگوی جدا داره
-        $t = App::thread() > 0 && (string) App::threadChat() === (string) $chatId ? App::thread() : 0;
-        return "{$chatId}_{$userId}" . ($t > 0 ? "_t{$t}" : '');
+        return "{$chatId}_{$userId}";
     }
 
     public static function history(int $chatId, int $userId): array
@@ -406,13 +404,6 @@ final class Assistant
         if (!$service && AI::busy($userId)) {
             $tg->reply($msg, AI::BUSY_TEXT);
             return;
-        }
-
-        // پیام تو General: ربات تاپیک می‌سازه (با اسمِ مدل)؛ تاپیکِ تازه‌ی خود تلگرام: اسمش با مدل عوض می‌شه. هر دو قبل از شروع جواب
-        // دستورات (/something) تاپیک نمی‌سازن و اسمِ تاپیک رو هم عوض نمی‌کنن؛ تاپیک فقط برای چتِ هوش مصنوعیه
-        $isCommand = preg_match('/^\s*\//u', (string) ($msg['text'] ?? $msg['caption'] ?? $question)) === 1;
-        if ($chatType === 'private' && !$service && !$isCommand && !Topics::adopt($msg, $question)) {
-            Topics::nameAfter($msg, $question);
         }
 
         $tg->action($chatId, 'typing');

@@ -33,13 +33,11 @@ final class Kernel
         'tidy'            => 2 * 86400,
         'bc_last'         => 2 * 86400,
         'gen_stop'        => 600,
-        'topics'          => 90 * 86400,
     ];
 
     public static function handle(array $update): void
     {
         App::useBot((int) ($update['_bot'] ?? 0));
-        Topics::enter($update);
         try {
             $svc = $update['message'] ?? $update['channel_post'] ?? null;
             if (is_array($svc) && isset($svc['new_chat_title'], $svc['chat'])) {
