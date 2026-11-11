@@ -47,30 +47,6 @@ final class Rich
         return implode("\n", $l);
     }
 
-    // Per-line direction for rich HTML: the message is sent LTR and every line whose first real letter is
-    // Persian/Arabic gets an invisible RLM (U+200F) at its start, so it anchors right while English lines stay
-    // left. Lines with no letters (emoji, digits, blanks) follow the previous line. <pre> blocks are untouched.
-    private static function lineDirs(string $html): string
-    {
-        $rtl   = true;
-        $inPre = false;
-        $out   = [];
-        foreach (explode("\n", $html) as $line) {
-            $wasPre = $inPre;
-            $inPre  = $wasPre ? !str_contains($line, '</pre>') : (str_contains($line, '<pre') && !str_contains($line, '</pre>'));
-            if ($wasPre || str_contains($line, '<pre')) {
-                $out[] = $line;
-                continue;
-            }
-            $t = html_entity_decode(strip_tags($line), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            if (preg_match('/\p{L}/u', $t, $m)) {
-                $rtl = preg_match('/\p{Arabic}/u', $m[0]) === 1;
-            }
-            $out[] = ($rtl && trim($t) !== '') ? "\u{200F}" . $line : $line;
-        }
-        return implode("\n", $out);
-    }
-
     private static function mdPayload(string $md, ?array $kb): array
     {
         $btn = self::buttonsHtml($kb);
@@ -170,16 +146,13 @@ final class Rich
         return $out;
     }
 
-    private static function payload(string $html, ?array $kb, ?string $img): array
+    private static function payload(string $html, ?array $kb, ?string $img, bool $rtl = true): array
     {
-        // Only media captions without buttons (photo + text) get per-line direction (see lineDirs);
-        // every other message, and anything with buttons, stays exactly as before (is_rtl = true).
-        $cap  = $img !== null && preg_match('#^(?:https://|[A-Za-z0-9_-]{20,}$)#', $img) === 1 && !self::hasButtons($kb);
-        $body = '<p>' . str_replace("\n", '<br>', $cap ? self::lineDirs($html) : $html) . '</p>' . self::buttonsHtml($kb);
+        $body = '<p>' . str_replace("\n", '<br>', $html) . '</p>' . self::buttonsHtml($kb);
         if ($img !== null && preg_match('#^(?:https://|[A-Za-z0-9_-]{20,}$)#', $img)) {
-            return ['html' => '<img src="tg://photo?id=thumb"/>' . $body, 'is_rtl' => !$cap, 'media' => [['id' => 'thumb', 'media' => ['type' => 'photo', 'media' => $img]]]];
+            return ['html' => '<img src="tg://photo?id=thumb"/>' . $body] + ($rtl ? ['is_rtl' => true] : []) + ['media' => [['id' => 'thumb', 'media' => ['type' => 'photo', 'media' => $img]]]];
         }
-        return ['html' => $body, 'is_rtl' => true];
+        return ['html' => $body] + ($rtl ? ['is_rtl' => true] : []);
     }
 
     public static function editHtml(int|string $chatId, int $mid, string $html, ?array $kb = null, ?string $img = null): bool
@@ -205,16 +178,15 @@ final class Rich
         return $r;
     }
 
-    public static function editInlinePhoto(string $inlineId, string $html, string $fileId, ?array $kb = null): ?array
+    public static function editInlinePhoto(string $inlineId, string $html, string $fileId, ?array $kb = null, bool $rtl = true): ?array
     {
-        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($html, $kb, $fileId)], 15);
+        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($html, $kb, $fileId, $rtl)], 15);
     }
 
     private static function videoPayload(string $html, string $fileId): array
     {
         return [
-            'html'   => '<video src="tg://video?id=v"></video><p>' . str_replace("\n", '<br>', self::lineDirs($html)) . '</p>',
-            'is_rtl' => false,
+            'html'   => '<video src="tg://video?id=v"></video><p>' . str_replace("\n", '<br>', $html) . '</p>',
             'media'  => [['id' => 'v', 'media' => ['type' => 'video', 'media' => $fileId]]],
         ];
     }
@@ -249,7 +221,7 @@ final class Rich
         return $r;
     }
 
-    public static function send(int|string $chatId, string $html, ?array $kb = null, ?int $replyTo = null, ?string $img = null, array $plain = []): ?array
+    public static function send(int|string $chatId, string $html, ?array $kb = null, ?int $replyTo = null, ?string $img = null, array $plain = [], bool $rtl = true): ?array
     {
         if (self::hasButtons($kb) && !self::supports($kb)) {
             return App::tg()->send($chatId, $html, ($replyTo ? ['reply_parameters' => ['message_id' => $replyTo, 'allow_sending_without_reply' => true]] : []) + ['reply_markup' => $kb] + $plain);
@@ -257,7 +229,7 @@ final class Rich
         if (!self::hasButtons($kb) && $img === null) {
             return App::tg()->send($chatId, $html, ($replyTo ? ['reply_parameters' => ['message_id' => $replyTo, 'allow_sending_without_reply' => true]] : []) + $plain);
         }
-        $r = self::sendHtml($chatId, $html, $replyTo, self::hasButtons($kb) ? $kb : null, $img);
+        $r = self::sendHtml($chatId, $html, $replyTo, self::hasButtons($kb) ? $kb : null, $img, $rtl);
         if (!empty($r['ok']) && !empty($r['result']['message_id'])) {
             self::mark((int) ($r['result']['chat']['id'] ?? $chatId), (int) $r['result']['message_id']);
         }
@@ -279,11 +251,11 @@ final class Rich
         self::editHtml($chatId, $mid, $html, $kb, $img);
     }
 
-    public static function sendHtml(int|string $chatId, string $html, ?int $replyTo = null, ?array $kb = null, ?string $img = null): ?array
+    public static function sendHtml(int|string $chatId, string $html, ?int $replyTo = null, ?array $kb = null, ?string $img = null, bool $rtl = true): ?array
     {
         return App::tg()->call('sendRichMessage', [
             'chat_id'          => $chatId,
-            'rich_message'     => self::payload($html, $kb, $img),
+            'rich_message'     => self::payload($html, $kb, $img, $rtl),
             'reply_parameters' => $replyTo ? ['message_id' => $replyTo, 'allow_sending_without_reply' => true] : null,
         ], 10);
     }

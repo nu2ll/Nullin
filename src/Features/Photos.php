@@ -65,7 +65,7 @@ final class Photos
                     continue;
                 }
                 $more = $got['total'] > 1 ? "\n📚 " . fa((string) $got['total']) . ' تا عکس داره؛ بقیه رو تو پیوی بگیر.' : '';
-                $e = Rich::editInlinePhoto($imid, self::caption($link) . $more, $fid);
+                $e = Rich::editInlinePhoto($imid, self::caption($link) . $more, $fid, null, false);
                 if (env('DL_STORE_CHAT', '') === '' && !empty($r['result']['message_id'])) {
                     $tg->call('deleteMessage', ['chat_id' => $store, 'message_id' => (int) $r['result']['message_id']], 8);
                 }
@@ -307,7 +307,7 @@ final class Photos
             logWarn('dl', 'photo upload to storage chat failed');
             return false;
         }
-        $r = Rich::send($chat, $cap, null, $replyTo, $fid);
+        $r = Rich::send($chat, $cap, null, $replyTo, $fid, [], false);
         return !empty($r['ok']);
     }
 
