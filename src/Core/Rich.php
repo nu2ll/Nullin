@@ -155,22 +155,22 @@ final class Rich
         return ['html' => $body] + ($rtl ? ['is_rtl' => true] : []);
     }
 
-    public static function editHtml(int|string $chatId, int $mid, string $html, ?array $kb = null, ?string $img = null): bool
+    public static function editHtml(int|string $chatId, int $mid, string $html, ?array $kb = null, ?string $img = null, bool $rtl = true): bool
     {
-        $r = App::tg()->call('editMessageText', ['chat_id' => $chatId, 'message_id' => $mid, 'rich_message' => self::payload($html, $kb, $img)], 10);
+        $r = App::tg()->call('editMessageText', ['chat_id' => $chatId, 'message_id' => $mid, 'rich_message' => self::payload($html, $kb, $img, $rtl)], 10);
         return !empty($r['ok']) || stripos((string) ($r['description'] ?? ''), 'not modified') !== false;
     }
 
-    public static function editInline(string $inlineId, string $html, ?array $kb = null, ?string $img = null, bool $isHtml = true, ?array $preview = null): ?array
+    public static function editInline(string $inlineId, string $html, ?array $kb = null, ?string $img = null, bool $isHtml = true, ?array $preview = null, bool $rtl = true): ?array
     {
         $tg   = App::tg();
         $body = $isHtml ? $html : h($html);
         if (self::usable($kb)) {
-            return $tg->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($body, $kb, $img)], 10);
+            return $tg->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($body, $kb, $img, $rtl)], 10);
         }
         $r = $tg->editInline($inlineId, $html, $kb, $isHtml, $preview);
         if (empty($r['ok']) && !self::notModified($r) && !self::hasButtons($kb)) {
-            $r2 = $tg->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($body, null, $img)], 10);
+            $r2 = $tg->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($body, null, $img, $rtl)], 10);
             if (!empty($r2['ok'])) {
                 return $r2;
             }

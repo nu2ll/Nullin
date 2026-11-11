@@ -384,11 +384,11 @@ final class Downloader
         $tg = App::tg();
         if (!empty($t['imid'])) {
             $img = ($preview['url'] ?? '') !== '' ? self::thumbId($t, (string) $preview['url']) : null;
-            Rich::editInline($t['imid'], $text, $kb, $img);
+            Rich::editInline($t['imid'], $text, $kb, $img, true, null, false);
             return;
         }
         if (!empty($t['card'])) {
-            Rich::editHtml($t['chat'], (int) $t['card'], $text, $kb, (string) ($preview['url'] ?? ''));
+            Rich::editHtml($t['chat'], (int) $t['card'], $text, $kb, (string) ($preview['url'] ?? ''), false);
         }
     }
 
@@ -922,7 +922,7 @@ final class Downloader
         if (!empty($job['imid'])) {
             self::show($job, self::stageText($job, '⏳ آماده‌ی دانلود...'));
         } elseif (!$job['card']) {
-            $r = Rich::sendHtml($job['chat'], self::stageText($job, '⏳ آماده‌ی دانلود...'));
+            $r = Rich::sendHtml($job['chat'], self::stageText($job, '⏳ آماده‌ی دانلود...'), null, null, null, false);
             $card = (int) ($r['result']['message_id'] ?? 0);
             if (!$card) {
                 Store::delete('dl_busy', (string) $uid);
@@ -1888,6 +1888,7 @@ final class Downloader
             'api_id'       => self::apiId(),
             'api_hash'     => self::apiHash(),
             'bot_token'    => $tg->token(),
+            'test'         => App::botIndex() === 2 ? ['dc' => (int) env('TEST_DC_ID', 2), 'ip' => (string) env('TEST_DC_IP', '149.154.167.40'), 'port' => (int) env('TEST_DC_PORT', 443)] : null,
             'chat'         => $viaStore !== '' ? (int) $viaStore : (int) $job['chat'],
             'reply_to'     => $viaStore !== '' ? 0 : (int) $job['reply_to'],
             'file'         => $file,
@@ -2164,7 +2165,7 @@ final class Downloader
 
     private static function stageText(array $job, string $status): string
     {
-        return '📥 <b>' . h(mb_substr($job['title'], 0, 3500)) . "</b>\n\n" . $status;
+        return dirMark($job['title']) . '📥 <b>' . h(mb_substr($job['title'], 0, 3500)) . "</b>\n\n\u{200F}" . str_replace("\n", "\n\u{200F}", $status);
     }
 
     private static function caption(array $job, bool $long = false): string

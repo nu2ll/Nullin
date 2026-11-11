@@ -18,6 +18,9 @@ async def main():
     saved = open(path).read().strip() if os.path.exists(path) else ''
     client = TelegramClient(StringSession(saved), int(a['api_id']), a['api_hash'],
                             connection_retries=3, request_retries=3, flood_sleep_threshold=90)
+    t = a.get('test')
+    if t:
+        client.session.set_dc(int(t['dc']), t['ip'], int(t['port']))
     await client.start(bot_token=a['bot_token'])
     fresh = client.session.save()
     if fresh != saved:

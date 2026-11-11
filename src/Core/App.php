@@ -74,7 +74,7 @@ final class App
 
     public static function tgFor(int $index): Telegram
     {
-        return self::$tgs[$index] ??= new Telegram(self::tokens()[$index] ?? (string) self::cfg('bot_token', ''), $index === 1);
+        return self::$tgs[$index] ??= new Telegram(self::tokens()[$index] ?? (string) self::cfg('bot_token', ''), $index === 1, $index === 2);
     }
 
     public static function tg(): Telegram

@@ -2,8 +2,8 @@
 
 return [
     'bot_token'    => env('BOT_TOKEN', ''),
-    'bot_tokens'    => [env('BOT_TOKEN', ''), env('BOT_TOKEN_2', '')],
-    'bot_usernames' => [env('BOT_USERNAME', ''), env('BOT_USERNAME_2', '')],
+    'bot_tokens'    => [env('BOT_TOKEN', ''), env('BOT_TOKEN_2', ''), env('TEST_BOT_TOKEN', '')],
+    'bot_usernames' => [env('BOT_USERNAME', ''), env('BOT_USERNAME_2', ''), env('TEST_BOT_USERNAME', '')],
     'premium_packs' => ['RestrictedEmoji', 'NewsEmoji'],
     'bot_version'  => '5.0.0',
     'admins'       => array_values(array_unique(array_filter(array_map('intval', array_merge(envList('ADMIN_IDS'), envList('OWNER_ID')))))),

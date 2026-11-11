@@ -7,9 +7,9 @@ final class Telegram
 
     private const THREAD_METHODS = '/^(?:send(?:Message|RichMessage|MessageDraft|RichMessageDraft|Photo|Video|Animation|Document|Audio|Voice|VideoNote|Sticker|Poll|Dice|MediaGroup|Location|Venue|Contact|ChatAction|PaidMedia)|copyMessage|forwardMessage)$/';
 
-    public function __construct(private string $token, private bool $premium = false)
+    public function __construct(private string $token, private bool $premium = false, private bool $test = false)
     {
-        $this->base = "https://api.telegram.org/bot{$token}/";
+        $this->base = "https://api.telegram.org/bot{$token}/" . ($test ? 'test/' : '');
     }
 
     public function token(): string
@@ -242,7 +242,7 @@ final class Telegram
         if (!$path) {
             return null;
         }
-        $r = Http::request('GET', "https://api.telegram.org/file/bot{$this->token}/{$path}", ['timeout' => 40]);
+        $r = Http::request('GET', "https://api.telegram.org/file/bot{$this->token}/" . ($this->test ? 'test/' : '') . $path, ['timeout' => 40]);
         return $r['code'] === 200 ? $r['body'] : null;
     }
 

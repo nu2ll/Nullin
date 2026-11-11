@@ -201,6 +201,9 @@ final class LiveReply
             }
             return;
         }
+        if (!$this->draft) {
+            return;
+        }
         $n    = (int) floor(microtime(true) - $this->t0);
         if ($n < $this->shown + 1) {
             return;
@@ -284,8 +287,7 @@ final class LiveReply
 
     private function frame(int $n): string
     {
-        $label = $this->head !== '' ? $this->head . self::WAIT_TEXT : self::THINKING;
-        return $label . " \u{061C}" . $n . 's';
+        return $this->head !== '' ? $this->head . self::WAIT_TEXT : self::THINKING;
     }
 
     private function typing(): void
