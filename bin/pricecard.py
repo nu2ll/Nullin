@@ -244,11 +244,11 @@ def main():
     # رنگ کارت مثل قبل: سبز وقتی بالاست، قرمز وقتی افت کرده
     if up:
         c1, c2 = (30, 142, 70), (8, 78, 38)
-        line, ptxt, soft = (18, 184, 126), (14, 165, 112), (228, 238, 240, 255)
+        line, ptxt, soft = (18, 184, 126), (34, 197, 134), (20, 58, 44, 255)
         dark_g = (10, 80, 40, 120)
     else:
         c1, c2 = (206, 58, 62), (112, 24, 32)
-        line, ptxt, soft = (232, 72, 78), (222, 62, 72), (240, 232, 236, 255)
+        line, ptxt, soft = (232, 72, 78), (248, 81, 92), (66, 26, 32, 255)
         dark_g = (120, 20, 28, 120)
     # دایره‌ی آیکن بالای کارت: رنگ ثابتِ هر ارز، مستقل از بالا/پایین بودن قیمت
     badge = darker(PALETTE.get(icon, DEFAULT_PAL)[2], 0.8)
@@ -272,9 +272,9 @@ def main():
     img = Image.alpha_composite(img, sh)
 
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle([v * S for v in card], radius=52 * S, fill=(241, 245, 244, 244), outline=(255, 255, 255, 255), width=2 * S)
+    d.rounded_rectangle([v * S for v in card], radius=52 * S, fill=(14, 17, 22, 255), outline=(40, 46, 56, 255), width=2 * S)
 
-    ink, slate = (10, 20, 42), (98, 110, 132)
+    ink, slate = (245, 247, 250), (148, 158, 176)
 
     # عنوان + آیکن گرد
     bx, by, br = 880, 122, 27
@@ -290,7 +290,7 @@ def main():
     tf0 = font(21, True)
     tag = p.get("tag", "IRT")
     tw0 = tlen(d, tag, tf0) + 54
-    d.rounded_rectangle((106 * S, 96 * S, (106 + tw0) * S, 142 * S), radius=23 * S, fill=(226, 231, 240, 255))
+    d.rounded_rectangle((106 * S, 96 * S, (106 + tw0) * S, 142 * S), radius=23 * S, fill=(38, 44, 54, 255))
     text(d, (106 + tw0 / 2, 119), tag, tf0, slate, "mm")
 
     # مبلغ و واحد
@@ -334,7 +334,7 @@ def main():
     for i in range(5):
         v = hi - (hi - lo) * i / 4
         y = cy0 + (cy1 - cy0) * i / 4
-        d.line((cx0 * S, y * S, (cx1 + 6) * S, y * S), fill=(224, 230, 230, 255), width=S)
+        d.line((cx0 * S, y * S, (cx1 + 6) * S, y * S), fill=(44, 50, 60, 255), width=S)
         text(d, (cx0 - 14, y), f"{v:,.{dec}f}", lf, slate, "rm")
 
     mask = Image.new("L", img.size, 0)
@@ -350,7 +350,7 @@ def main():
     d = ImageDraw.Draw(img)
     d.line([(x * S, y * S) for x, y in xy], fill=line, width=5 * S, joint="curve")
     ex, ey = xy[-1]
-    d.ellipse(((ex - 10) * S, (ey - 10) * S, (ex + 10) * S, (ey + 10) * S), fill=line, outline=(255, 255, 255, 255), width=3 * S)
+    d.ellipse(((ex - 10) * S, (ey - 10) * S, (ex + 10) * S, (ey + 10) * S), fill=line, outline=(14, 17, 22, 255), width=3 * S)
 
     # فوتر
     foot = p.get("footer", "")

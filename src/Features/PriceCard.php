@@ -419,13 +419,11 @@ final class PriceCard
             $g1[] = '🇮🇷 معادل: ' . fa(self::fmt($total * $usdQ)) . ' تومان';
         }
         $g2   = [];
-        $line = '';
         if ($q['h'] !== null && $q['l'] !== null) {
-            $line = '🟢 سقف: ' . fa($money($q['h'])) . '   🔴 کف: ' . fa($money($q['l'])) . '   ';
+            $g2[] = '🟢 سقف: ' . fa($money($q['h'])) . '   🔴 کف: ' . fa($money($q['l']));
         }
-        $g2[] = $line . '⌚ ساعت: ' . fa($time);
 
-        $rows = [];
+        $rows = [[copyBtn('⌚ ساعت: ' . fa($time), $time, null)]];
         if ($q['h'] !== null && $q['l'] !== null) {
             $rows[] = [
                 copyBtn('🟢 سقف: ' . fa($money($q['h'])), $money($q['h']), 'success'),
@@ -469,7 +467,7 @@ final class PriceCard
         $rich = '<img src="tg://photo?id=card"/>'
               . '<blockquote><p>' . $p['head'] . '</p>'
               . '<blockquote><p>' . implode('<br>', $p['g1']) . '</p>'
-              . '<blockquote><p>' . implode('<br>', $p['g2']) . '</p></blockquote>'
+              . ($p['g2'] ? '<blockquote><p>' . implode('<br>', $p['g2']) . '</p></blockquote>' : '')
               . '</blockquote></blockquote>'
               . Rich::buttonsHtml($p['kb']);
 
@@ -481,7 +479,7 @@ final class PriceCard
 
     private static function inlineText(array $p): string
     {
-        return $p['head'] . "\n" . implode("\n", $p['g1']) . "\n" . implode("\n", $p['g2']);
+        return $p['head'] . "\n" . implode("\n", $p['g1']) . ($p['g2'] ? "\n" . implode("\n", $p['g2']) : '');
     }
 
     // نتیجه‌ی اینلاین: اول متن می‌ره، بعد از انتخاب onChosen کارت (عکس) رو جایگزین می‌کنه
