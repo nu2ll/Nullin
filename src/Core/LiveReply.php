@@ -204,12 +204,8 @@ final class LiveReply
         if (!$this->draft) {
             return;
         }
-        try {
-            $this->typing();
-        } catch (Throwable) {
-        }
         $n    = (int) floor(microtime(true) - $this->t0);
-        if ($n < $this->shown + 20) {
+        if ($n < $this->shown + 1) {
             return;
         }
         $this->inTick = true;
@@ -248,7 +244,6 @@ final class LiveReply
         if (($this->msg['chat']['type'] ?? '') === 'private') {
             $this->draftId = mt_rand(1, 2147483646);
             $this->sendThinking(0);
-            $this->typing();
             $this->rich  = true;
             $this->draft = true;
             $this->armStop();
@@ -265,16 +260,12 @@ final class LiveReply
         $this->arm();
     }
 
-    /*
-     * بلاک بومی «Thinking…» تلگرام (<tg-thinking>، Bot API 10.2+): فقط تو sendRichMessageDraft کار می‌کنه و
-     * متنِ داخلش قابل تعویضه؛ پس «🧠 نالین داره فکر می‌کنه» + انیمیشنِ متحرکِ خودِ تلگرام به‌جای سه‌نقطه.
-     */
     private function sendThinking(int $n, bool $stoppable = true): bool
     {
         $r = App::tg()->call('sendRichMessageDraft', [
             'chat_id'      => $this->msg['chat']['id'],
             'draft_id'     => $this->draftId,
-            'rich_message' => ['html' => self::THINKING . '<tg-thinking></tg-thinking>'],
+            'rich_message' => ['html' => '<tg-thinking>🧠 نالین داره فکر می‌کنه… ' . $n . 's</tg-thinking>'],
         ] + $this->stopOpts($stoppable), 8);
         return !empty($r['ok']);
     }
@@ -301,7 +292,7 @@ final class LiveReply
 
     private function typing(): void
     {
-        if ($this->status && time() - $this->lastTyping >= 4) {
+        if ($this->status && !$this->draft && time() - $this->lastTyping >= 4) {
             $this->lastTyping = time();
             App::tg()->action($this->msg['chat']['id'], 'typing');
         }
