@@ -409,7 +409,9 @@ final class Assistant
         }
 
         // پیام تو General: ربات تاپیک می‌سازه (با اسمِ مدل)؛ تاپیکِ تازه‌ی خود تلگرام: اسمش با مدل عوض می‌شه. هر دو قبل از شروع جواب
-        if ($chatType === 'private' && !$service && !Topics::adopt($msg, $question)) {
+        // دستورات (/something) تاپیک نمی‌سازن و اسمِ تاپیک رو هم عوض نمی‌کنن؛ تاپیک فقط برای چتِ هوش مصنوعیه
+        $isCommand = preg_match('/^\s*\//u', (string) ($msg['text'] ?? $msg['caption'] ?? $question)) === 1;
+        if ($chatType === 'private' && !$service && !$isCommand && !Topics::adopt($msg, $question)) {
             Topics::nameAfter($msg, $question);
         }
 
