@@ -266,15 +266,15 @@ final class LiveReply
     }
 
     /*
-     * انیمیشن «Thinking…» خودِ تلگرام: طبق مستندات Bot API، sendMessageDraft با متن خالی
-     * همین placeholder بومی رو نشون می‌ده؛ پس هیچ متن/تایمر/سه‌نقطه‌ای داخل پیام نمی‌ذاریم.
+     * بلاک بومی «Thinking…» تلگرام (<tg-thinking>، Bot API 10.2+): فقط تو sendRichMessageDraft کار می‌کنه و
+     * متنِ داخلش قابل تعویضه؛ پس «🧠 نالین داره فکر می‌کنه» + انیمیشنِ متحرکِ خودِ تلگرام به‌جای سه‌نقطه.
      */
     private function sendThinking(int $n, bool $stoppable = true): bool
     {
-        $r = App::tg()->call('sendMessageDraft', [
-            'chat_id'  => $this->msg['chat']['id'],
-            'draft_id' => $this->draftId,
-            'text'     => '',
+        $r = App::tg()->call('sendRichMessageDraft', [
+            'chat_id'      => $this->msg['chat']['id'],
+            'draft_id'     => $this->draftId,
+            'rich_message' => ['html' => '<tg-thinking>' . self::THINKING . '</tg-thinking>'],
         ] + $this->stopOpts($stoppable), 8);
         return !empty($r['ok']);
     }
