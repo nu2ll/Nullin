@@ -20,20 +20,6 @@ final class Topics
         return (bool) App::cfg('topics', true);
     }
 
-    /** getMe بدون کش (هر بار از تلگرام می‌پرسه)؛ اگه جواب نده null */
-    private static function me(): ?array
-    {
-        $r = App::tg()->call('getMe');
-        return empty($r['ok']) ? null : (array) ($r['result'] ?? []);
-    }
-
-    /** ربات تو BotFather حالت Threaded Mode داره؟ (بدون کش) */
-    public static function enabled(): bool
-    {
-        $me = self::on() ? self::me() : null;
-        return $me !== null && !empty($me['has_topics_enabled']);
-    }
-
     /** اول هر آپدیت صدا زده می‌شه: تاپیک جاری (اگه تو پی‌وی داخل تاپیکیم) رو تو App ثبت می‌کنه */
     public static function enter(array $update): void
     {
@@ -77,12 +63,6 @@ final class Topics
     public static function adopt(array $msg, string $question): bool
     {
         if (!App::cfg('topics_auto_create', true) || App::thread() > 0 || trim($question) === '' || !self::on()) {
-            return false;
-        }
-        // یه getMe بدون کش برای هر دو شرط: Threaded Mode خاموشه، یا «Disallow users to create new threads» روشنه
-        // (allows_users_to_create_topics تو جواب نیست/false) یا getMe جواب نداد → ربات تاپیک نمی‌سازه
-        $me = self::me();
-        if ($me === null || empty($me['has_topics_enabled']) || empty($me['allows_users_to_create_topics'])) {
             return false;
         }
         $chat   = (int) $msg['chat']['id'];
