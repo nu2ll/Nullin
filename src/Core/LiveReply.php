@@ -204,8 +204,12 @@ final class LiveReply
         if (!$this->draft) {
             return;
         }
+        try {
+            $this->typing();
+        } catch (Throwable) {
+        }
         $n    = (int) floor(microtime(true) - $this->t0);
-        if ($n < $this->shown + 1) {
+        if ($n < $this->shown + 20) {
             return;
         }
         $this->inTick = true;
@@ -244,6 +248,7 @@ final class LiveReply
         if (($this->msg['chat']['type'] ?? '') === 'private') {
             $this->draftId = mt_rand(1, 2147483646);
             $this->sendThinking(0);
+            $this->typing();
             $this->rich  = true;
             $this->draft = true;
             $this->armStop();
@@ -260,12 +265,16 @@ final class LiveReply
         $this->arm();
     }
 
+    /*
+     * انیمیشن «Thinking…» خودِ تلگرام: طبق مستندات Bot API، sendMessageDraft با متن خالی
+     * همین placeholder بومی رو نشون می‌ده؛ پس هیچ متن/تایمر/سه‌نقطه‌ای داخل پیام نمی‌ذاریم.
+     */
     private function sendThinking(int $n, bool $stoppable = true): bool
     {
-        $r = App::tg()->call('sendRichMessageDraft', [
-            'chat_id'      => $this->msg['chat']['id'],
-            'draft_id'     => $this->draftId,
-            'rich_message' => ['html' => '<tg-thinking>🧠 نالین داره فکر می‌کنه… ' . $n . 's</tg-thinking>'],
+        $r = App::tg()->call('sendMessageDraft', [
+            'chat_id'  => $this->msg['chat']['id'],
+            'draft_id' => $this->draftId,
+            'text'     => '',
         ] + $this->stopOpts($stoppable), 8);
         return !empty($r['ok']);
     }
@@ -292,7 +301,7 @@ final class LiveReply
 
     private function typing(): void
     {
-        if ($this->status && !$this->draft && time() - $this->lastTyping >= 4) {
+        if ($this->status && time() - $this->lastTyping >= 4) {
             $this->lastTyping = time();
             App::tg()->action($this->msg['chat']['id'], 'typing');
         }
