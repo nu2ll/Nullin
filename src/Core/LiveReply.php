@@ -274,7 +274,7 @@ final class LiveReply
         $r = App::tg()->call('sendRichMessageDraft', [
             'chat_id'      => $this->msg['chat']['id'],
             'draft_id'     => $this->draftId,
-            'rich_message' => ['html' => '<tg-thinking>' . self::THINKING . '</tg-thinking>'],
+            'rich_message' => ['html' => self::THINKING . '<tg-thinking></tg-thinking>'],
         ] + $this->stopOpts($stoppable), 8);
         return !empty($r['ok']);
     }
