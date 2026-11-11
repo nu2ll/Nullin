@@ -47,6 +47,30 @@ final class Rich
         return implode("\n", $l);
     }
 
+    // Per-line direction for rich HTML: the message is sent LTR and every line whose first real letter is
+    // Persian/Arabic gets an invisible RLM (U+200F) at its start, so it anchors right while English lines stay
+    // left. Lines with no letters (emoji, digits, blanks) follow the previous line. <pre> blocks are untouched.
+    private static function lineDirs(string $html): string
+    {
+        $rtl   = true;
+        $inPre = false;
+        $out   = [];
+        foreach (explode("\n", $html) as $line) {
+            $wasPre = $inPre;
+            $inPre  = $wasPre ? !str_contains($line, '</pre>') : (str_contains($line, '<pre') && !str_contains($line, '</pre>'));
+            if ($wasPre || str_contains($line, '<pre')) {
+                $out[] = $line;
+                continue;
+            }
+            $t = html_entity_decode(strip_tags($line), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            if (preg_match('/\p{L}/u', $t, $m)) {
+                $rtl = preg_match('/\p{Arabic}/u', $m[0]) === 1;
+            }
+            $out[] = ($rtl && trim($t) !== '') ? "\u{200F}" . $line : $line;
+        }
+        return implode("\n", $out);
+    }
+
     private static function mdPayload(string $md, ?array $kb): array
     {
         $btn = self::buttonsHtml($kb);
@@ -148,9 +172,12 @@ final class Rich
 
     private static function payload(string $html, ?array $kb, ?string $img): array
     {
-        $body = '<p>' . str_replace("\n", '<br>', $html) . '</p>' . self::buttonsHtml($kb);
+        // Only media captions without buttons (photo + text) get per-line direction (see lineDirs);
+        // every other message, and anything with buttons, stays exactly as before (is_rtl = true).
+        $cap  = $img !== null && preg_match('#^(?:https://|[A-Za-z0-9_-]{20,}$)#', $img) === 1 && !self::hasButtons($kb);
+        $body = '<p>' . str_replace("\n", '<br>', $cap ? self::lineDirs($html) : $html) . '</p>' . self::buttonsHtml($kb);
         if ($img !== null && preg_match('#^(?:https://|[A-Za-z0-9_-]{20,}$)#', $img)) {
-            return ['html' => '<img src="tg://photo?id=thumb"/>' . $body, 'is_rtl' => true, 'media' => [['id' => 'thumb', 'media' => ['type' => 'photo', 'media' => $img]]]];
+            return ['html' => '<img src="tg://photo?id=thumb"/>' . $body, 'is_rtl' => !$cap, 'media' => [['id' => 'thumb', 'media' => ['type' => 'photo', 'media' => $img]]]];
         }
         return ['html' => $body, 'is_rtl' => true];
     }
@@ -186,8 +213,8 @@ final class Rich
     private static function videoPayload(string $html, string $fileId): array
     {
         return [
-            'html'   => '<video src="tg://video?id=v"></video><p>' . str_replace("\n", '<br>', $html) . '</p>',
-            'is_rtl' => true,
+            'html'   => '<video src="tg://video?id=v"></video><p>' . str_replace("\n", '<br>', self::lineDirs($html)) . '</p>',
+            'is_rtl' => false,
             'media'  => [['id' => 'v', 'media' => ['type' => 'video', 'media' => $fileId]]],
         ];
     }

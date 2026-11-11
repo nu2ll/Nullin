@@ -6,6 +6,8 @@ final class ChosenHandler
 
     private const GAMES = ['rps' => 'rps', 'ttt' => 'ttt', 'c4' => 'c4', 'math' => 'math', 'chess' => 'chess'];
 
+    private const GAME_CLASS = ['rps' => Rps::class, 'ttt' => TicTacToe::class, 'c4' => ConnectFour::class, 'math' => MathDuel::class, 'chess' => Chess::class];
+
     public static function handle(array $c): void
     {
         $id   = (string) ($c['result_id'] ?? '');
@@ -23,8 +25,23 @@ final class ChosenHandler
         if ($id === 'fal') {
             Tools::showHafez($imid);
         }
+        if ($id === 'unit') {
+            $s = UnitConvert::initial();
+            Rich::editInline($imid, UnitConvert::render($s), UnitConvert::keyboard($s));
+        }
+        if ($id === 'calc') {
+            Rich::editInline($imid, Calculator::render('0'), Calculator::keyboard());
+        }
+        if ($id === 'coin') {
+            Rich::editInline($imid, "<b>🪙 سکه</b>\n\nآماده‌ی پرتاب! 👇", Tools::coinKeyboard());
+        }
+        if ($id === 'pass') {
+            Rich::editInline($imid, Tools::passwordText(16), Tools::passwordKeyboard());
+        }
         if (isset(self::GAMES[$id])) {
             GameKit::save($imid, GameKit::fresh(self::GAMES[$id], GameKit::player($from)));
+            $cls = self::GAME_CLASS[$id];
+            Rich::editInline($imid, $cls::intro(), $cls::modeKeyboard());
         }
         if (preg_match('/^(ai|tr)q_(\w+)$/', $id, $m)) {
             InlineHandler::resolveDeferred($m[2], $imid);
