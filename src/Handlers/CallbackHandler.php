@@ -22,11 +22,36 @@ final class CallbackHandler
             return;
         }
 
+        $cType   = (string) ($cq['message']['chat']['type'] ?? '');
+        $inGroup = in_array($cType, ['group', 'supergroup'], true);
+        if ($inGroup && $uid > 0) {
+            $own = (int) Store::get('menuowner', ($cq['message']['chat']['id'] ?? 0) . ':' . ($cq['message']['message_id'] ?? 0), 0);
+            if ($own > 0 && $own !== $uid) {
+                $tg->alert($cq, L('این منو مال تو نیست؛ خودت دستورش رو بزن 🙂', 'This menu isn\'t yours; send the command yourself 🙂'));
+                return;
+            }
+        }
+
         if ($data === 'lang:menu' || $data === 'lang:fa' || $data === 'lang:en') {
             $lc = $cq['message']['chat']['id'] ?? null;
             $lm = (int) ($cq['message']['message_id'] ?? 0);
             if ($data !== 'lang:menu') {
                 Lang::save($uid, substr($data, 5));
+                Ui::pushUserCommands($tg, $uid);
+                if (in_array($cq['message']['chat']['type'] ?? '', ['group', 'supergroup'], true)) {
+                    Ui::syncMemberCommands($tg, (int) $cq['message']['chat']['id'], $uid, true);
+                }
+            }
+            if ($data !== 'lang:menu' && $lc !== null && $lm > 0 && ($inGroup || $cType === 'private')) {
+                $mkey = $inGroup ? "{$lc}:{$uid}" : (string) $lc;
+                $old  = (int) Store::get('startmenu', $mkey, 0);
+                if ($old > 0 && $old !== $lm) {
+                    $tg->call('deleteMessage', ['chat_id' => $lc, 'message_id' => $old], 8);
+                }
+                Store::set('startmenu', $mkey, $lm);
+                if ($inGroup) {
+                    Store::set('menuowner', "{$lc}:{$lm}", $uid);
+                }
             }
             if ($lc !== null && $lm > 0) {
                 if ($data === 'lang:menu') {

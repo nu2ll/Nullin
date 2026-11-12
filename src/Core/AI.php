@@ -1173,9 +1173,6 @@ final class AI
         if ($route !== 'gemini' && !str_starts_with($route, 'gemini:')) {
             return FreeAI::transcribe(explode(':', $route, 2)[0], $bytes, $mime);
         }
-        return self::chat([['role' => 'user', 'content' => [
-            ['type' => 'media', 'mime' => $mime, 'data' => base64_encode($bytes)],
-            ['type' => 'text', 'text' => 'Transcribe this audio exactly, in its original language. Output only the transcript.'],
-        ]]], ['tier' => 'lite', 'temperature' => 0, 'thinking' => null, 'section' => 'voice']);
+        return null;
     }
 }

@@ -31,6 +31,7 @@ final class Kernel
         'biz_pause'       => 30 * 86400,
         'biz_wait'        => 86400,
         'tidy'            => 2 * 86400,
+        'menuowner'       => 7 * 86400,
         'bc_last'         => 2 * 86400,
         'gen_stop'        => 600,
     ];

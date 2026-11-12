@@ -100,7 +100,11 @@ final class Ui
 
     public static function sendMain(int|string $chatId, array $from): void
     {
-        Rich::sendHtml($chatId, self::startText($from), null, self::startKeyboard());
+        $r   = Rich::sendHtml($chatId, self::startText($from), null, self::startKeyboard());
+        $mid = (int) ($r['result']['message_id'] ?? 0);
+        if ($mid > 0) {
+            Store::set('startmenu', (string) $chatId, $mid);
+        }
     }
 
     public static function show(int|string $chatId, int $mid, string $text, ?array $kb = null): void
@@ -584,6 +588,48 @@ final class Ui
         Lang::set('fa');
         $tg->call('setMyCommands', ['commands' => self::commands($kind), 'scope' => $scope, 'language_code' => 'fa'], 10);
         Lang::set($prev);
+    }
+
+    /** Re-publish the command menu for one private chat in the language the user just picked. */
+    public static function pushUserCommands($tg, int $uid): void
+    {
+        if ($uid <= 0) {
+            return;
+        }
+        try {
+            $cmds  = self::commands(App::isAdmin($uid) ? 'admin' : 'private');
+            $scope = ['type' => 'chat', 'chat_id' => $uid];
+            $tg->call('setMyCommands', ['commands' => $cmds, 'scope' => $scope], 10);
+            $tg->call('setMyCommands', ['commands' => $cmds, 'scope' => $scope, 'language_code' => 'fa'], 10);
+        } catch (\Throwable $e) {
+            logError('lang', 'pushUserCommands: ' . $e->getMessage());
+        }
+    }
+
+    public static function syncMemberCommands($tg, int $chatId, int $uid, bool $force = false): void
+    {
+        if ($chatId === 0 || $uid <= 0) {
+            return;
+        }
+        $lang = Lang::get();
+        $key  = $chatId . ':' . $uid;
+        $prev = Store::get('cmdsync', $key);
+        if (!$force && is_array($prev)) {
+            if (($prev['l'] ?? '') === $lang && !empty($prev['ok'])) {
+                return;
+            }
+        }
+        try {
+            $r  = $tg->call('setMyCommands', [
+                'commands' => self::commands('group'),
+                'scope'    => ['type' => 'chat_member', 'chat_id' => $chatId, 'user_id' => $uid],
+            ], 10);
+            if (!empty($r['ok'])) {
+                Store::set('cmdsync', $key, ['l' => $lang, 'ok' => true]);
+            }
+        } catch (\Throwable $e) {
+            logError('lang', 'syncMemberCommands: ' . $e->getMessage());
+        }
     }
 
     public static function commands(string $scope): array

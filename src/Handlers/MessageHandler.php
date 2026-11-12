@@ -33,6 +33,9 @@ final class MessageHandler
         if (isset($msg['reply_to_message']['from'])) {
             Roast::see($msg['reply_to_message']['from']);
         }
+        if ($group && $text !== '' && $text[0] === '/') {
+            Ui::syncMemberCommands(App::tg(), (int) $msg['chat']['id'], $userId);
+        }
 
         if ($text !== '' && $text[0] === '/' && self::tidy($msg, $text, $private, static fn() => self::command($msg, $text, $private))) {
             return;
@@ -310,7 +313,10 @@ final class MessageHandler
                 return true;
 
             case 'lang':
-                Rich::sendHtml($chatId, L('🌐 زبان ربات رو انتخاب کن:', '🌐 Choose the bot language:'), null, Lang::toggleKeyboard());
+                $r = Rich::sendHtml($chatId, L('🌐 زبان ربات رو انتخاب کن:', '🌐 Choose the bot language:'), $private ? null : (int) ($msg['message_id'] ?? 0), Lang::toggleKeyboard());
+                if (!$private && !empty($r['result']['message_id'])) {
+                    Store::set('menuowner', "{$chatId}:{$r['result']['message_id']}", (int) $from['id']);
+                }
                 return true;
 
             case 'ping':
