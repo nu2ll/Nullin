@@ -153,7 +153,10 @@ final class Roast
 
         $picLine = 'This image is their Telegram profile photo.';
         $l   = [];
-        $l[] = 'Roast this Telegram user; unfiltered, merciless, in ' . Lang::aiName() . '.';
+        $req = mb_substr(trim((string) ($t['request'] ?? '')), 0, 300);
+        $l[] = 'Roast this Telegram user; unfiltered, merciless, ' . ($req !== ''
+            ? 'in the same language as the request that asked for this roast: “' . $req . '”.'
+            : 'in ' . Lang::aiName() . '.');
         $l[] = '';
         $l[] = 'Name: ' . $t['name'];
         $l[] = 'Username: ' . ($t['username'] !== '' ? '@' . $t['username'] : 'none');

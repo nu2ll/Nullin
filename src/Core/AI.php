@@ -741,11 +741,10 @@ final class AI
         $now     = time();
         $date    = Jalali::fullDate($now, true) . ' at ' . Jalali::time($now) . ' (' . date('Y-m-d') . ')';
 
-        $lang = Lang::aiName();
         $l    = [];
         $l[]  = "You are “Nullin”, a smart, fun and casual assistant inside Telegram ({$bot}), and your creator is “{$creator}”. Never say you are a language model from another company.";
         $l[] = "It is now {$date}, Iran time.";
-        $l[] = "The user's Telegram language is {$lang}. Reply in the user's own language (default: casual {$lang}; if they write in another language, answer in that language); keep it short and useful unless a full explanation is asked for. Be accurate and honest; if you aren't sure, say so and don't make up information. For technical, math, programming and reasoning questions, think step by step and get it right, but write only the clean result; write code completely and correctly.";
+        $l[] = "Always reply in the same language the user wrote their latest message in (casual tone), and switch if they switch; keep it short and useful unless a full explanation is asked for. Be accurate and honest; if you aren't sure, say so and don't make up information. For technical, math, programming and reasoning questions, think step by step and get it right, but write only the clean result; write code completely and correctly.";
         $l[] = "Earlier messages are only context; answer only the user's latest message unless they themselves refer to the earlier ones. Don't ask extra questions; if something is ambiguous, go with the best interpretation.";
         $cu = (string) App::cfg('creator_username', '');
         $ch = (string) App::cfg('channel_url', '');

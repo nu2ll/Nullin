@@ -233,6 +233,7 @@ final class Intent
                 if ($t === null) {
                     return ['text' => L("🤷 این آدم رو پیدا نکردم؛\nآیدی عددی یا یوزرنیمش رو درست بنویس.", "🤷 I couldn’t find this person;\nwrite their numeric id or username correctly.")];
                 }
+                $t['request'] = trim((string) ($msg['text'] ?? $msg['caption'] ?? ''));
                 $live = App::cfg('ai_stream', true) ? new LiveReply($msg, $imid, Roast::head($t), false) : null;
                 return ['text' => Roast::text($t, $live), 'live' => $live];
 

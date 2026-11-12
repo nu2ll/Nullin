@@ -5,7 +5,6 @@ final class Lang
     private static string $cur = 'fa';
     private static array $memo = [];
     private static ?string $code = null;      // Telegram language_code of the current user (base code, e.g. "ru")
-    private static ?string $explicit = null;  // language the user picked with /lang, if any
 
     private const NAMES = [
         'fa' => 'Persian', 'en' => 'English', 'ru' => 'Russian', 'ar' => 'Arabic', 'tr' => 'Turkish', 'de' => 'German',
@@ -32,7 +31,6 @@ final class Lang
     {
         self::$cur      = $lang === 'en' ? 'en' : 'fa';
         self::$code     = null;
-        self::$explicit = null;
     }
 
     public static function default(): string
@@ -83,7 +81,6 @@ final class Lang
     {
         self::$cur      = is_array($from) ? self::forUser($from) : self::default();
         self::$code     = is_array($from) ? self::baseCode($from['language_code'] ?? null) : null;
-        self::$explicit = is_array($from) ? self::stored((int) ($from['id'] ?? 0)) : null;
     }
 
     private static function baseCode(?string $code): ?string
@@ -93,12 +90,9 @@ final class Lang
         return preg_match('/^[a-z]{2,3}$/', $code) === 1 ? $code : null;
     }
 
-    /** English name of the language the AI should answer in: the user's /lang choice, else their Telegram language. */
+    /** English name of the language the AI should answer in: the user's Telegram language only (ignores /lang). */
     public static function aiName(): string
     {
-        if (self::$explicit !== null) {
-            return self::NAMES[self::$explicit];
-        }
         if (self::$code !== null) {
             if (isset(self::NAMES[self::$code])) {
                 return self::NAMES[self::$code];
