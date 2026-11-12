@@ -184,14 +184,14 @@ check('start text', str_contains(Ui::startText(['id' => 1, 'first_name' => '<b>x
 check('icon url', str_starts_with(Ui::icon('chess'), 'https://raw.githubusercontent.com/'), true);
 check('calc done', Calculator::render('8', true), "<b>🧮 ماشین‌حساب نالین</b>\n\n= <b>8</b>");
 check('calc typing no preview', str_contains(Calculator::render('2+3'), '='), false);
-check('commands admin', count(Ui::commands('admin')), 22);
-check('commands private', count(Ui::commands('private')), 12);
+check('commands admin', count(Ui::commands('admin')), 23);
+check('commands private', count(Ui::commands('private')), 13);
 check('ping text', str_starts_with(Ui::ping(123), "پینگ: ۱۲۳ میلی‌ثانیه\n"), true);
 check('switch default on', Switches::on('chess'), true);
 Switches::toggle('image');
 check('switch off', Switches::on('image'), false);
 check('commands hide img', in_array('img', array_column(Ui::commands('private'), 'command'), true), false);
-check('commands private off', count(Ui::commands('private')), 11);
+check('commands private off', count(Ui::commands('private')), 12);
 Switches::toggle('image');
 check('switch back on', Switches::on('image'), true);
 check('commands show img', in_array('img', array_column(Ui::commands('private'), 'command'), true), true);
@@ -368,16 +368,16 @@ check('live think hidden', $body->invoke($live, "<think>hmm", false), null);
 
 $ct = ['contact' => ['phone_number' => '+989120000000', 'first_name' => 'علی', 'last_name' => 'رضایی', 'user_id' => 123, 'vcard' => "BEGIN:VCARD\nORG:شرکت نمونه\nEND:VCARD"]];
 check('contact detected', Assistant::hasMedia($ct), true);
-check('contact kind', Assistant::kind($ct), 'مخاطب');
-check('contact info', Assistant::dataInfo($ct), ['مخاطب', 'نام: علی رضایی | شماره: +989120000000 | آیدی عددی تلگرام: 123 (عضو تلگرامه) | سازمان: شرکت نمونه']);
-check('dice plain', Assistant::dataInfo(['dice' => ['emoji' => '🎲', 'value' => 4]]), ['تاس', 'ایموجی: 🎲 | نتیجه: 4']);
-check('dart kind', Assistant::kind(['dice' => ['emoji' => '🎯', 'value' => 6]]), 'دارت');
-check('dart name', Assistant::dataInfo(['dice' => ['emoji' => '🎯', 'value' => 6]])[0], 'دارت');
-check('slot jackpot', Assistant::dataInfo(['dice' => ['emoji' => '🎰', 'value' => 64]])[1], 'ایموجی: 🎰 | نتیجه: 64 | قرقره‌ها از چپ به راست: ۷ - ۷ - ۷ | سه نماد یکسان یعنی برد و سه تا ۷ یعنی جک‌پات');
-check('slot grapes', str_contains(Assistant::dataInfo(['dice' => ['emoji' => '🎰', 'value' => 22]])[1], 'انگور - انگور - انگور'), true);
-check('slot bars', str_contains(Assistant::dataInfo(['dice' => ['emoji' => '🎰', 'value' => 1]])[1], 'بار - بار - بار'), true);
-check('basketball name', Assistant::dataInfo(['dice' => ['emoji' => '🏀', 'value' => 5]])[0], 'بسکتبال');
-check('football goal rule', str_contains(Assistant::dataInfo(['dice' => ['emoji' => '⚽', 'value' => 3]])[1], 'عدد ۳ و ۴ و ۵ یعنی گل شد'), true);
+check('contact kind', Assistant::kind($ct), 'contact');
+check('contact info', Assistant::dataInfo($ct), ['contact', 'Name: علی رضایی | Phone: +989120000000 | Telegram numeric id: 123 (is on Telegram) | Organization: شرکت نمونه']);
+check('dice plain', Assistant::dataInfo(['dice' => ['emoji' => '🎲', 'value' => 4]]), ['dice', 'Emoji: 🎲 | Result: 4']);
+check('dart kind', Assistant::kind(['dice' => ['emoji' => '🎯', 'value' => 6]]), 'darts');
+check('dart name', Assistant::dataInfo(['dice' => ['emoji' => '🎯', 'value' => 6]])[0], 'darts');
+check('slot jackpot', Assistant::dataInfo(['dice' => ['emoji' => '🎰', 'value' => 64]])[1], 'Emoji: 🎰 | Result: 64 | Reels from left to right: 7 - 7 - 7 | three matching symbols win and three 7s is the jackpot');
+check('slot grapes', str_contains(Assistant::dataInfo(['dice' => ['emoji' => '🎰', 'value' => 22]])[1], 'grapes - grapes - grapes'), true);
+check('slot bars', str_contains(Assistant::dataInfo(['dice' => ['emoji' => '🎰', 'value' => 1]])[1], 'BAR - BAR - BAR'), true);
+check('basketball name', Assistant::dataInfo(['dice' => ['emoji' => '🏀', 'value' => 5]])[0], 'basketball');
+check('football goal rule', str_contains(Assistant::dataInfo(['dice' => ['emoji' => '⚽', 'value' => 3]])[1], '3, 4 and 5 mean a goal'), true);
 
 Switches::setAll(true);
 check('switch all on', array_filter(array_keys(Switches::TOOLS), static fn($k) => !Switches::on($k)), []);
@@ -392,7 +392,7 @@ check('switch unknown toggle ignored', Switches::on('no_such_tool'), true);
 Switches::setAll(false);
 check('switch all off', array_filter(array_keys(Switches::TOOLS), static fn($k) => Switches::on($k)), []);
 check('switch guard off', Switches::guard('ai'), false);
-check('commands all off private', array_column(Ui::commands('private'), 'command'), ['start', 'help', 'voice', 'forget', 'ping']);
+check('commands all off private', array_column(Ui::commands('private'), 'command'), ['start', 'help', 'voice', 'forget', 'ping', 'lang']);
 Switches::setAll(true);
 check('switch guard on', Switches::guard('ai'), true);
 check('switch text no off line', str_contains(Switches::text(), 'خاموش:'), false);
@@ -588,6 +588,59 @@ check('unit temp c to k', UnitConvert::convert(0, 'temp', 'c', 'k'), 273.15);
 check('unit data gb to mb', UnitConvert::convert(1, 'data', 'gb', 'mb'), 1024.0);
 check('unit keyboard rows', count(UnitConvert::keyboard($us)['inline_keyboard']), 7);
 check('unit pick keyboard last row', count(UnitConvert::keyboard($pick)['inline_keyboard'][count(UnitConvert::keyboard($pick)['inline_keyboard']) - 1]), 1);
+
+// /ailang: the user picks the language the AI answers in
+$aiCodes = array_keys((new ReflectionClassConstant('Lang', 'AI_LANGS'))->getValue());
+check('ailang list size', count($aiCodes) >= 100, true);
+check('ailang has fa en', in_array('fa', $aiCodes, true) && in_array('en', $aiCodes, true), true);
+check('ailang codes unique', count($aiCodes), count(array_unique($aiCodes)));
+check('ailang pages', Lang::aiPages(), (int) ceil(count($aiCodes) / 16));
+check('ailang none stored', Lang::aiStored(901), null);
+Lang::set('en');
+check('ailang panel auto en', str_contains(Lang::aiPanelText(901), 'Auto (your Telegram language)'), true);
+Lang::set('fa');
+check('ailang panel auto fa', str_contains(Lang::aiPanelText(901), 'خودکار'), true);
+
+$seen = [];
+for ($pg = 0; $pg < Lang::aiPages(); $pg++) {
+    $kb = Lang::aiKeyboard(901, $pg)['inline_keyboard'];
+    check("ailang page {$pg} rows", count($kb) <= 8 + 2, true);
+    foreach (array_slice($kb, 0, -2) as $row) {
+        check("ailang page {$pg} cols", count($row) <= 2, true);
+        foreach ($row as $b) {
+            $seen[] = explode(':', $b['callback_data'])[2];
+            check('ailang callback size', strlen($b['callback_data']) <= 64, true);
+        }
+    }
+}
+check('ailang every language shown once', $seen, $aiCodes);
+$nav = Lang::aiKeyboard(901, 0)['inline_keyboard'];
+check('ailang nav wraps back', end($nav)[0]['callback_data'] ?? null, 'ail:r:0');
+check('ailang prev wraps', $nav[count($nav) - 2][0]['callback_data'], 'ail:p:' . (Lang::aiPages() - 1));
+check('ailang next', $nav[count($nav) - 2][2]['callback_data'], 'ail:p:1');
+check('ailang page clamps', Lang::aiKeyboard(901, 99) === Lang::aiKeyboard(901, Lang::aiPages() - 1), true);
+
+Lang::aiSave(901, 'ru');
+check('ailang saved', Lang::aiStored(901), 'ru');
+check('ailang panel shows pick', str_contains(Lang::aiPanelText(901), 'Русский'), true);
+check('ailang pick marked', str_contains(json_encode(Lang::aiKeyboard(901, 0), JSON_UNESCAPED_UNICODE), '✅ 🇷🇺'), true);
+Lang::useFrom(['id' => 901, 'language_code' => 'de']);
+check('ailang beats telegram language', Lang::aiName(), 'Russian');
+Lang::aiSave(901, 'zh-TW');
+check('ailang code with dash', Lang::aiStored(901), 'zh-TW');
+check('ailang name with dash', Lang::aiName(), 'Chinese (Traditional)');
+Lang::aiSave(901, 'xx');
+check('ailang unknown code resets', Lang::aiStored(901), null);
+Lang::aiSave(901, 'ru');
+Lang::aiSave(901, null);
+check('ailang reset', Lang::aiStored(901), null);
+Lang::useFrom(['id' => 901, 'language_code' => 'de']);
+check('ailang auto uses telegram', Lang::aiName(), 'German');
+Lang::useFrom(['id' => 902, 'language_code' => 'ru']);
+check('ailang other user untouched', Lang::aiName(), 'Russian');
+Lang::aiSave(0, 'ru');
+check('ailang ignores bad user id', Lang::aiStored(0), null);
+Lang::set('fa');
 
 @unlink($db);
 @unlink($db . '-wal');
