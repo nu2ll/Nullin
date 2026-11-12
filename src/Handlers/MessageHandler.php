@@ -29,11 +29,6 @@ final class MessageHandler
             Users::touch($from, str_starts_with($text, '/start'));
         } else {
             Roast::see($from);
-            try {
-                Ui::syncMemberCommands(App::tg(), (int) ($msg['chat']['id'] ?? 0), $userId);
-            } catch (\Throwable $e) {
-                logError('lang', 'syncMemberCommands: ' . $e->getMessage());
-            }
         }
         if (isset($msg['reply_to_message']['from'])) {
             Roast::see($msg['reply_to_message']['from']);
@@ -303,13 +298,6 @@ final class MessageHandler
                     AI::markMsg($chatId, $r['result']['message_id'] ?? 0);
                     return true;
                 }
-                if (Lang::stored((int) $from['id']) !== null) {
-                    try {
-                        Ui::pushUserCommands($tg, (int) $from['id']);
-                    } catch (\Throwable $e) {
-                        logError('lang', 'pushUserCommands: ' . $e->getMessage());
-                    }
-                }
                 Ui::sendMain($chatId, $from);
                 return true;
 
@@ -323,10 +311,6 @@ final class MessageHandler
 
             case 'lang':
                 Rich::sendHtml($chatId, L('🌐 زبان ربات رو انتخاب کن:', '🌐 Choose the bot language:'), null, Lang::toggleKeyboard());
-                return true;
-
-            case 'ailang':
-                Rich::sendHtml($chatId, Lang::aiPanelText((int) $from['id']), null, Lang::aiKeyboard((int) $from['id'], 0));
                 return true;
 
             case 'ping':

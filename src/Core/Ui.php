@@ -586,45 +586,6 @@ final class Ui
         Lang::set($prev);
     }
 
-    /**
-     * Telegram picks the command menu by the app's own language, so the bot's /lang choice never reached it.
-     * This sets the menu for one private chat in the language the user chose in the bot.
-     */
-    public static function pushUserCommands($tg, int $userId): void
-    {
-        if ($userId <= 0) {
-            return;
-        }
-        $cmds  = self::commands(App::isAdmin($userId) ? 'admin' : 'private');
-        $scope = ['type' => 'chat', 'chat_id' => $userId];
-        $tg->call('setMyCommands', ['commands' => $cmds, 'scope' => $scope], 10);
-        $tg->call('setMyCommands', ['commands' => $cmds, 'scope' => $scope, 'language_code' => 'fa'], 10);
-    }
-
-    /**
-     * Group menus can't follow a bot-side language choice by default (Telegram uses each member's app language),
-     * but a per-member scope can. Sets the group command menu for one member in one group in their chosen language.
-     * Only runs for users who picked a language; remembers what it already pushed so it costs nothing afterwards.
-     */
-    public static function syncMemberCommands($tg, int $chatId, int $userId, bool $force = false): void
-    {
-        $lang = Lang::stored($userId);
-        if ($lang === null || $chatId === 0 || $userId <= 0) {
-            return;
-        }
-        $key = $chatId . ':' . $userId;
-        $st  = Store::get('cmdsync', $key);
-        if (!$force && is_array($st) && ($st['l'] ?? '') === $lang && (!empty($st['ok']) || (time() - (int) ($st['t'] ?? 0)) < 86400)) {
-            return;
-        }
-        $r  = $tg->call('setMyCommands', [
-            'commands' => self::commands('group'),
-            'scope'    => ['type' => 'chat_member', 'chat_id' => $chatId, 'user_id' => $userId],
-        ], 10);
-        $ok = is_array($r) && !empty($r['ok']);
-        Store::set('cmdsync', $key, ['l' => $lang, 'ok' => $ok, 't' => time()]);
-    }
-
     public static function commands(string $scope): array
     {
         $c = static fn(string $cmd, string $d) => ['command' => $cmd, 'description' => $d];
@@ -635,7 +596,6 @@ final class Ui
             $c('forget', L('🧹 پاک کردن حافظه‌ی نالین', '🧹 Clear Nullin\'s memory')),
             $c('ping', L('🏓 پینگ', '🏓 Ping')),
             $c('lang', '🌐 زبان / Language'),
-            $c('ailang', L('🤖 زبان هوش مصنوعی', '🤖 AI language')),
         ];
         foreach ([['img', L('🎨 ساخت عکس', '🎨 Create image')], ['tr', L('🌐 ترجمه', '🌐 Translate')], ['ft', L('✨ فونت‌ساز', '✨ Font maker')], ['gw', L('🎁 قرعه‌کشی', '🎁 Giveaway')], ['wk', L('📖 ویکی‌پدیا', '📖 Wikipedia')], ['st', L('🛡 ردیاب اشتراک', '🛡 Invite link tracker')]] as [$cmd, $desc]) {
             if (Switches::on(Switches::COMMAND_SWITCH[$cmd])) {

@@ -745,10 +745,7 @@ final class AI
         $l    = [];
         $l[]  = "You are “Nullin”, a smart, fun and casual assistant inside Telegram ({$bot}), and your creator is “{$creator}”. Never say you are a language model from another company.";
         $l[] = "It is now {$date}, Iran time.";
-        $l[] = (Lang::aiForced()
-            ? "The user chose {$lang} as the language you answer in. ALWAYS reply in {$lang}, even when their message is written in another language (never switch to the language of their message); only if they explicitly ask you to use a different language, or ask you to translate something, follow that request"
-            : "The user's Telegram language is {$lang}. Reply in the user's own language (default: casual {$lang}; if they write in another language, answer in that language)")
-            . "; keep it short and useful unless a full explanation is asked for. Be accurate and honest; if you aren't sure, say so and don't make up information. For technical, math, programming and reasoning questions, think step by step and get it right, but write only the clean result; write code completely and correctly.";
+        $l[] = "The user's Telegram language is {$lang}. Reply in the user's own language (default: casual {$lang}; if they write in another language, answer in that language); keep it short and useful unless a full explanation is asked for. Be accurate and honest; if you aren't sure, say so and don't make up information. For technical, math, programming and reasoning questions, think step by step and get it right, but write only the clean result; write code completely and correctly.";
         $l[] = "Earlier messages are only context; answer only the user's latest message unless they themselves refer to the earlier ones. Don't ask extra questions; if something is ambiguous, go with the best interpretation.";
         $cu = (string) App::cfg('creator_username', '');
         $ch = (string) App::cfg('channel_url', '');

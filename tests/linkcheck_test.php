@@ -8,7 +8,6 @@ if (!extension_loaded('mbstring')) {
 }
 
 require __DIR__ . '/../src/helpers.php';
-require __DIR__ . '/../src/Core/Lang.php';
 require __DIR__ . '/../src/Features/LinkCheck.php';
 require __DIR__ . '/../src/Features/LinkSites.php';
 require __DIR__ . '/../src/Features/Intent.php';
