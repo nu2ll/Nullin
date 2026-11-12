@@ -330,7 +330,7 @@ final class Downloader
         $tg  = App::tg();
         $uid = (int) $msg['from']['id'];
         if (($stop = self::gate($uid, $link)) !== null) {
-            $tg->reply($msg, $stop);
+            Rich::notice($msg, $stop);
             return;
         }
         $tg->react($msg['chat']['id'], (int) $msg['message_id'], '👍');
@@ -348,7 +348,7 @@ final class Downloader
         $tg  = App::tg();
         $uid = (int) ($from['id'] ?? 0);
         if (($stop = self::gate($uid, $link)) !== null) {
-            Rich::editInline($imid, $stop);
+            Rich::editInlineRich($imid, $stop);
             return;
         }
         $store = self::storeChat($uid);

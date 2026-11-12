@@ -70,13 +70,47 @@ final class Clock
         return self::dateLine($ts) . ' · ' . self::clock($ts, null, false) . (Lang::telegramIsFa() ? '' : ' UTC');
     }
 
+    private const GEO = 'https://geocoding-api.open-meteo.com/v1/search';
+
+    private const ALIASES = [
+        'newyork' => 'New York City', 'nyc' => 'New York City', 'losangeles' => 'Los Angeles',
+        'la' => 'Los Angeles', 'sanfrancisco' => 'San Francisco', 'lasvegas' => 'Las Vegas',
+        'hongkong' => 'Hong Kong', 'kualalumpur' => 'Kuala Lumpur', 'saopaulo' => 'Sao Paulo',
+        'buenosaires' => 'Buenos Aires', 'riodejaneiro' => 'Rio de Janeiro', 'mexicocity' => 'Mexico City',
+        'telaviv' => 'Tel Aviv', 'abudhabi' => 'Abu Dhabi', 'capetown' => 'Cape Town',
+        'newdelhi' => 'New Delhi', 'saltlakecity' => 'Salt Lake City', 'washingtondc' => 'Washington',
+    ];
+
+    private static function zoneOf(string $place): ?array
+    {
+        $place = trim(str_replace(['ي', 'ك', 'ة'], ['ی', 'ک', 'ه'], $place));
+        $place = trim(preg_replace('/^(شهر|استان)\s+/u', '', $place) ?? $place);
+        $place = trim(preg_replace('/\s+/u', ' ', $place) ?? $place);
+        if ($place === '') {
+            return null;
+        }
+        $lang = Lang::get();
+        return Store::remember('cache', 'clock_tz_' . $lang . '_' . md5(mb_strtolower($place)), 86400 * 30, static function () use ($place, $lang) {
+            $key   = preg_replace('/[\s\-_.]+/u', '', mb_strtolower($place)) ?? '';
+            $query = self::ALIASES[$key] ?? $place;
+            $g = Http::getJson(self::GEO . '?' . http_build_query(['name' => $query, 'count' => 10, 'language' => $lang, 'format' => 'json']), [], 8);
+            $list = array_values(array_filter($g['results'] ?? [], static fn ($x) => is_array($x) && !empty($x['timezone'])));
+            if (!$list) {
+                return null;
+            }
+            usort($list, static fn ($a, $b) => ((int) ($b['population'] ?? 0)) <=> ((int) ($a['population'] ?? 0)));
+            $r = $list[0];
+            return ['zone' => (string) $r['timezone'], 'name' => (string) ($r['name'] ?? $place), 'country' => (string) ($r['country'] ?? '')];
+        });
+    }
+
     public static function resolve(string $place): ?array
     {
         $place = trim($place);
         if ($place === '') {
             return [self::zone(), Lang::telegramIsFa() ? L('ایران', 'Iran') : 'UTC'];
         }
-        $z = Weather::zoneOf($place);
+        $z = self::zoneOf($place);
         if ($z === null || !self::valid($z['zone'])) {
             return null;
         }

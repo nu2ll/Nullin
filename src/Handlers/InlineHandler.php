@@ -19,7 +19,7 @@ final class InlineHandler
         'gw'      => ['gw', 'giveaway', 'قرعه‌کشی', 'قرعه کشی', 'قرعه'],
         'linkcheck' => ['st'],
         'like'    => ['like', 'لایک'],
-        'date'    => ['date', 'time', 'saat', 'tarikh', 'ساعت', 'تاریخ'],
+        'date'    => ['date'],
     ];
 
     private static array $iq = [];
@@ -190,7 +190,11 @@ final class InlineHandler
         }
         $tg = App::tg();
         if ($job['kind'] === 'ai' && AI::busy((int) ($job['from']['id'] ?? 0))) {
-            Rich::editInline($imid, (Lang::is('en') ? AI::BUSY_TEXT_EN : AI::BUSY_TEXT), null, null, false);
+            Rich::editInlineRich($imid, (Lang::is('en') ? AI::BUSY_TEXT_EN : AI::BUSY_TEXT));
+            return;
+        }
+        if ($job['kind'] === 'ai' && AI::limited((int) ($job['from']['id'] ?? 0))) {
+            Rich::editInlineRich($imid, AI::limitText());
             return;
         }
         if ($job['kind'] === 'ai' && is_array($job['from'] ?? null) && self::smart((string) $job['q'], (array) $job['from'], $imid)) {
@@ -627,7 +631,7 @@ final class InlineHandler
             Ui::article('calc', 'calc', L('🧮 ماشین‌حساب', '🧮 Calculator'), L('با پرانتز و توان', 'With parentheses and powers'), Calculator::render('0'), Calculator::keyboard()),
             Ui::article('rates', 'rates', L('💱 نرخ ارز و طلا', '💱 Currency & gold rates'), L('دلار، یورو، سکه، تتر، بیت‌کوین...', 'Dollar, euro, coins, Tether, Bitcoin...'), L("<b>💱 نرخ لحظه‌ای بازار</b>\n\nبرای دیدن قیمت‌ها دکمه‌ی زیر رو بزن 👇", "<b>💱 Live market rates</b>\n\nTap the button below to see the prices 👇"), Currency::pendingKeyboard()),
             Ui::article('unit', 'unit', L('⚖️ تبدیل واحد', '⚖️ Unit converter'), L('طول، وزن، دما، حجم، سرعت و...', 'Length, weight, temperature, volume, speed and more...'), UnitConvert::render(UnitConvert::initial()), UnitConvert::keyboard(UnitConvert::initial())),
-            Ui::article('date', 'date', L('📅 تاریخ و ساعت', '📅 Date & time'), L('date [شهر] — مثلاً date tokyo', 'date [city], e.g. date tokyo'), Ui::guide('date'), Ui::tryKeyboard('date')),
+            Ui::article('date', 'date', L('📅 تاریخ و ساعت', '📅 Date & time'), L('date [شهر] — مثلاً date tehran', 'date [city], e.g. date tehran'), Ui::guide('date'), Ui::tryKeyboard('date')),
             Ui::article('pass', 'pass', L('🔑 پسورد ساز', '🔑 Password maker'), L('یه رمز قوی و غیرقابل حدس', 'A strong, unguessable password'), Tools::passwordText(16), Tools::passwordKeyboard()),
             Ui::article('ttt', 'ttt', L('⭕ دوز', '⭕ Tic-tac-toe'), L('دوز کلاسیک، با ربات یا دوستت', 'Classic tic-tac-toe, against the bot or a friend'), TicTacToe::intro(), TicTacToe::modeKeyboard()),
             Ui::article('c4', 'c4', L('🔴 دوز سکه‌ای', '🔴 Connect Four'), L('۴ تا پشت سر هم، با ربات یا دوستت', '4 in a row, against the bot or a friend'), ConnectFour::intro(), ConnectFour::modeKeyboard()),

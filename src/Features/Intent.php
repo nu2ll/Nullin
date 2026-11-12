@@ -73,6 +73,10 @@ final class Intent
         if ($o === null) {
             return false;
         }
+        if (!empty($o['rich'])) {
+            $r = Rich::sendHtml($chat, $o['text'], (int) $msg['message_id']);
+            return !empty($r['ok']);
+        }
         if (!empty($o['md'])) {
             $r = Rich::sendMd($chat, $o['md'], $o['kb'] ?? null, (int) $msg['message_id']);
             return !empty($r['ok']);
@@ -228,7 +232,7 @@ final class Intent
                     return null;
                 }
                 if ($t !== null && Roast::busy((int) ($msg['from']['id'] ?? 0))) {
-                    return ['text' => L("یه‌کم دیگه بیا 😅\n⏳ هر دقیقه فقط یه روست!", "Come back in a bit 😅\n⏳ Only one roast per minute!")];
+                    return ['text' => L("یه‌کم دیگه بیا 😅\n⏳ هر دقیقه فقط یه روست!", "Come back in a bit 😅\n⏳ Only one roast per minute!"), 'rich' => true];
                 }
                 if ($t === null) {
                     return ['text' => L("🤷 این آدم رو پیدا نکردم؛\nآیدی عددی یا یوزرنیمش رو درست بنویس.", "🤷 I couldn’t find this person;\nwrite their numeric id or username correctly.")];

@@ -3,11 +3,11 @@
 final class Ban
 {
     // ضد اسپم: اگه کسی تو SPAM_WINDOW ثانیه SPAM_LIMIT تا پیام پشت سر هم بده، SPAM_BAN ثانیه ساکت بلاک می‌شه
-    private const SPAM_LIMIT  = 10;
-    private const SPAM_WINDOW = 20;
-    private const SPAM_BAN    = 3600;
-    private const SPAM_TEXT   = "⏳ یه ساعت استراحت؛ بعدش دوباره بیا.\n🚫 اینقدر سریع پیام دادی که نالین قاطی کرد 😅";
-    private const SPAM_TEXT_EN = "⏳ Take a one-hour break, then come back.\n🚫 You sent messages so fast that Nullin got confused 😅";
+    private const SPAM_LIMIT  = 5;
+    private const SPAM_WINDOW = 10;
+    private const SPAM_BAN    = 1800;
+    private const SPAM_TEXT   = "⏳ نیم ساعت استراحت؛ بعدش دوباره بیا.\n🚫 اینقدر سریع پیام دادی که نالین قاطی کرد 😅";
+    private const SPAM_TEXT_EN = "⏳ Take a 30-minute break, then come back.\n🚫 You sent messages so fast that Nullin got confused 😅";
 
     public static function is(int $uid): bool
     {
@@ -27,13 +27,44 @@ final class Ban
         return false;
     }
 
+    // پیام خطاب به ربات تو گروه: کامند، منشن، شروع با اسم نالین یا ریپلای به ربات
+    private static function toBot(array $m): bool
+    {
+        $text = trim((string) ($m['text'] ?? $m['caption'] ?? ''));
+        if ($text !== '' && $text[0] === '/') {
+            return true;
+        }
+        $bot = App::botUsername();
+        if ($bot !== '' && preg_match('/@' . preg_quote($bot, '/') . '\\b/iu', $text) === 1) {
+            return true;
+        }
+        if (preg_match('/^(?:نالینی|نالین|nullini|nullin)(?:[\\s،,:!؟?.]|$)/iu', $text) === 1) {
+            return true;
+        }
+        $r = $m['reply_to_message']['from'] ?? null;
+        return $r && !empty($r['is_bot']) && strcasecmp((string) ($r['username'] ?? ''), $bot) === 0;
+    }
+
     private static function spam(array $update): bool
     {
-        $m = $update['message'] ?? null;
-        if (!is_array($m) || ($m['chat']['type'] ?? '') !== 'private') {
+        // پی‌وی و گروه: پیام عادی. تو گروه فقط پیام‌هایی که خطاب به رباتن شمرده می‌شن
+        // مهمان: هر پیام مهمان
+        $m     = $update['message'] ?? null;
+        $guest = $update['guest_message'] ?? null;
+        $chat  = 0;
+        if (is_array($m)) {
+            $type = (string) ($m['chat']['type'] ?? '');
+            if ($type === 'private') {
+                $chat = 0;
+            } elseif (in_array($type, ['group', 'supergroup'], true) && self::toBot($m)) {
+                $chat = (int) ($m['chat']['id'] ?? 0);
+            } else {
+                return false;
+            }
+        } elseif (!is_array($guest)) {
             return false;
         }
-        $uid = (int) ($m['from']['id'] ?? 0);
+        $uid = self::senderId($update);
         if ($uid <= 0 || App::isAdmin($uid)) {
             return false;
         }
@@ -47,7 +78,15 @@ final class Ban
         if (is_array($hits) && count($hits) >= self::SPAM_LIMIT) {
             Store::set('tban', (string) $uid, ['until' => $now + self::SPAM_BAN]);
             Store::delete('spam', (string) $uid);
-            App::tg()->send($uid, Lang::is('en') ? self::SPAM_TEXT_EN : self::SPAM_TEXT);
+            $text = Lang::is('en') ? self::SPAM_TEXT_EN : self::SPAM_TEXT;
+            try {
+                if (is_array($guest)) {
+                    GuestHandler::spamNotice($guest, $text);
+                } else {
+                    Rich::sendHtml($chat !== 0 ? $chat : $uid, $text);
+                }
+            } catch (\Throwable $e) {
+            }
             return true;
         }
         return false;

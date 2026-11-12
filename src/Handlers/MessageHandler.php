@@ -366,6 +366,10 @@ final class MessageHandler
             case 'st':
                 $tg->action($chatId, 'typing');
                 $res   = LinkCheck::respondFull($args, LinkCheck::replyText($msg), (int) ($from['id'] ?? 0));
+                if (!empty($res['rich'])) {
+                    Rich::notice($msg, $res['text']);
+                    return true;
+                }
                 $photo = $res['avatar'] !== null ? LinkCheck::avatarBytes($res['avatar']) : null;
                 if ($photo !== null) {
                     $plain = html_entity_decode(strip_tags($res['text']), ENT_QUOTES | ENT_HTML5, 'UTF-8');

@@ -403,7 +403,11 @@ final class Assistant
         $autoPost = !empty($msg['is_automatic_forward']);
 
         if (!$service && AI::busy($userId)) {
-            $tg->reply($msg, (Lang::is('en') ? AI::BUSY_TEXT_EN : AI::BUSY_TEXT));
+            Rich::notice($msg, (Lang::is('en') ? AI::BUSY_TEXT_EN : AI::BUSY_TEXT));
+            return;
+        }
+        if (!$service && AI::limited($userId)) {
+            Rich::notice($msg, AI::limitText());
             return;
         }
 

@@ -20,6 +20,7 @@ final class AI
     const FAIL_TEXT_EN = '😕 My brain just froze, ask again in a bit.';
 
     public const WAIT = 20;
+    public const DAILY_LIMIT = 20;
 
     public const BUSY_TEXT = "یه‌کم دیگه بیا 😅\n⏳ هر ۲۰ ثانیه فقط یه درخواست از نالین!";
     const BUSY_TEXT_EN = "Come back in a bit 😅\n⏳ Only one request to Nullin every 20 seconds!";
@@ -145,6 +146,34 @@ final class AI
             return false;
         }
         return Store::update('rl', 'ai_' . $uid, static fn($at) => (is_int($at) && time() - $at < self::WAIT) ? null : time()) === null;
+    }
+
+    private static function quotaKey(int $uid): string
+    {
+        return $uid . ':' . date('Ymd');
+    }
+
+    public static function usedToday(int $uid): int
+    {
+        return (int) Store::get('ai_quota', self::quotaKey($uid), 0);
+    }
+
+    public static function limited(int $uid): bool
+    {
+        if ($uid <= 0 || App::isAdmin($uid)) {
+            return false;
+        }
+        $limit = max(1, (int) App::cfg('ai_daily_limit', self::DAILY_LIMIT));
+        return Store::update('ai_quota', self::quotaKey($uid), static fn($n) => (int) $n >= $limit ? null : (int) $n + 1) === null;
+    }
+
+    public static function limitText(): string
+    {
+        $limit = max(1, (int) App::cfg('ai_daily_limit', self::DAILY_LIMIT));
+        return L(
+            "فردا دوباره بیا 🙂\n✋ سهمیه‌ی امروزت از نالین (" . fa($limit) . " درخواست) تموم شد.",
+            "Come back tomorrow 🙂\n✋ You’ve used up today’s Nullin quota (" . $limit . " requests)."
+        );
     }
 
     public static function keys(): array
@@ -376,7 +405,6 @@ final class AI
                     : Http::postJson(sprintf(self::API, rawurlencode($model)), $payload, ['x-goog-api-key: ' . $key], (int) max(3, min($left, 10)));
 
                 if (Http::$aborted) {
-                    // کاربر استاپ زد: هرچی تا اینجا نوشته شده همون جواب نهاییه (اگه چیزی نیومده null)
                     return $r['code'] === 200 && is_array($r['data'] ?? null) ? self::extractText($r['data']) : null;
                 }
                 self::noteKey('gemini', $key, (int) $r['code']);
@@ -728,7 +756,6 @@ final class AI
         return in_array((int) ($from['id'] ?? 0), self::SERVICE_IDS, true);
     }
 
-    /** آیدی کاربری که حافظه‌ی بلندمدتش فعاله (همه‌جا مشترکه: پیوی، گروه، مهمان، اینلاین)؛ ۰ یعنی بدون حافظه (کانال/ادمین ناشناس) */
     public static function memoryUid(array $ctx): int
     {
         return !empty($ctx['service']) ? 0 : max(0, (int) ($ctx['user_id'] ?? 0));

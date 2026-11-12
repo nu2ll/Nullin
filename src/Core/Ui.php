@@ -674,9 +674,9 @@ final class Ui
         $mid = Switches::on('business') ? [btn(L('🤝 منشی', '🤝 Secretary'), 'bz:menu:h')] : [];
         return ikb([
             [['text' => L('🚀 امتحانش کن', '🚀 Try it'), 'switch_inline_query_current_chat' => '', 'style' => 'primary']],
-            array_merge([btn(L('📘 راهنما', '📘 Help'), 'help:menu')], $mid, [btn(L('ℹ️ درباره', 'ℹ️ About'), 'about')]),
+            array_merge($mid, [btn(L('ℹ️ درباره', 'ℹ️ About'), 'about')]),
             [urlBtn(L('➕ افزودن به گروه', '➕ Add to group'), "https://t.me/{$bot}?startgroup=true", 'primary')],
-            [btn('🌐 زبان / Language', 'lang:menu', null)],
+            [btn(L('📘 راهنما', '📘 Help'), 'help:menu'), btn('🌐 زبان / Language', 'lang:menu')],
         ]);
     }
 
@@ -873,11 +873,9 @@ final class Ui
                 . L("مستقیم بنویس.", "just type it directly."),
 
             'date' => L("<b>📅 تاریخ و ساعت</b>\n", "<b>📅 Date & time</b>\n")
-                . L("اول «date» رو بنویس،\n", "First type \"date\",\n")
-                . L("بعدش اسم شهر یا کشور.\n\n", "then the name of a city or country.\n\n")
-                . "• " . $c('date tehran') . "\n"
-                . "• " . $c(L('date لندن', 'date London')) . "\n"
-                . "• " . $c(L('ساعت توکیو', 'time Tokyo')) . "\n\n"
+                . L("اول «date» رو بنویس، بعدش اسم شهر یا کشور.\n\n", "First type \"date\", then the name of a city or country.\n\n")
+                . "• " . $c('Date Tehran') . "\n"
+                . "• " . $c('Date New York') . "\n\n"
                 . L("💡 فارسی یا انگلیسی فرقی نداره؛\n", "💡 Persian or English doesn't matter;\n")
                 . L("تاریخ و ساعت اون شهر رو می‌گیری.", "you get the date and time of that city."),
 

@@ -62,20 +62,33 @@ final class Weather
         });
     }
 
+    private const ALIASES = [
+        'newyork' => 'New York City', 'nyc' => 'New York City', 'losangeles' => 'Los Angeles',
+        'la' => 'Los Angeles', 'sanfrancisco' => 'San Francisco', 'lasvegas' => 'Las Vegas',
+        'hongkong' => 'Hong Kong', 'kualalumpur' => 'Kuala Lumpur', 'saopaulo' => 'Sao Paulo',
+        'buenosaires' => 'Buenos Aires', 'riodejaneiro' => 'Rio de Janeiro', 'mexicocity' => 'Mexico City',
+        'telaviv' => 'Tel Aviv', 'abudhabi' => 'Abu Dhabi', 'capetown' => 'Cape Town',
+        'newdelhi' => 'New Delhi', 'saltlakecity' => 'Salt Lake City', 'washingtondc' => 'Washington',
+    ];
+
     private static function locate(string $city): ?array
     {
         $city = self::norm($city);
         $lang = Lang::get();
-        return Store::remember('cache', 'geo_' . $lang . '_' . md5(mb_strtolower($city)), 86400 * 30, static function () use ($city, $lang) {
-            $g = Http::getJson(self::GEO . '?' . http_build_query(['name' => $city, 'count' => 1, 'language' => $lang, 'format' => 'json']), [], 8);
-            if (!empty($g['results'][0])) {
-                $r = $g['results'][0];
+        return Store::remember('cache', 'geo2_' . $lang . '_' . md5(mb_strtolower($city)), 86400 * 30, static function () use ($city, $lang) {
+            $key   = preg_replace('/[\s\-_.]+/u', '', mb_strtolower($city)) ?? '';
+            $query = self::ALIASES[$key] ?? $city;
+            $g = Http::getJson(self::GEO . '?' . http_build_query(['name' => $query, 'count' => 10, 'language' => $lang, 'format' => 'json']), [], 8);
+            $list = array_values(array_filter($g['results'] ?? [], static fn ($x) => is_array($x) && isset($x['latitude'], $x['longitude'])));
+            if ($list) {
+                usort($list, static fn ($a, $b) => ((int) ($b['population'] ?? 0)) <=> ((int) ($a['population'] ?? 0)));
+                $r = $list[0];
                 return ['name' => $r['name'] ?? $city, 'country' => $r['country'] ?? '', 'lat' => (float) $r['latitude'], 'lon' => (float) $r['longitude']];
             }
             if (mb_strlen($city) < 3) {
                 return null;
             }
-            $o = Http::getJson(self::OSM . '?' . http_build_query(['q' => $city, 'format' => 'jsonv2', 'limit' => 1, 'addressdetails' => 1, 'accept-language' => $lang]),
+            $o = Http::getJson(self::OSM . '?' . http_build_query(['q' => $query, 'format' => 'jsonv2', 'limit' => 1, 'addressdetails' => 1, 'accept-language' => $lang]),
                 ['User-Agent: NulliniBot/3.8 (Telegram bot)'], 8);
             if (!empty($o[0]['lat'])) {
                 $r = $o[0];

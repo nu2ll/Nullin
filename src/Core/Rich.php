@@ -27,6 +27,16 @@ final class Rich
         return $id > 0 ? $id : null;
     }
 
+    public static function notice(array $msg, string $html): ?array
+    {
+        return self::sendHtml($msg['chat']['id'], $html, (int) $msg['message_id']);
+    }
+
+    public static function editInlineRich(string $inlineId, string $html): ?array
+    {
+        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($html, null, null)], 10);
+    }
+
     public static function replyWithButton(array $msg, string $text, string $label = 'Nullin', string $data = 'noop', ?string $style = null): ?int
     {
         $btn = '<tg-button-row><tg-button type="callback_data"' . ($style !== null ? ' style="' . $style . '"' : '') . ' data="' . h($data) . '">' . h($label) . '</tg-button></tg-button-row>';

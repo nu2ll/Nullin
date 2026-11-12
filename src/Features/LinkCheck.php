@@ -270,7 +270,7 @@ final class LinkCheck
             return ['text' => Ui::guide('linkcheck'), 'avatar' => null];
         }
         if (self::busy($uid)) {
-            return ['text' => self::waitText(), 'avatar' => null];
+            return ['text' => self::waitText(), 'avatar' => null, 'rich' => true];
         }
         Users::hit('linkcheck');
         return self::build($url);
@@ -296,7 +296,7 @@ final class LinkCheck
         Store::delete('linkcheck_inline', $token);
         $tg = App::tg();
         if (self::busy((int) ($p['from']['id'] ?? 0))) {
-            Rich::editInline($imid, self::waitText(), null, null, false);
+            Rich::editInlineRich($imid, self::waitText());
             return;
         }
         Users::hit('linkcheck');

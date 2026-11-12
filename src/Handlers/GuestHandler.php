@@ -2,6 +2,23 @@
 
 final class GuestHandler
 {
+    private static int $uid = 0;
+
+    // پیام ضد اسپم: آخرین پیام ربات برای این کاربر رو ادیت می‌کنه؛ اگه نبود به همین پیام مهمان جواب می‌ده
+    public static function spamNotice(array $msg, string $html): void
+    {
+        $uid = (int) ($msg['guest_bot_caller_user']['id'] ?? $msg['from']['id'] ?? 0);
+        $qid = (string) ($msg['guest_query_id'] ?? '');
+        $last = $uid > 0 ? Store::get('guest_last', (string) $uid) : null;
+        $imid = is_array($last) ? (string) ($last['imid'] ?? '') : '';
+        if ($imid !== '' && !empty(Rich::editInlineRich($imid, $html)['ok'])) {
+            return;
+        }
+        if ($qid !== '') {
+            self::send($qid, $html, null, true);
+        }
+    }
+
     public static function handle(array $msg): void
     {
         $qid = (string) ($msg['guest_query_id'] ?? '');
@@ -9,6 +26,7 @@ final class GuestHandler
             return;
         }
         $from = $msg['guest_bot_caller_user'] ?? $msg['from'] ?? [];
+        self::$uid = (int) ($from['id'] ?? 0);
         $text = trim((string) ($msg['text'] ?? $msg['caption'] ?? ''));
         $bot  = App::botUsername();
         $q    = mbTrim(preg_replace('/@' . preg_quote($bot, '/') . '\b/iu', '', $text) ?? $text, " \t\n،,:");
@@ -48,7 +66,11 @@ final class GuestHandler
         }
 
         if (AI::busy((int) ($from['id'] ?? 0))) {
-            self::send($qid, (Lang::is('en') ? AI::BUSY_TEXT_EN : AI::BUSY_TEXT));
+            self::send($qid, (Lang::is('en') ? AI::BUSY_TEXT_EN : AI::BUSY_TEXT), null, true);
+            return;
+        }
+        if (AI::limited((int) ($from['id'] ?? 0))) {
+            self::send($qid, AI::limitText(), null, true);
             return;
         }
 
@@ -221,7 +243,11 @@ final class GuestHandler
             AnswerButtons::attachInline($imid, $o['retry'] + ['q' => (string) ($o['retry']['q'] ?? '')]);
         }
         if ($imid === null) {
-            self::send($qid, $o['text'], $o['kb'] ?? null);
+            self::send($qid, $o['text'], $o['kb'] ?? null, !empty($o['rich']));
+            return;
+        }
+        if (!empty($o['rich'])) {
+            Rich::editInlineRich($imid, $o['text']);
             return;
         }
         if (!empty($o['md'])) {
@@ -229,7 +255,7 @@ final class GuestHandler
             return;
         }
         if (!empty($o['photo']) && is_string($o['photo']) && str_starts_with($o['photo'], 'https://')) {
-            $o['photo'] = self::photoId($o['photo']) ?? $o['photo'];   // لینک → file_id؛ اگه نشد همون لینک (رفتار قبلی)
+            $o['photo'] = self::photoId($o['photo']) ?? $o['photo'];
         }
         if (!empty($o['photo']) && is_string($o['photo']) && preg_match('#^(?:https://|[A-Za-z0-9_-]{20,}$)#', $o['photo']) === 1 && (Rich::usable($o['kb'] ?? null) || !Rich::hasButtons($o['kb'] ?? null))) {
             $r = Rich::editInlinePhoto($imid, $o['text'], $o['photo'], $o['kb'] ?? null);
@@ -262,7 +288,7 @@ final class GuestHandler
         return Wiki::photoId($url);
     }
 
-    private static function send(string $qid, string $html, ?array $markup = null): ?string
+    private static function send(string $qid, string $html, ?array $markup = null, bool $rich = false): ?string
     {
         $result = [
             'type'                  => 'article',
@@ -270,13 +296,17 @@ final class GuestHandler
             'title'                 => L('نالین', 'Nullin'),
             'input_message_content' => ['message_text' => $html, 'parse_mode' => 'HTML', 'link_preview_options' => ['is_disabled' => true]],
         ];
-        if (Rich::usable($markup)) {
+        if ($rich || Rich::usable($markup)) {
             $result['input_message_content'] = Rich::inlineContent($html, $markup);
         } elseif ($markup !== null) {
             $result['reply_markup'] = $markup;
         }
         $r = App::tg()->call('answerGuestQuery', ['guest_query_id' => $qid, 'result' => $result], 15);
-        return !empty($r['ok']) ? ($r['result']['inline_message_id'] ?? null) : null;
+        $imid = !empty($r['ok']) ? ($r['result']['inline_message_id'] ?? null) : null;
+        if ($imid !== null && self::$uid > 0) {
+            Store::set('guest_last', (string) self::$uid, ['imid' => $imid, 'at' => time()]);
+        }
+        return $imid;
     }
 
     private static function edit(?string $imid, ?string $qid, string $html, ?string $plain = null, ?array $kb = null): void
