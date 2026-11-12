@@ -299,7 +299,7 @@ final class AI
                 if ($text === null) {
                     return null;
                 }
-                $messages[$i]['content'][$j] = ['type' => 'text', 'text' => "[Voice transcript]: {$text}"];
+                $messages[$i]['content'][$j] = ['type' => 'text', 'text' => "[This is the transcript of the user's voice message. Do not repeat, quote or restate it; just reply to what it says, in the same language it is spoken in, as if they had typed it]: {$text}"];
             }
         }
         return $messages;

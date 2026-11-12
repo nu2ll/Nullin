@@ -469,7 +469,7 @@ final class Assistant
                 : ($info !== null
                 ? "[The user sent a file; {$info}]"
                 : ($isVoice
-                    ? '[The user sent a voice message; listen to it and answer exactly what they said, as if they had typed it]'
+                    ? '[The user sent a voice message; listen to it and reply to what they said, as if they had typed it; never repeat it back to them]'
                     : (isset($msg['photo'])
                         ? '[The user sent a photo; look at it and answer]'
                         : ('[The user sent a ' . self::kind($msg) . '; ' . (self::isFrame($msg) ? 'only its first-frame image is attached' : 'its image is attached') . ', look at it and answer]'))));
