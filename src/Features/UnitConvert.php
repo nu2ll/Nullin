@@ -55,6 +55,16 @@ final class UnitConvert
         ]],
     ];
 
+    private const EN = [
+        'km' => 'Kilometer', 'm' => 'Meter', 'cm' => 'Centimeter', 'mm' => 'Millimeter', 'mi' => 'Mile', 'yd' => 'Yard', 'ft' => 'Foot', 'in' => 'Inch',
+        't' => 'Metric ton', 'kg' => 'Kilogram', 'g' => 'Gram', 'mg' => 'Milligram', 'lb' => 'Pound', 'oz' => 'Ounce', 'msq' => 'Mithqal',
+        'm3' => 'Cubic meter', 'l' => 'Liter', 'ml' => 'Milliliter', 'gal' => 'Gallon',
+        'kmh' => 'Kilometers per hour', 'ms' => 'Meters per second', 'mph' => 'Miles per hour', 'kn' => 'Knot',
+        'km2' => 'Square kilometer', 'ha' => 'Hectare', 'm2' => 'Square meter', 'ft2' => 'Square foot', 'acre' => 'Acre',
+        'tb' => 'Terabyte', 'gb' => 'Gigabyte', 'mb' => 'Megabyte', 'kb' => 'Kilobyte', 'b' => 'Byte',
+        'c' => 'Celsius', 'f' => 'Fahrenheit', 'k' => 'Kelvin',
+    ];
+
     private const DEFAULTS = [
         'length' => ['km', 'mi'],
         'mass'   => ['kg', 'lb'],
@@ -112,12 +122,12 @@ final class UnitConvert
 
     private static function label(string $cat, string $key): string
     {
-        return self::CATS[$cat][1][$key][0];
+        return Lang::is('en') ? (self::EN[$key] ?? $key) : self::CATS[$cat][1][$key][0];
     }
 
     private static function amount(string $shown, string $cat, string $key): string
     {
-        return '<bdi>' . fa(strtr($shown, ['.' => '٫', ',' => '٬'])) . ' ' . self::label($cat, $key) . '</bdi>';
+        return '<bdi>' . (Lang::is('en') ? $shown : fa(strtr($shown, ['.' => '٫', ',' => '٬']))) . ' ' . self::label($cat, $key) . '</bdi>';
     }
 
     private static function edit(string $e, string $key): string
@@ -176,9 +186,9 @@ final class UnitConvert
 
     public static function render(array $s): string
     {
-        $head = '<b>' . self::CATS[$s['cat']][0] . " تبدیل واحد</b>\n\n";
+        $head = '<b>' . self::CATS[$s['cat']][0] . L(' تبدیل واحد', ' Unit converter') . "</b>\n\n";
         if ($s['pick'] !== null) {
-            return $head . ($s['pick'] === 'from' ? 'واحد مبدأ رو انتخاب کن 👇' : 'واحد مقصد رو انتخاب کن 👇');
+            return $head . ($s['pick'] === 'from' ? L('واحد مبدأ رو انتخاب کن 👇', 'Pick the source unit 👇') : L('واحد مقصد رو انتخاب کن 👇', 'Pick the target unit 👇'));
         }
         $res = self::convert((float) $s['expr'], $s['cat'], $s['from'], $s['to']);
         return $head . self::amount((string) $s['expr'], $s['cat'], $s['from'])
@@ -192,7 +202,7 @@ final class UnitConvert
             $rows    = [];
             $row     = [];
             foreach (self::CATS[$s['cat']][1] as $key => $unit) {
-                $row[] = btn(($key === $current ? '✅ ' : '') . $unit[0], "unit:set_{$key}", $key === $current ? 'success' : 'primary');
+                $row[] = btn(($key === $current ? '✅ ' : '') . self::label($s['cat'], $key), "unit:set_{$key}", $key === $current ? 'success' : 'primary');
                 if (count($row) === 2) {
                     $rows[] = $row;
                     $row    = [];
@@ -201,7 +211,7 @@ final class UnitConvert
             if ($row) {
                 $rows[] = $row;
             }
-            $rows[] = [btn('🔙 برگشت', 'unit:ret', 'danger')];
+            $rows[] = [btn(L('🔙 برگشت', '🔙 Back'), 'unit:ret', 'danger')];
             return ikb($rows);
         }
         $k    = static fn(string $label, string $key, string $style = 'primary') => btn($label, "unit:{$key}", $style);

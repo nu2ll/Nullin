@@ -19,7 +19,7 @@ final class Photos
     {
         $tg   = App::tg();
         $chat = $msg['chat']['id'];
-        Rich::editMsg($chat, $mid, '🖼 دارم عکس‌هاش رو می‌گیرم...');
+        Rich::editMsg($chat, $mid, L('🖼 دارم عکس‌هاش رو می‌گیرم...', '🖼 Grabbing its photos...'));
         $files = [];
         try {
             $files = self::collect($link['site'], $link['url'], self::MAX)['files'];
@@ -52,7 +52,7 @@ final class Photos
     public static function inline(array $link, string $imid, int|string $store, int $uid): bool
     {
         $tg = App::tg();
-        Rich::editInline($imid, '🖼 دارم عکسش رو می‌گیرم...');
+        Rich::editInline($imid, L('🖼 دارم عکسش رو می‌گیرم...', '🖼 Grabbing its photo...'));
         $files = [];
         try {
             $got   = self::collect($link['site'], $link['url'], 1);
@@ -64,7 +64,7 @@ final class Photos
                 if ($fid === '') {
                     continue;
                 }
-                $more = $got['total'] > 1 ? "\n📚 " . fa((string) $got['total']) . ' تا عکس داره؛ بقیه رو تو پیوی بگیر.' : '';
+                $more = $got['total'] > 1 ? "\n📚 " . fa((string) $got['total']) . L(' تا عکس داره؛ بقیه رو تو پیوی بگیر.', ' photos in total; get the rest in private.') : '';
                 $e = Rich::editInlinePhoto($imid, self::caption($link) . $more, $fid, null, false);
                 if (env('DL_STORE_CHAT', '') === '' && !empty($r['result']['message_id'])) {
                     $tg->call('deleteMessage', ['chat_id' => $store, 'message_id' => (int) $r['result']['message_id']], 8);

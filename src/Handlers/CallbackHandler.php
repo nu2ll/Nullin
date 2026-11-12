@@ -22,11 +22,48 @@ final class CallbackHandler
             return;
         }
 
+        if ($data === 'lang:menu' || $data === 'lang:fa' || $data === 'lang:en') {
+            $lc = $cq['message']['chat']['id'] ?? null;
+            $lm = (int) ($cq['message']['message_id'] ?? 0);
+            if ($data !== 'lang:menu') {
+                Lang::save($uid, substr($data, 5));
+            }
+            if ($lc !== null && $lm > 0) {
+                if ($data === 'lang:menu') {
+                    Ui::show($lc, $lm, L('🌐 زبان ربات رو انتخاب کن:', '🌐 Choose the bot language:'), Lang::toggleKeyboard());
+                } else {
+                    Ui::show($lc, $lm, Ui::startText($cq['from']), Ui::startKeyboard());
+                }
+            }
+            $tg->answer($cq, $data === 'lang:menu' ? null : L('✅ زبان فارسی شد', '✅ Language set to English'));
+            return;
+        }
+
+        if (str_starts_with($data, 'ail:')) {
+            $p    = explode(':', $data);
+            $lc   = $cq['message']['chat']['id'] ?? null;
+            $lm   = (int) ($cq['message']['message_id'] ?? 0);
+            $page = (int) ($p[3] ?? $p[2] ?? 0);
+            $note = null;
+            if (($p[1] ?? '') === 's') {
+                Lang::aiSave($uid, $p[2] ?? '');
+                $note = L('✅ زبان هوش مصنوعی تنظیم شد', '✅ AI language saved');
+            } elseif (($p[1] ?? '') === 'r') {
+                Lang::aiSave($uid, null);
+                $note = L('✅ روی خودکار برگشت', '✅ Back to auto');
+            }
+            if ($lc !== null && $lm > 0) {
+                Ui::show($lc, $lm, Lang::aiPanelText($uid), Lang::aiKeyboard($uid, $page));
+            }
+            $tg->answer($cq, $note);
+            return;
+        }
+
         // Forced-join gate for every button press (private, group, inline messages)
         if ($data !== 'joincheck' && $uid > 0) {
             $missing = Membership::missing($uid);
             if ($missing) {
-                $tg->alert($cq, '⏳ هنوز عضو نشدی! اول عضو شو بعد دکمه رو بزن.');
+                $tg->alert($cq, L('⏳ هنوز عضو نشدی! اول عضو شو بعد دکمه رو بزن.', '⏳ You haven\'t joined yet! Join first, then tap the button.'));
                 if (($cq['message']['chat']['type'] ?? '') === 'private') {
                     Membership::prompt($cq['message']['chat']['id'], $uid, $missing);
                 }
@@ -86,11 +123,11 @@ final class CallbackHandler
 
         if ($imid && $data === 'joincheck') {
             if (Membership::missing($uid)) {
-                $tg->alert($cq, '⏳ هنوز عضو نشدی! اول عضو شو بعد دکمه رو بزن.');
+                $tg->alert($cq, L('⏳ هنوز عضو نشدی! اول عضو شو بعد دکمه رو بزن.', '⏳ You haven\'t joined yet! Join first, then tap the button.'));
                 return;
             }
-            Rich::editInline($imid, "✅ <b>عضو شدی!</b>\n\nحالا دوباره نالین رو صدا بزن 😉", null);
-            $tg->answer($cq, '✅ خوش اومدی!');
+            Rich::editInline($imid, L("✅ <b>عضو شدی!</b>\n\nحالا دوباره نالین رو صدا بزن 😉", "✅ <b>You're in!</b>\n\nNow call Nullin again 😉"), null);
+            $tg->answer($cq, L('✅ خوش اومدی!', '✅ Welcome!'));
             return;
         }
 
@@ -110,7 +147,7 @@ final class CallbackHandler
         }
 
         if (preg_match('/^(ai|tr)q:(\w+)$/', $data, $m)) {
-            $tg->answer($cq, '⏳ دارم می‌نویسم...');
+            $tg->answer($cq, L('⏳ دارم می‌نویسم...', '⏳ Writing...'));
             InlineHandler::resolveDeferred($m[2], $imid);
             return;
         }
@@ -132,7 +169,7 @@ final class CallbackHandler
             $owner = $uid;
         }
         if ((int) $owner !== $uid) {
-            $tg->alert($cq, '🔒 این دکمه مال کسیه که این پیام رو فرستاده؛' . "\n" . 'خودت از منوی نالین یکی بساز!');
+            $tg->alert($cq, L('🔒 این دکمه مال کسیه که این پیام رو فرستاده؛', '🔒 This button belongs to whoever sent this message;') . "\n" . L('خودت از منوی نالین یکی بساز!', 'make your own from the Nullin menu!'));
             return;
         }
 
@@ -157,18 +194,18 @@ final class CallbackHandler
 
         if (str_starts_with($data, 'pass:')) {
             Rich::editInline($imid, Tools::passwordText((int) substr($data, 5)), Tools::passwordKeyboard());
-            $tg->answer($cq, '🔑 پسورد جدید ساخته شد');
+            $tg->answer($cq, L('🔑 پسورد جدید ساخته شد', '🔑 New password generated'));
             return;
         }
 
         switch ($data) {
             case 'coin:flip':
-                Rich::editInline($imid, Tools::coinResult(), ikb([[btn('🔁 دوباره بنداز', 'coin:flip')]]));
+                Rich::editInline($imid, Tools::coinResult(), ikb([[btn(L('🔁 دوباره بنداز', '🔁 Roll again'), 'coin:flip')]]));
                 $tg->answer($cq);
                 return;
             case 'fal:refresh':
                 Tools::showHafez($imid);
-                $tg->answer($cq, '🔮 یه فال تازه');
+                $tg->answer($cq, L('🔮 یه فال تازه', '🔮 A new fortune'));
                 return;
         }
         $tg->answer($cq);
@@ -188,7 +225,7 @@ final class CallbackHandler
             Store::delete('join', (string) $cq['from']['id']);
             $missing = Membership::missing((int) $cq['from']['id']);
             if ($missing) {
-                $tg->alert($cq, '⏳ هنوز عضو نشدی! اول عضو شو بعد دکمه رو بزن.');
+                $tg->alert($cq, L('⏳ هنوز عضو نشدی! اول عضو شو بعد دکمه رو بزن.', '⏳ You haven\'t joined yet! Join first, then tap the button.'));
                 return;
             }
             Membership::clearPrompt($chatId, (int) $cq['from']['id']);
@@ -196,7 +233,7 @@ final class CallbackHandler
             if (($cq['message']['chat']['type'] ?? '') === 'private') {
                 Ui::sendMain($chatId, $cq['from']);
             }
-            $tg->answer($cq, '✅ خوش اومدی!');
+            $tg->answer($cq, L('✅ خوش اومدی!', '✅ Welcome!'));
             return;
         }
 

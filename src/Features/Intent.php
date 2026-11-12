@@ -6,31 +6,31 @@ final class Intent
 
     public static function prompt(): string
     {
-        return 'تو به ابزارهای نالین دسترسی داری. منظور کاربر رو از کل پیامش بفهم، نه از کلمه‌ها. اگه واقعاً یکی از این کارها رو ازت خواست، به‌جای جواب فقط یک خط بنویس که تماماً داخل دو کروشه‌ی دوبل باشه: «[[<اسم> | <ورودی>]]» و هیچ چیز دیگه‌ای قبل یا بعدش ننویس:'
-            . "\n- translate | <زبان مقصد به انگلیسی، یا auto> | <متنی که باید ترجمه بشه؛ اگه منظورش پیامیه که روش ریپلای کرده خالی بذار>: ترجمه."
-            . "\n- wiki | <موضوع>: خلاصه‌ی دانشنامه‌ای از ویکی‌پدیا."
-            . "\n- weather | <شهر>: وضعیت فعلی یا پیش‌بینی آب‌وهوا."
-            . "\n- rates: قیمت لحظه‌ای ارز، طلا، سکه یا کریپتو."
-            . "\n- font | <متن>: نوشتن متن با فونت‌های فانتزی."
-            . "\n- qr | <متن یا لینک>: ساخت QR کد."
-            . "\n- short | <لینک>: کوتاه کردن لینک."
-            . "\n- fal: فال حافظ."
-            . "\n- password: ساخت رمز قوی."
-            . "\n- date: تاریخ یا ساعت الان."
-            . "\n- coin: شیر یا خط."
-            . "\n- giveaway: ساختن قرعه‌کشی."
-            . "\n- download | <لینک کامل؛ اگه لینک تو پیامیه که روش ریپلای کرده خالی بذار>: دانلود ویدیو، عکس یا آهنگ یه لینک."
-            . "\n- calc | <عبارت ریاضی با + - * / ^ و پرانتز>: حساب عددی."
-            . "\n- nid | <کد ملی>: بررسی درستی کد ملی."
-            . "\n- love | <نفر اول> | <نفر دوم>: درصد عشق دو نفر."
-            . "\n- roast | <me یا reply یا @یوزرنیم یا آیدی عددی>: روست کردن یه آدم؛ me یعنی خود کاربر، reply یعنی صاحب پیامی که روش ریپلای کرده. فقط برای یه روست جدید؛ نظر دادن درباره‌ی روست قبلی درخواست روست نیست."
-            . "\n- userinfo: اطلاعات اکانت تلگرام خود کاربر."
-            . "\nاگه فقط درباره‌ی این موضوعات حرف زد یا سؤال کلی پرسید و انجام خود کار رو نخواست، خودت جواب بده و دستور «[[ ]]» ننویس.";
+        return 'You have access to Nullin’s tools. Work out what the user means from their whole message, not from individual words. If they really are asking for one of these things, then instead of answering, write a single line that sits entirely inside double square brackets: “[[<name> | <input>]]”, and write nothing else before or after it:'
+            . "\n- translate | <target language in English, or auto> | <the text to translate; leave empty if they mean the message they replied to>: translation."
+            . "\n- wiki | <topic>: an encyclopedia summary from Wikipedia."
+            . "\n- weather | <city>: current weather or forecast."
+            . "\n- rates: live prices for currencies, gold, coins or crypto."
+            . "\n- font | <text>: write text in fancy fonts."
+            . "\n- qr | <text or link>: make a QR code."
+            . "\n- short | <link>: shorten a link."
+            . "\n- fal: a Hafez fortune (fal)."
+            . "\n- password: generate a strong password."
+            . "\n- date: the current date or time."
+            . "\n- coin: heads or tails."
+            . "\n- giveaway: create a giveaway."
+            . "\n- download | <full link; leave empty if the link is in the message they replied to>: download the video, photo or audio of a link."
+            . "\n- calc | <math expression with + - * / ^ and parentheses>: numeric calculation."
+            . "\n- nid | <national ID code>: check whether an Iranian national ID is valid."
+            . "\n- love | <first person> | <second person>: love percentage for two people."
+            . "\n- roast | <me, reply, @username or numeric id>: roast a person; me means the user themselves, reply means the author of the message they replied to. Only for a new roast; commenting on a previous roast is not a roast request."
+            . "\n- userinfo: the user’s own Telegram account info."
+            . "\nIf they only talked about these topics or asked a general question without asking you to actually do the task, answer yourself and don’t write a “[[ ]]” command.";
     }
 
     public static function parse(string $text): ?array
     {
-        $text = trim(str_replace(['**', '`', '«', '»'], '', $text));
+        $text = trim(str_replace(['**', '`', '«', '»', '“', '”'], '', $text));
         if (!preg_match('/^\s*\[\[\s*(' . implode('|', self::NAMES) . ')\s*(?:[|｜:：]\s*(.*?))?\s*\]\]/isu', $text, $m)) {
             return null;
         }
@@ -93,8 +93,8 @@ final class Intent
             ], 30);
             return !empty($r['ok']);
         }
-        if (!empty($o['retry']) && ($o['retry']['k'] ?? '') === 'tr' && $o['text'] === AI::FAIL_TEXT) {
-            AnswerButtons::sendFail($msg, AI::FAIL_TEXT, array_diff_key($o['retry'], ['a' => 1, 'f' => 1]) + ['o' => (int) $msg['message_id']]);
+        if (!empty($o['retry']) && ($o['retry']['k'] ?? '') === 'tr' && $o['text'] === (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT)) {
+            AnswerButtons::sendFail($msg, (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT), array_diff_key($o['retry'], ['a' => 1, 'f' => 1]) + ['o' => (int) $msg['message_id']]);
             return true;
         }
         $sent = Rich::replyTo($msg, $o['text'], $o['kb'] ?? null, $o['img'] ?? null, array_filter([
@@ -127,11 +127,11 @@ final class Intent
                 $target = preg_match('/^[A-Za-z ]{2,20}$/', $to) && strtolower($to) !== 'auto' ? ucfirst(strtolower($to)) : 'auto';
                 $out    = AI::translate($source, $target);
                 if ($out) {
-                    return ['text' => "🌐 <b>ترجمه:</b>\n\n" . h($out)];
+                    return ['text' => L("🌐 <b>ترجمه:</b>\n\n", "🌐 <b>Translation:</b>\n\n") . h($out)];
                 }
-                return ['text' => AI::FAIL_TEXT, 'kb' => AnswerButtons::retryKeyboard(), 'retry' => [
+                return ['text' => (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT), 'kb' => AnswerButtons::retryKeyboard(), 'retry' => [
                     'k' => 'tr', 'u' => (int) ($msg['from']['id'] ?? 0), 'q' => $source, 't' => $target,
-                    'a' => AI::FAIL_TEXT, 'h' => "🌐 <b>ترجمه:</b>\n\n", 'f' => 1,
+                    'a' => (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT), 'h' => L("🌐 <b>ترجمه:</b>\n\n", "🌐 <b>Translation:</b>\n\n"), 'f' => 1,
                 ]];
 
             case 'wiki':
@@ -140,7 +140,7 @@ final class Intent
                 }
                 $p = Wiki::first($arg);
                 if ($p === null) {
-                    return ['text' => '📖 تو ویکی‌پدیا چیزی درباره‌ی «' . h(mb_substr($arg, 0, 80)) . '» پیدا نکردم.'];
+                    return ['text' => L('📖 تو ویکی‌پدیا چیزی درباره‌ی «' . h(mb_substr($arg, 0, 80)) . '» پیدا نکردم.', '📖 I couldn’t find anything about “' . h(mb_substr($arg, 0, 80)) . '” on Wikipedia.')];
                 }
                 Users::hit('wiki');
                 return ['text' => Wiki::text($p), 'kb' => Wiki::keyboard($p), 'preview' => ['url' => $p['url'], 'prefer_small_media' => true], 'img' => ($p['thumb'] ?? '') !== '' ? $p['thumb'] : null];
@@ -148,7 +148,9 @@ final class Intent
             case 'weather':
                 $d = $arg !== '' ? Weather::fetch($arg) : null;
                 if ($d === null) {
-                    return ['text' => $arg === '' ? '🌦 اسم شهر رو هم بگو؛' . "\n" . 'مثلاً «هوای تهران چطوره؟»' : '❌ جایی به اسم «' . h($arg) . '» پیدا نکردم.'];
+                    return ['text' => $arg === ''
+                        ? L("🌦 اسم شهر رو هم بگو؛\nمثلاً «هوای تهران چطوره؟»", "🌦 Tell me the city too;\nfor example “what’s the weather in London?”")
+                        : L('❌ جایی به اسم «' . h($arg) . '» پیدا نکردم.', '❌ I couldn’t find a place called “' . h($arg) . '”.')];
                 }
                 $hash = substr(md5(mb_strtolower($arg)), 0, 16);
                 Store::set('weather_pending', $hash, $arg);
@@ -170,7 +172,7 @@ final class Intent
                 }
                 $short = ShortLink::shorten($url);
                 if ($short === null) {
-                    return ['text' => '❌ الان نتونستم این لینک رو کوتاه کنم؛ چند لحظه‌ی دیگه دوباره امتحان کن.'];
+                    return ['text' => L('❌ الان نتونستم این لینک رو کوتاه کنم؛ چند لحظه‌ی دیگه دوباره امتحان کن.', '❌ I couldn’t shorten this link right now; please try again in a moment.')];
                 }
                 return ['text' => ShortLink::text($short, $url), 'kb' => ShortLink::keyboard($short)];
 
@@ -195,7 +197,7 @@ final class Intent
 
             case 'nid':
                 $code = Tools::normalizeNid($arg);
-                return $code === null ? ['text' => '🪪 یه کد ملی ۱۰ رقمی بفرست تا چکش کنم.'] : ['text' => Tools::nidText($code)];
+                return $code === null ? ['text' => L('🪪 یه کد ملی ۱۰ رقمی بفرست تا چکش کنم.', '🪪 Send a 10-digit national ID code and I’ll check it.')] : ['text' => Tools::nidText($code)];
 
             case 'search':
                 if (mb_strlen($arg) < 2) {
@@ -208,12 +210,12 @@ final class Intent
                         . ($r['snippet'] !== '' ? "\n<i>" . h(mb_substr($r['snippet'], 0, 160)) . '</i>' : '');
                 }
                 Users::hit('search');
-                return ['text' => '🔍 <b>' . h(mb_substr($arg, 0, 120)) . "</b>\n\n" . ($lines ? implode("\n\n", $lines) : 'نتیجه‌ی آماده‌ای پیدا نکردم؛ از دکمه‌ها برو تو گوگل 👇'), 'kb' => Search::keyboard($arg)];
+                return ['text' => '🔍 <b>' . h(mb_substr($arg, 0, 120)) . "</b>\n\n" . ($lines ? implode("\n\n", $lines) : L('نتیجه‌ی آماده‌ای پیدا نکردم؛ از دکمه‌ها برو تو گوگل 👇', 'I didn’t find a ready result; use the buttons to search on Google 👇')), 'kb' => Search::keyboard($arg)];
 
             case 'love':
                 [$a, $b] = array_map('trim', explode('|', $arg, 2)) + [1 => ''];
                 if ($a === '' || $b === '') {
-                    return ['text' => "💘 اسم دو نفر رو بگو؛\nمثلاً «درصد عشق علی و سارا چنده؟»"];
+                    return ['text' => L("💘 اسم دو نفر رو بگو؛\nمثلاً «درصد عشق علی و سارا چنده؟»", "💘 Give me two names;\nfor example “what’s the love percentage for Ali and Sara?”")];
                 }
                 $ra = UserInfo::resolve($a);
                 $rb = UserInfo::resolve($b);
@@ -226,10 +228,10 @@ final class Intent
                     return null;
                 }
                 if ($t !== null && Roast::busy((int) ($msg['from']['id'] ?? 0))) {
-                    return ['text' => "یه‌کم دیگه بیا 😅\n⏳ هر دقیقه فقط یه روست!"];
+                    return ['text' => L("یه‌کم دیگه بیا 😅\n⏳ هر دقیقه فقط یه روست!", "Come back in a bit 😅\n⏳ Only one roast per minute!")];
                 }
                 if ($t === null) {
-                    return ['text' => "🤷 این آدم رو پیدا نکردم؛\nآیدی عددی یا یوزرنیمش رو درست بنویس."];
+                    return ['text' => L("🤷 این آدم رو پیدا نکردم؛\nآیدی عددی یا یوزرنیمش رو درست بنویس.", "🤷 I couldn’t find this person;\nwrite their numeric id or username correctly.")];
                 }
                 $live = App::cfg('ai_stream', true) ? new LiveReply($msg, $imid, Roast::head($t), false) : null;
                 return ['text' => Roast::text($t, $live), 'live' => $live];
@@ -239,7 +241,7 @@ final class Intent
                 return ['text' => $text, 'kb' => $kb];
 
             case 'giveaway':
-                return $guest ? ['text' => "🎁 قرعه‌کشی رو تو پیوی من بساز 👇", 'kb' => ikb([[urlBtn('🎁 ساخت قرعه‌کشی', "https://t.me/{$bot}?start=giveaway", 'success')]])] : null;
+                return $guest ? ['text' => L("🎁 قرعه‌کشی رو تو پیوی من بساز 👇", "🎁 Create the giveaway in my private chat 👇"), 'kb' => ikb([[urlBtn(L('🎁 ساخت قرعه‌کشی', '🎁 Create giveaway'), "https://t.me/{$bot}?start=giveaway", 'success')]])] : null;
         }
         return null;
     }

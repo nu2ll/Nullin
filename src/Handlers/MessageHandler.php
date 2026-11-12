@@ -267,15 +267,15 @@ final class MessageHandler
             case 'forget':
                 $count = count(UserMemory::all((int) $from['id']));
                 if ($count === 0) {
-                    $tg->reply($msg, 'هنوز چیزی ازت تو حافظه‌م نیست 🤷');
+                    $tg->reply($msg, L('هنوز چیزی ازت تو حافظه‌م نیست 🤷', 'I don\'t have anything stored about you yet 🤷'));
                     return true;
                 }
-                Rich::replyTo($msg, "🧹 <b>پاک کردن حافظه</b>\n\n"
-                    . "الان <b>" . fa((string) $count) . " مورد</b> درباره‌ات یادمه؛\n"
-                    . "اگه پاکشون کنم، از اول باهم آشنا می‌شیم.\n\n"
-                    . "⚠️ <i>این کار برگشت نداره.</i> مطمئنی؟", ikb([[
-                    btn('🗑 آره، پاک کن', 'mem:' . (int) $from['id'] . ':y', 'danger'),
-                    btn('↩️ نه، بمونه', 'mem:' . (int) $from['id'] . ':n', 'success'),
+                Rich::replyTo($msg, L("🧹 <b>پاک کردن حافظه</b>\n\n", "🧹 <b>Clear memory</b>\n\n")
+                    . L("الان <b>", "I currently remember <b>") . fa((string) $count) . L(" مورد</b> درباره‌ات یادمه؛\n", " items</b> about you;\n")
+                    . L("اگه پاکشون کنم، از اول باهم آشنا می‌شیم.\n\n", "If I clear them, we'll get to know each other from scratch.\n\n")
+                    . L("⚠️ <i>این کار برگشت نداره.</i> مطمئنی؟", "⚠️ <i>This can't be undone.</i> Are you sure?"), ikb([[
+                    btn(L('🗑 آره، پاک کن', '🗑 Yes, clear it'), 'mem:' . (int) $from['id'] . ':y', 'danger'),
+                    btn(L('↩️ نه، بمونه', '↩️ No, keep it'), 'mem:' . (int) $from['id'] . ':n', 'success'),
                 ]]));
                 return true;
             case 'start':
@@ -307,6 +307,14 @@ final class MessageHandler
                     [$bt, $bk] = Business::panel((int) $from['id']);
                     Rich::sendHtml($chatId, $bt, null, $bk);
                 }
+                return true;
+
+            case 'lang':
+                Rich::sendHtml($chatId, L('🌐 زبان ربات رو انتخاب کن:', '🌐 Choose the bot language:'), null, Lang::toggleKeyboard());
+                return true;
+
+            case 'ailang':
+                Rich::sendHtml($chatId, Lang::aiPanelText((int) $from['id']), null, Lang::aiKeyboard((int) $from['id'], 0));
                 return true;
 
             case 'ping':
@@ -377,15 +385,15 @@ final class MessageHandler
                 foreach (Users::topEvents(1, 8) as $e) {
                     $top .= "\n• <code>" . h($e['event']) . '</code>: ' . $n($e['hits']);
                 }
-                $tg->reply($msg, "📊 <b>آمار نالین</b>\n\n"
-                    . '👥 کل کاربرها: ' . $n($u['total'] ?? 0) . "\n"
-                    . '🆕 جدید امروز: ' . $n($u['new_today'] ?? 0) . "\n"
-                    . '🔥 فعال ۲۴ ساعت: ' . $n($u['day'] ?? 0) . ' · ۷ روز: ' . $n($u['week'] ?? 0) . "\n"
-                    . '📬 قابل پیام: ' . $n($u['reachable'] ?? 0) . ' · 💎 پریمیوم: ' . $n($u['premium'] ?? 0) . "\n"
-                    . '🎮 بازی‌های ذخیره‌شده: ' . $n(Store::count('games'))
-                    . ($top !== '' ? "\n\n<b>⭐ پرکاربردهای امروز:</b>{$top}" : '')
-                    . "\n\n🗄 دیتابیس: <code>" . (Db::driver() === 'sqlite' ? 'Nullini.db' : 'PostgreSQL') . '</code>'
-                    . "\n💾 آخرین بکاپ: " . (($at = Backup::lastPushAt()) ? Jalali::numericDate($at) . ' ' . Jalali::time($at) : (Backup::enabled() ? 'هنوز نه' : 'خاموش')));
+                $tg->reply($msg, L("📊 <b>آمار نالین</b>\n\n", "📊 <b>Nullin stats</b>\n\n")
+                    . L('👥 کل کاربرها: ', '👥 Total users: ') . $n($u['total'] ?? 0) . "\n"
+                    . L('🆕 جدید امروز: ', '🆕 New today: ') . $n($u['new_today'] ?? 0) . "\n"
+                    . L('🔥 فعال ۲۴ ساعت: ', '🔥 Active 24h: ') . $n($u['day'] ?? 0) . L(' · ۷ روز: ', ' · 7 days: ') . $n($u['week'] ?? 0) . "\n"
+                    . L('📬 قابل پیام: ', '📬 Reachable: ') . $n($u['reachable'] ?? 0) . L(' · 💎 پریمیوم: ', ' · 💎 Premium: ') . $n($u['premium'] ?? 0) . "\n"
+                    . L('🎮 بازی‌های ذخیره‌شده: ', '🎮 Saved games: ') . $n(Store::count('games'))
+                    . ($top !== '' ? L("\n\n<b>⭐ پرکاربردهای امروز:</b>{$top}", "\n\n<b>⭐ Most used today:</b>{$top}") : '')
+                    . L("\n\n🗄 دیتابیس: <code>", "\n\n🗄 Database: <code>") . (Db::driver() === 'sqlite' ? 'Nullini.db' : 'PostgreSQL') . '</code>'
+                    . L("\n💾 آخرین بکاپ: ", "\n💾 Last backup: ") . (($at = Backup::lastPushAt()) ? Jalali::numericDate($at) . ' ' . Jalali::time($at) : (Backup::enabled() ? L('هنوز نه', 'not yet') : L('خاموش', 'off'))));
                 return true;
 
             case 'ai':
@@ -407,7 +415,7 @@ final class MessageHandler
                     return false;
                 }
                 $r = Backup::push('manual');
-                $tg->reply($msg, str_starts_with($r, 'ok') ? '✅ بکاپ تو گیت‌هاب ذخیره شد.' : "❌ بکاپ نشد.\n<code>" . h($r) . '</code>');
+                $tg->reply($msg, str_starts_with($r, 'ok') ? L('✅ بکاپ تو گیت‌هاب ذخیره شد.', '✅ Backup saved to GitHub.') : L("❌ بکاپ نشد.\n<code>", "❌ Backup failed.\n<code>") . h($r) . '</code>');
                 return true;
 
             case 'cookies':
@@ -433,8 +441,8 @@ final class MessageHandler
                 if ($cmd === 'banned') {
                     $ids = Ban::all();
                     $tg->reply($msg, $ids
-                        ? '⛔ <b>بن‌شده‌ها (' . fa(count($ids)) . "):</b>\n" . implode("\n", array_map(static fn($i) => '• <code>' . $i . '</code>', array_slice($ids, 0, 50)))
-                        : 'هیچ‌کس بن نیست 👌');
+                        ? L('⛔ <b>بن‌شده‌ها (', '⛔ <b>Banned (') . fa(count($ids)) . "):</b>\n" . implode("\n", array_map(static fn($i) => '• <code>' . $i . '</code>', array_slice($ids, 0, 50)))
+                        : L('هیچ‌کس بن نیست 👌', 'Nobody is banned 👌'));
                     return true;
                 }
                 $r   = $msg['reply_to_message']['from'] ?? null;
@@ -443,22 +451,22 @@ final class MessageHandler
                 } elseif ($args !== '' && $args[0] === '@') {
                     $tid = Ban::byUsername($args);
                     if ($tid <= 0) {
-                        $tg->reply($msg, 'این یوزرنیم پیدا نشد 😕' . "\n" . 'فقط کسایی که ربات رو استارت کرده باشن (یا تو گروه دیده شده باشن) پیدا می‌شن؛ با ریپلای یا آیدی عددی امتحان کن.');
+                        $tg->reply($msg, L('این یوزرنیم پیدا نشد 😕', 'Username not found 😕') . "\n" . L('فقط کسایی که ربات رو استارت کرده باشن (یا تو گروه دیده شده باشن) پیدا می‌شن؛ با ریپلای یا آیدی عددی امتحان کن.', 'Only people who started the bot (or were seen in a group) can be found; try a reply or a numeric ID.'));
                         return true;
                     }
                 } else {
                     $tid = ($r && empty($r['is_bot'])) ? (int) $r['id'] : 0;
                 }
                 if ($tid <= 0) {
-                    $tg->reply($msg, "روی پیام کاربر ریپلای کن و /{$cmd} بزن،\nیا آیدی عددی یا یوزرنیمش رو بنویس:\n<code>/{$cmd} 123456</code>\n<code>/{$cmd} @username</code>");
+                    $tg->reply($msg, L("روی پیام کاربر ریپلای کن و /{$cmd} بزن،\nیا آیدی عددی یا یوزرنیمش رو بنویس:", "Reply to the user's message and send /{$cmd},\nor write their numeric ID or username:") . "\n<code>/{$cmd} 123456</code>\n<code>/{$cmd} @username</code>");
                     return true;
                 }
                 $row = ($r && (int) $r['id'] === $tid) ? ['name' => userName($r), 'username' => $r['username'] ?? null] : Db::row('SELECT name, username FROM users WHERE id = ?', [$tid]);
                 $who = userTag($tid, (string) ($row['name'] ?? ''), $row['username'] ?? null);
                 if ($cmd === 'ban') {
-                    $tg->reply($msg, Ban::add($tid, (int) $from['id']) ? "کاربر {$who} از ربات نالین بن شد." : '🙅 ادمین رو نمی‌شه بن کرد.');
+                    $tg->reply($msg, Ban::add($tid, (int) $from['id']) ? L("کاربر {$who} از ربات نالین بن شد.", "User {$who} was banned from Nullin.") : L('🙅 ادمین رو نمی‌شه بن کرد.', '🙅 Admins can\'t be banned.'));
                 } else {
-                    $tg->reply($msg, Ban::remove($tid) ? "کاربر {$who} از ربات نالین آنبن شد." : 'این کاربر بن نبود.');
+                    $tg->reply($msg, Ban::remove($tid) ? L("کاربر {$who} از ربات نالین آنبن شد.", "User {$who} was unbanned from Nullin.") : L('این کاربر بن نبود.', 'This user wasn\'t banned.'));
                 }
                 return true;
 

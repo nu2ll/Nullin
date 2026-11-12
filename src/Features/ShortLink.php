@@ -36,15 +36,15 @@ final class ShortLink
 
     public static function text(string $short, string $url): string
     {
-        return "🔗 <b>لینک کوتاه</b>\n\n<code>" . h($short) . "</code>\n\n"
-            . '🔸 لینک اصلی: ' . h(mb_strlen($url) > 90 ? mb_substr($url, 0, 90) . '…' : $url);
+        return L("🔗 <b>لینک کوتاه</b>\n\n<code>", "🔗 <b>Short link</b>\n\n<code>") . h($short) . "</code>\n\n"
+            . L('🔸 لینک اصلی: ', '🔸 Original link: ') . h(mb_strlen($url) > 90 ? mb_substr($url, 0, 90) . '…' : $url);
     }
 
     public static function keyboard(string $short): array
     {
         return ikb([
-            [['text' => '📋 کپی', 'copy_text' => ['text' => mb_substr($short, 0, 256)]]],
-            [urlBtn('🌐 باز کردن', $short, null)],
+            [['text' => L('📋 کپی', '📋 Copy'), 'copy_text' => ['text' => mb_substr($short, 0, 256)]]],
+            [urlBtn(L('🌐 باز کردن', '🌐 Open'), $short, null)],
         ]);
     }
 }

@@ -29,8 +29,8 @@ final class Tools
 
     public static function passwordText(int $length): string
     {
-        return "<b>🔑 پسورد ساز</b>\n\n<code>" . h(self::password($length)) . "</code>\n\n"
-            . '📏 طول: ' . fa($length) . ' · 💪 قدرت: خیلی قوی' . "\n<i>روی پسورد بزن تا کپی بشه</i>";
+        return L("<b>🔑 پسورد ساز</b>\n\n<code>", "<b>🔑 Password maker</b>\n\n<code>") . h(self::password($length)) . "</code>\n\n"
+            . L('📏 طول: ', '📏 Length: ') . fa($length) . L(' · 💪 قدرت: خیلی قوی', ' · 💪 Strength: very strong') . L("\n<i>روی پسورد بزن تا کپی بشه</i>", "\n<i>Tap the password to copy it</i>");
     }
 
     public static function passwordKeyboard(): array
@@ -44,13 +44,13 @@ final class Tools
 
     public static function coinKeyboard(): array
     {
-        return ikb([[btn('🪙 بنداز!', 'coin:flip', 'success')]]);
+        return ikb([[btn(L('🪙 بنداز!', '🪙 Flip!'), 'coin:flip', 'success')]]);
     }
 
     public static function coinResult(): string
     {
-        $r = random_int(0, 1) ? '🦁 <b>شیر</b>' : '➖ <b>خط</b>';
-        return "<b>🪙 سکه</b>\n\nسکه چرخید و چرخید و... {$r} اومد!";
+        $r = random_int(0, 1) ? L('🦁 <b>شیر</b>', '🦁 <b>Heads</b>') : L('➖ <b>خط</b>', '➖ <b>Tails</b>');
+        return L("<b>🪙 سکه</b>\n\nسکه چرخید و چرخید و... {$r} اومد!", "<b>🪙 Coin</b>\n\nThe coin spun and spun and... {$r}!");
     }
 
     public static function hafezUrl(int $n = 0): string
@@ -88,12 +88,12 @@ final class Tools
 
     public static function hafezCaption(): string
     {
-        return '🔮 <b>فال حافظ شما</b>' . "\n<i>نیت کن، بعد بخون...</i>";
+        return L('🔮 <b>فال حافظ شما</b>', '🔮 <b>Your Hafez fortune</b>') . L("\n<i>نیت کن، بعد بخون...</i>", "\n<i>Make a wish, then read...</i>");
     }
 
     public static function hafezKeyboard(): array
     {
-        return ikb([[btn('🔄 یه فال دیگه', 'fal:refresh')]]);
+        return ikb([[btn(L('🔄 یه فال دیگه', '🔄 Another fortune'), 'fal:refresh')]]);
     }
 
     public static function showHafez(string $imid): ?array
@@ -132,10 +132,10 @@ final class Tools
     public static function nidText(string $code): string
     {
         $ok = self::isValidNid($code);
-        return "<b>🪪 بررسی کد ملی</b>\n\n"
-            . 'کد: <code>' . self::nidDisplay($code) . "</code>\n"
-            . ($ok ? '✅ ساختار این کد <b>درسته</b>.' : '❌ ساختار این کد <b>اشتباهه</b>.') . "\n\n"
-            . "<i>⚠️ فقط رقم کنترل بررسی شده،\nنه ثبت واقعی در ثبت‌احوال.</i>";
+        return L("<b>🪪 بررسی کد ملی</b>\n\n", "<b>🪪 National ID check</b>\n\n")
+            . L('کد: <code>', 'Code: <code>') . self::nidDisplay($code) . "</code>\n"
+            . ($ok ? L('✅ ساختار این کد <b>درسته</b>.', '✅ The structure of this code is <b>valid</b>.') : L('❌ ساختار این کد <b>اشتباهه</b>.', '❌ The structure of this code is <b>wrong</b>.')) . "\n\n"
+            . L("<i>⚠️ فقط رقم کنترل بررسی شده،\nنه ثبت واقعی در ثبت‌احوال.</i>", "<i>⚠️ Only the check digit was verified,\nnot the actual civil registry.</i>");
     }
 
     public static function qrUrl(string $text, int $size = 512): string
@@ -148,10 +148,10 @@ final class Tools
     public static function dateText(): string
     {
         $now = time();
-        return "<b>📅 تاریخ و ساعت</b> (به وقت ایران)\n\n"
-            . '🗓 شمسی: ' . Jalali::fullDate($now) . "\n"
-            . '🔢 عددی: ' . Jalali::numericDate($now) . "\n"
-            . '🌍 میلادی: ' . date('l, j F Y', $now) . "\n"
-            . '🕒 ساعت: <b>' . Jalali::time($now, true) . '</b>';
+        return L("<b>📅 تاریخ و ساعت</b> (به وقت ایران)\n\n", "<b>📅 Date & time</b> (Iran time)\n\n")
+            . L('🗓 شمسی: ', '🗓 Jalali: ') . Jalali::fullDate($now) . "\n"
+            . L('🔢 عددی: ', '🔢 Numeric: ') . Jalali::numericDate($now) . "\n"
+            . L('🌍 میلادی: ', '🌍 Gregorian: ') . date('l, j F Y', $now) . "\n"
+            . L('🕒 ساعت: <b>', '🕒 Time: <b>') . Jalali::time($now, true) . '</b>';
     }
 }

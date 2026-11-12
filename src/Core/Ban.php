@@ -7,6 +7,7 @@ final class Ban
     private const SPAM_WINDOW = 20;
     private const SPAM_BAN    = 3600;
     private const SPAM_TEXT   = "⏳ یه ساعت استراحت؛ بعدش دوباره بیا.\n🚫 اینقدر سریع پیام دادی که نالین قاطی کرد 😅";
+    private const SPAM_TEXT_EN = "⏳ Take a one-hour break, then come back.\n🚫 You sent messages so fast that Nullin got confused 😅";
 
     public static function is(int $uid): bool
     {
@@ -46,7 +47,7 @@ final class Ban
         if (is_array($hits) && count($hits) >= self::SPAM_LIMIT) {
             Store::set('tban', (string) $uid, ['until' => $now + self::SPAM_BAN]);
             Store::delete('spam', (string) $uid);
-            App::tg()->send($uid, self::SPAM_TEXT);
+            App::tg()->send($uid, Lang::is('en') ? self::SPAM_TEXT_EN : self::SPAM_TEXT);
             return true;
         }
         return false;

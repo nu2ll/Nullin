@@ -8,7 +8,7 @@ final class TicTacToe
 
     public static function intro(): string
     {
-        return "<b>⭕ دوز</b>\n\nسه‌تا پشت سر هم ببر! حالت بازی رو انتخاب کن:";
+        return L("<b>⭕ دوز</b>\n\nسه‌تا پشت سر هم ببر! حالت بازی رو انتخاب کن:", "<b>⭕ Tic-Tac-Toe</b>\n\nGet three in a row! Pick a game mode:");
     }
 
     public static function modeKeyboard(): array
@@ -71,14 +71,14 @@ final class TicTacToe
             }
             $rows[] = $row;
         }
-        $rows[] = $active ? GameKit::controlRow($s, self::P) : [btn('🔁 بازی دوباره', self::P . ':replay', 'success')];
+        $rows[] = $active ? GameKit::controlRow($s, self::P) : [btn(L('🔁 بازی دوباره', '🔁 Play again'), self::P . ':replay', 'success')];
         return ikb($rows);
     }
 
     private static function header(array $s): string
     {
-        return "<b>⭕ دوز</b> · " . ($s['mode'] === 'bot' ? 'با ربات' : 'دو نفره') . "\n" . divider() . "\n"
-            . '❌ ' . GameKit::name($s['p1']) . '  vs  ⭕ ' . GameKit::name($s['p2'] ?? null, '❔ منتظر حریف') . "\n" . divider() . "\n";
+        return '<b>' . L('⭕ دوز', '⭕ Tic-Tac-Toe') . '</b> · ' . ($s['mode'] === 'bot' ? L('با ربات', 'Vs bot') : L('دو نفره', 'Two players')) . "\n" . divider() . "\n"
+            . '❌ ' . GameKit::name($s['p1']) . '  vs  ⭕ ' . GameKit::name($s['p2'] ?? null, L('❔ منتظر حریف', '❔ Waiting for opponent')) . "\n" . divider() . "\n";
     }
 
     private static function render(string $imid, array $s): void
@@ -87,12 +87,12 @@ final class TicTacToe
         if ($s['status'] === 'over') {
             $w   = self::winner($s['board']);
             $end = !empty($s['resigned']) ? GameKit::resignLine($s)
-                : ($w === 'draw' ? '🤝 <b>بازی مساوی شد!</b>' : '🏆 <b>' . GameKit::name($w === 'X' ? $s['p1'] : $s['p2']) . ' برد!</b>');
+                : ($w === 'draw' ? L('🤝 <b>بازی مساوی شد!</b>', '🤝 <b>It’s a draw!</b>') : '🏆 <b>' . GameKit::name($w === 'X' ? $s['p1'] : $s['p2']) . L(' برد!</b>', ' wins!</b>'));
             Rich::editInline($imid, self::header($s) . $end, self::board($s['board'], false));
             return;
         }
-        $turn = $s['turn'] === 'X' ? '❌ ' . GameKit::name($s['p1']) : '⭕ ' . GameKit::name($s['p2'] ?? null, 'هر کی اول بزنه');
-        Rich::editInline($imid, self::header($s) . "👉 نوبت: {$turn}" . GameKit::resignNote($s), self::board($s['board'], true, $s));
+        $turn = $s['turn'] === 'X' ? '❌ ' . GameKit::name($s['p1']) : '⭕ ' . GameKit::name($s['p2'] ?? null, L('هر کی اول بزنه', 'Whoever taps first'));
+        Rich::editInline($imid, self::header($s) . L("👉 نوبت: {$turn}", "👉 Turn: {$turn}") . GameKit::resignNote($s), self::board($s['board'], true, $s));
     }
 
     public static function onCallback(array $cq, string $data, string $imid): void
@@ -107,7 +107,7 @@ final class TicTacToe
                 $s['status'] = 'playing';
                 $s['board']  = array_fill(0, 9, '');
                 $s['turn']   = 'X';
-                $s['p2']     = $s['mode'] === 'bot' ? ['id' => 0, 'name' => '🤖 نالین'] : null;
+                $s['p2']     = $s['mode'] === 'bot' ? ['id' => 0, 'name' => L('🤖 نالین', '🤖 Nullin')] : null;
                 GameKit::save($imid, $s);
                 self::render($imid, $s);
             },
@@ -118,7 +118,7 @@ final class TicTacToe
             },
             function (string $by) use (&$s, $imid, $tg) {
                 GameKit::save($imid, $s);
-                Rich::editInline($imid, self::header($s) . "✖️ بازی توسط {$by} لغو شد.", self::board($s['board'], false));
+                Rich::editInline($imid, self::header($s) . L("✖️ بازی توسط {$by} لغو شد.", "✖️ Game cancelled by {$by}."), self::board($s['board'], false));
             },
             function () use (&$s, $imid) {
                 GameKit::save($imid, $s);
@@ -130,7 +130,7 @@ final class TicTacToe
         }
 
         if (!str_starts_with($data, self::P . ':cell:') || ($s['status'] ?? '') !== 'playing') {
-            $tg->answer($cq, '⌛️ این بازی تموم شده');
+            $tg->answer($cq, L('⌛️ این بازی تموم شده', '⌛️ This game is over'));
             return;
         }
         $i = (int) substr($data, strlen(self::P . ':cell:'));
@@ -142,22 +142,22 @@ final class TicTacToe
         $turnSeat = $s['turn'] === 'X' ? 1 : 2;
         if ($s['mode'] === 'bot') {
             if (!GameKit::isCreator($s, (int) $from['id'])) {
-                $tg->alert($cq, '🚫 این بازی مال یکی دیگه‌ست؛' . "\n" . 'خودت از منو یکی بساز!');
+                $tg->alert($cq, L('🚫 این بازی مال یکی دیگه‌ست؛' . "\n" . 'خودت از منو یکی بساز!', '🚫 This game belongs to someone else;' . "\n" . 'start your own from the menu!'));
                 return;
             }
         } else {
             $seat = GameKit::seat($s, $from, $turnSeat);
             if ($seat === 0) {
-                $tg->alert($cq, '🚫 این بازی دو نفره پر شده.');
+                $tg->alert($cq, L('🚫 این بازی دو نفره پر شده.', '🚫 This two-player game is full.'));
                 return;
             }
             if ($seat !== $turnSeat) {
-                $tg->answer($cq, '⏳ نوبت تو نیست');
+                $tg->answer($cq, L('⏳ نوبت تو نیست', '⏳ It’s not your turn'));
                 return;
             }
         }
         if ($s['board'][$i] !== '') {
-            $tg->answer($cq, '🈵 این خونه پره');
+            $tg->answer($cq, L('🈵 این خونه پره', '🈵 This cell is taken'));
             return;
         }
 

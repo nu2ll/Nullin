@@ -29,10 +29,10 @@ final class Membership
                 continue;
             }
             $info   = self::info($ch);
-            $rows[] = [urlBtn(($info['type'] === 'channel' ? '📢' : '👥') . ' ' . $info['title'], $ch['url'], 'danger')];
+            $rows[] = [urlBtn(($info['type'] === 'channel' ? '📢' : '👥') . ' ' . ($info['title'] === 'گروه' ? L('گروه', 'Group') : $info['title']), $ch['url'], 'danger')];
         }
         if ($check) {
-            $rows[] = [btn('✅ عضو شدم', 'joincheck', 'success')];
+            $rows[] = [btn(L('✅ عضو شدم', '✅ I joined'), 'joincheck', 'success')];
         }
         return ikb($rows);
     }
@@ -117,7 +117,7 @@ final class Membership
 
     public static function text(string $for = ''): string
     {
-        $what = $for === 'download' ? 'دانلود' : 'استفاده';
-        return "🔒 <b>یه قدم تا شروع!</b>\n\nبرای {$what} از نالین\nاول عضو کانال/گروه زیر شو، بعد «✅ عضو شدم» رو بزن 👇";
+        $what = $for === 'download' ? L('دانلود', 'download with') : L('استفاده', 'use');
+        return L("🔒 <b>یه قدم تا شروع!</b>\n\nبرای {$what} از نالین\nاول عضو کانال/گروه زیر شو، بعد «✅ عضو شدم» رو بزن 👇", "🔒 <b>One step to start!</b>\n\nTo {$what} Nullin,\nfirst join the channel/group below, then tap “✅ I joined” 👇");
     }
 }

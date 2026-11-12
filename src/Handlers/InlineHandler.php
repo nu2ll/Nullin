@@ -41,7 +41,7 @@ final class InlineHandler
                 'results'         => [],
                 'cache_time'      => 0,
                 'is_personal'     => true,
-                'button'          => ['text' => '🔒 اول عضو کانال/گروه نالین شو', 'start_parameter' => 'join'],
+                'button'          => ['text' => L('🔒 اول عضو کانال/گروه نالین شو', '🔒 First join the Nullin channel/group'), 'start_parameter' => 'join'],
             ]);
             return;
         }
@@ -103,7 +103,7 @@ final class InlineHandler
     {
         $a = PriceCard::inlineArticle($m);
         if ($a === null) {
-            self::fail('pc_fail', '⚠️ قیمت‌ها در دسترس نیست', 'چند لحظه‌ی دیگه دوباره امتحان کن', "⚠️ الان به منبع قیمت‌ها دسترسی ندارم؛\nچند لحظه دیگه دوباره بزن.");
+            self::fail('pc_fail', L('⚠️ قیمت‌ها در دسترس نیست', '⚠️ Prices are unavailable'), L('چند لحظه‌ی دیگه دوباره امتحان کن', 'Try again in a moment'), L("⚠️ الان به منبع قیمت‌ها دسترسی ندارم؛\nچند لحظه دیگه دوباره بزن.", "⚠️ I can't reach the price source right now;\ntry again in a moment."));
             return;
         }
         self::answer([$a], 20, false);
@@ -131,21 +131,21 @@ final class InlineHandler
 
         $isAi  = $kind === 'ai';
         $head  = $isAi ? '❓ <b>' . h(mb_substr($q, 0, 256)) . '</b>' : '📝 ' . h(mb_substr($q, 0, 256));
-        $wait  = $isAi ? '🧠 نالین داره فکر می‌کنه...' : '🌐 در حال ترجمه...';
+        $wait  = $isAi ? L('🧠 نالین داره فکر می‌کنه...', '🧠 Nullin is thinking...') : L('🌐 در حال ترجمه...', '🌐 Translating...');
         return Ui::article(
             "{$kind}q_{$token}",
             $isAi ? 'ai' : 'translate',
-            $isAi ? '🧠 بپرس از نالین' : '🌐 ترجمه کن',
+            $isAi ? L('🧠 بپرس از نالین', '🧠 Ask Nullin') : L('🌐 ترجمه کن', '🌐 Translate'),
             mb_substr($q, 0, 80),
             "{$head}\n\n⏳ {$wait}",
-            ikb([[btn('⏳ صبر کن...', "{$kind}q:{$token}", null)]])
+            ikb([[btn(L('⏳ صبر کن...', '⏳ Wait...'), "{$kind}q:{$token}", null)]])
         );
     }
 
     private static function wiki(string $q): void
     {
         if ($q === '') {
-            self::guide('wiki', 'wiki', '📖 ویکی‌پدیا', 'بعد از wk موضوعت رو بنویس');
+            self::guide('wiki', 'wiki', L('📖 ویکی‌پدیا', '📖 Wikipedia'), L('بعد از wk موضوعت رو بنویس', 'Type your topic after wk'));
             return;
         }
         $list = Wiki::search($q, 8);
@@ -153,7 +153,7 @@ final class InlineHandler
             $list = Wiki::search($q, 6, 'en');
         }
         if (!$list) {
-            self::fail('wk_none', '📖 چیزی پیدا نشد', 'یه جور دیگه بنویس', '📖 تو ویکی‌پدیا چیزی درباره‌ی «' . h(mb_substr($q, 0, 80)) . '» پیدا نکردم.');
+            self::fail('wk_none', L('📖 چیزی پیدا نشد', '📖 Nothing found'), L('یه جور دیگه بنویس', 'Try wording it differently'), L('📖 تو ویکی‌پدیا چیزی درباره‌ی «', '📖 I found nothing on Wikipedia about “') . h(mb_substr($q, 0, 80)) . L('» پیدا نکردم.', '”.'));
             return;
         }
         self::answer(array_map(static fn($p) => Wiki::inline('wk_' . substr(md5($p['url']), 0, 16), $p), $list), 600, false);
@@ -162,7 +162,7 @@ final class InlineHandler
     private static function like(string $text): void
     {
         if ($text === '') {
-            self::guide('like', 'like', '❤️ لایک‌ساز', 'بعد از like متنت رو بنویس');
+            self::guide('like', 'like', L('❤️ لایک‌ساز', '❤️ Like maker'), L('بعد از like متنت رو بنویس', 'Type your text after like'));
             return;
         }
         self::answer([Likes::article($text)], 0);
@@ -172,7 +172,7 @@ final class InlineHandler
     {
         $r = $q === '' ? null : Giveaway::inlineResult(self::$iq['from'], $q);
         if ($r === null) {
-            self::guide('giveaway', 'gift', '🎁 قرعه‌کشی', 'gw [تعداد برنده] [زمان] [جایزه]');
+            self::guide('giveaway', 'gift', L('🎁 قرعه‌کشی', '🎁 Giveaway'), L('gw [تعداد برنده] [زمان] [جایزه]', 'gw [winners] [time] [prize]'));
             return;
         }
         self::answer([$r]);
@@ -188,7 +188,7 @@ final class InlineHandler
         }
         $tg = App::tg();
         if ($job['kind'] === 'ai' && AI::busy((int) ($job['from']['id'] ?? 0))) {
-            Rich::editInline($imid, AI::BUSY_TEXT, null, null, false);
+            Rich::editInline($imid, (Lang::is('en') ? AI::BUSY_TEXT_EN : AI::BUSY_TEXT), null, null, false);
             return;
         }
         if ($job['kind'] === 'ai' && is_array($job['from'] ?? null) && self::smart((string) $job['q'], (array) $job['from'], $imid)) {
@@ -257,7 +257,7 @@ final class InlineHandler
             $live?->watch();
             $res    = AI::reply($q, ['user_name' => $name, 'user_id' => $uid, 'chat_type' => 'inline'], [], ['reaction' => false] + ($live ? ['on_text' => $live->feed(...)] : []));
             $live?->stop();
-            $answer = $res['answer'] ?? AI::FAIL_TEXT;
+            $answer = $res['answer'] ?? (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT);
             if ($res['answer'] === null) {
                 self::$failKb = AnswerButtons::retryKeyboard();
                 AnswerButtons::attachInline($imid, ['u' => $uid, 'q' => $q, 'a' => $answer, 'h' => self::aiHead($q), 'f' => 1]);
@@ -266,10 +266,10 @@ final class InlineHandler
         } else {
             $out  = AI::translateFast($q);
             $pre  = h(mb_substr($q, 0, 256)) . "\n\n🌐 ";
-            $text = $pre . ($out !== null ? h($out) : AI::FAIL_TEXT);
+            $text = $pre . ($out !== null ? h($out) : (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT));
             if ($out === null) {
                 self::$failKb = AnswerButtons::retryKeyboard();
-                AnswerButtons::attachInline($imid, ['k' => 'tr', 'u' => $uid, 'q' => $q, 'a' => AI::FAIL_TEXT, 'h' => $pre, 'x' => $pre, 'f' => 1]);
+                AnswerButtons::attachInline($imid, ['k' => 'tr', 'u' => $uid, 'q' => $q, 'a' => (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT), 'h' => $pre, 'x' => $pre, 'f' => 1]);
             }
         }
         return $text;
@@ -278,7 +278,7 @@ final class InlineHandler
     private static function ai(string $q): void
     {
         if ($q === '') {
-            self::guide('ai', 'ai', '🧠 هوش مصنوعی', 'بعد از ai سؤالت رو بنویس');
+            self::guide('ai', 'ai', L('🧠 هوش مصنوعی', '🧠 AI'), L('بعد از ai سؤالت رو بنویس', 'Type your question after ai'));
             return;
         }
         self::deferred('ai', $q);
@@ -287,7 +287,7 @@ final class InlineHandler
     private static function translate(string $q): void
     {
         if ($q === '') {
-            self::guide('translate', 'translate', '🌐 ترجمه', 'بعد از tr متنت رو بنویس');
+            self::guide('translate', 'translate', L('🌐 ترجمه', '🌐 Translate'), L('بعد از tr متنت رو بنویس', 'Type your text after tr'));
             return;
         }
         self::deferred('tr', $q);
@@ -299,8 +299,8 @@ final class InlineHandler
         $text = $p['text'];
         $len  = mb_strlen($text);
         if ($len > Whisper::MAX_LEN) {
-            self::fail('wh_long', '✋ متن نجوا طولانیه', 'حداکثر ' . fa(Whisper::MAX_LEN) . ' کاراکتر (الان ' . fa($len) . ')',
-                '✋ متن نجوا حداکثر <b>' . fa(Whisper::MAX_LEN) . '</b> کاراکتر می‌تونه باشه؛' . "\n" . 'یه‌کم کوتاهش کن.');
+            self::fail('wh_long', L('✋ متن نجوا طولانیه', '✋ The whisper text is too long'), L('حداکثر ', 'Max ') . fa(Whisper::MAX_LEN) . L(' کاراکتر (الان ', ' characters (now ') . fa($len) . ')',
+                L('✋ متن نجوا حداکثر <b>', '✋ A whisper can be at most <b>') . fa(Whisper::MAX_LEN) . L('</b> کاراکتر می‌تونه باشه؛', '</b> characters;\n') . "\n" . L('یه‌کم کوتاهش کن.', 'shorten it a bit.'));
             return;
         }
         $from = self::$iq['from'];
@@ -349,25 +349,25 @@ final class InlineHandler
 
     private static function whisperGuide(bool $bare, int $len): array
     {
-        $desc = 'nj [متن] [@یوزرنیم] [آیدی]';
+        $desc = L('nj [متن] [@یوزرنیم] [آیدی]', 'nj [text] [@username] [ID]');
         if (!$bare) {
-            $desc .= "\n" . fa($len) . ' از ' . fa(Whisper::MAX_LEN);
+            $desc .= "\n" . fa($len) . L(' از ', ' from ') . fa(Whisper::MAX_LEN);
         }
-        return Ui::article('help_whisper', 'chat', '🤫 نجوا', $desc, Ui::guide('whisper'), Ui::tryKeyboard('whisper'));
+        return Ui::article('help_whisper', 'chat', L('🤫 نجوا', '🤫 Whisper'), $desc, Ui::guide('whisper'), Ui::tryKeyboard('whisper'));
     }
 
     private static function whisperItem(string $text, array $to, ?string $token, int $idx, ?string $rawTo = null, ?int $len = null): array
     {
         $names = array_map(static fn($r) => ($r['name'] ?? '') !== '' ? $r['name'] : '@' . ($r['username'] ?? ''), $to);
         $multi = count($to) > 1;
-        $title = $multi ? 'نجوای چندنفره (' . fa(count($to)) . ' نفر)' : $names[0];
-        $desc  = $multi ? "👥 نجوای چندنفره\n" . mb_substr(implode(' & ', $names), 0, 80) : '💬 نجوا';
+        $title = $multi ? L('نجوای چندنفره (', 'Group whisper (') . fa(count($to)) . L(' نفر)', ' people)') : $names[0];
+        $desc  = $multi ? L("👥 نجوای چندنفره\n", "👥 Group whisper\n") . mb_substr(implode(' & ', $names), 0, 80) : L('💬 نجوا', '💬 Whisper');
         if ($rawTo !== null && !$multi) {
             $isUser = str_starts_with($rawTo, '@');
-            $title  = $isUser ? 'نجوا به ' . $rawTo : 'نجوا به (👤کاربر)';
-            $desc   = '💬 ' . ($isUser ? 'نجوا با آیدی' : 'نجوا با آیدی‌عددی') . ' ✅';
+            $title  = $isUser ? L('نجوا به ', 'Whisper to ') . $rawTo : L('نجوا به (👤کاربر)', 'Whisper to (👤user)');
+            $desc   = '💬 ' . ($isUser ? L('نجوا با آیدی', 'Whisper by ID') : L('نجوا با آیدی‌عددی', 'Whisper by numeric ID')) . ' ✅';
             if ($len !== null) {
-                $desc .= "\n" . fa($len) . ' از ' . fa(Whisper::MAX_LEN);
+                $desc .= "\n" . fa($len) . L(' از ', ' from ') . fa(Whisper::MAX_LEN);
             }
         }
         $icon  = $multi ? 'group' : ((($av = Whisper::avatarUrl((int) ($to[0]['id'] ?? 0))) !== null) ? $av : 'info');
@@ -388,17 +388,17 @@ final class InlineHandler
     private static function weather(string $city): void
     {
         if ($city === '') {
-            self::guide('weather', 'weather', '🌦 آب‌وهوا', 'بعد از hv اسم شهر رو بنویس');
+            self::guide('weather', 'weather', L('🌦 آب‌وهوا', '🌦 Weather'), L('بعد از hv اسم شهر رو بنویس', 'Type a city name after hv'));
             return;
         }
         $len = mb_strlen($city);
         if ($len < 2 || $len > 40) {
-            self::fail('wt_len', '⚠️ اسم شهر نامعتبره', 'بین ۲ تا ۴۰ کاراکتر بنویس', '⚠️ اسم مکان باید بین ۲ تا ۴۰ کاراکتر باشه.');
+            self::fail('wt_len', L('⚠️ اسم شهر نامعتبره', '⚠️ Invalid city name'), L('بین ۲ تا ۴۰ کاراکتر بنویس', 'Write between 2 and 40 characters'), L('⚠️ اسم مکان باید بین ۲ تا ۴۰ کاراکتر باشه.', '⚠️ The place name must be between 2 and 40 characters.'));
             return;
         }
         $data = Weather::fetch($city);
         if ($data === null) {
-            self::fail('wt_fail', '❌ پیدا نشد: ' . $city, 'اسم شهر رو دقیق‌تر بنویس', "❌ جایی به اسم «" . h($city) . "» پیدا نکردم.\n💡 اسم شهر رو دقیق‌تر بنویس.");
+            self::fail('wt_fail', L('❌ پیدا نشد: ', '❌ Not found: ') . $city, L('اسم شهر رو دقیق‌تر بنویس', 'Write the city name more precisely'), L("❌ جایی به اسم «", "❌ I couldn't find a place named “") . h($city) . L("» پیدا نکردم.\n💡 اسم شهر رو دقیق‌تر بنویس.", "”.\n💡 Write the city name more precisely."));
             return;
         }
         $hash = substr(md5(mb_strtolower($city)), 0, 16);
@@ -422,42 +422,42 @@ final class InlineHandler
     private static function nid(string $raw): void
     {
         if ($raw === '') {
-            self::guide('nid', 'nid', '🪪 کد ملی', 'بعد از meli کد ملی رو بنویس');
+            self::guide('nid', 'nid', L('🪪 کد ملی', '🪪 National ID'), L('بعد از meli کد ملی رو بنویس', 'Type the national ID after meli'));
             return;
         }
         $code = Tools::normalizeNid($raw);
         if ($code === null) {
-            self::fail('nid_bad', '⚠️ فرمت کد ملی اشتباهه', 'باید ۸ تا ۱۰ رقم باشه', '⚠️ کد ملی باید فقط عدد و ۸ تا ۱۰ رقم باشه.');
+            self::fail('nid_bad', L('⚠️ فرمت کد ملی اشتباهه', '⚠️ Wrong national ID format'), L('باید ۸ تا ۱۰ رقم باشه', 'It must be 8 to 10 digits'), L('⚠️ کد ملی باید فقط عدد و ۸ تا ۱۰ رقم باشه.', '⚠️ The national ID must be digits only, 8 to 10 digits.'));
             return;
         }
         $ok = Tools::isValidNid($code);
-        self::answer([Ui::article("nid_{$code}", $ok ? 'ok' : 'fail', $ok ? '✅ کد ملی سالمه' : '❌ کد ملی نامعتبره', Tools::nidDisplay($code), Tools::nidText($code))], 300, false);
+        self::answer([Ui::article("nid_{$code}", $ok ? 'ok' : 'fail', $ok ? L('✅ کد ملی سالمه', '✅ National ID is valid') : L('❌ کد ملی نامعتبره', '❌ National ID is invalid'), Tools::nidDisplay($code), Tools::nidText($code))], 300, false);
     }
 
     private static function linkcheck(string $rest): void
     {
         $url = LinkCheck::extract($rest);
         if ($url === null) {
-            self::guide('linkcheck', 'linkcheck', '🛡 ردیاب اشتراک', 'بعد از st لینک اشتراک رو بنویس');
+            self::guide('linkcheck', 'linkcheck', L('🛡 ردیاب اشتراک', '🛡 Invite link tracker'), L('بعد از st لینک اشتراک رو بنویس', 'Type the invite link after st'));
             return;
         }
         $p = LinkCheck::pending(self::$iq['from'], $url);
-        self::answer([Ui::article('st_' . $p['token'], 'linkcheck', '🛡 ردیابی این لینک', mb_substr($url, 0, 80), $p['text'], $p['kb'])]);
+        self::answer([Ui::article('st_' . $p['token'], 'linkcheck', L('🛡 ردیابی این لینک', '🛡 Trace this link'), mb_substr($url, 0, 80), $p['text'], $p['kb'])]);
     }
 
     private static function funstat(string $raw): void
     {
         $raw = en($raw);
         if ($raw === '' || !ctype_digit($raw) || strlen($raw) > 15) {
-            self::guide('funstat', 'funstat', '🔍 استعلام کاربر', 'بعد از id آیدی عددی رو بنویس');
+            self::guide('funstat', 'funstat', L('🔍 استعلام کاربر', '🔍 User lookup'), L('بعد از id آیدی عددی رو بنویس', 'Type the numeric ID after id'));
             return;
         }
         $data = UserInfo::funstat((int) $raw);
         if ($data === null) {
-            self::fail('fs_fail', '❌ کاربری پیدا نشد', 'آیدی ' . $raw, "❌ اطلاعاتی برای آیدی <code>{$raw}</code> پیدا نشد.");
+            self::fail('fs_fail', L('❌ کاربری پیدا نشد', '❌ User not found'), L('آیدی ', 'ID ') . $raw, L("❌ اطلاعاتی برای آیدی <code>{$raw}</code> پیدا نشد.", "❌ No information found for ID <code>{$raw}</code>."));
             return;
         }
-        self::answer([Ui::article("fs_{$raw}", 'funstat', '🔍 ' . UserInfo::funstatShort($data), 'آیدی ' . $raw, UserInfo::funstatText($data))], 60, false);
+        self::answer([Ui::article("fs_{$raw}", 'funstat', '🔍 ' . UserInfo::funstatShort($data), L('آیدی ', 'ID ') . $raw, UserInfo::funstatText($data))], 60, false);
     }
 
     private static function love(string $rest): void
@@ -465,15 +465,15 @@ final class InlineHandler
         $parts = $rest === '' ? [] : preg_split('/\s+/u', $rest);
         $tok   = '/^(@[A-Za-z0-9_]{3,32}|\d{5,15})$/';
         if (count($parts) !== 2 || !preg_match($tok, $parts[0]) || !preg_match($tok, $parts[1])) {
-            self::guide('love', 'love', '💘 تطابق عشقی', 'love [یوزرنیم/آیدی] [یوزرنیم/آیدی۲]');
+            self::guide('love', 'love', L('💘 تطابق عشقی', '💘 Love match'), L('love [یوزرنیم/آیدی] [یوزرنیم/آیدی۲]', 'love [username/ID] [username/ID 2]'));
             return;
         }
         $r = Love::pending($parts[0], $parts[1]);
         self::answer([Ui::article(
             'lv_' . $r['token'],
             'love',
-            "💘 {$r['a']} و {$r['b']}",
-            '❤️ بزن تا درصد عشقشون رو ببینی',
+            L("💘 {$r['a']} و {$r['b']}", "💘 {$r['a']} and {$r['b']}"),
+            L('❤️ بزن تا درصد عشقشون رو ببینی', '❤️ Tap to see their love percentage'),
             $r['text'],
             $r['keyboard']
         )]);
@@ -483,17 +483,17 @@ final class InlineHandler
     {
         $tok = Roast::token($rest);
         if ($rest !== '' && $tok === '') {
-            self::guide('roast', 'roast', '🔥 روست', 'roast [@یوزرنیم] [آیدی]');
+            self::guide('roast', 'roast', L('🔥 روست', '🔥 Roast'), L('roast [@یوزرنیم] [آیدی]', 'roast [@username] [ID]'));
             return;
         }
         $r = Roast::pending(self::$iq['from'], $tok === 'me' ? '' : $tok);
-        self::answer([Ui::article('rs_' . $r['token'], 'roast', $r['title'], '🔥 بزن تا بشورمش', $r['text'], $r['kb'])]);
+        self::answer([Ui::article('rs_' . $r['token'], 'roast', $r['title'], L('🔥 بزن تا بشورمش', '🔥 Tap to roast them'), $r['text'], $r['kb'])]);
     }
 
     private static function qr(string $text): void
     {
         if ($text === '') {
-            self::guide('qr', 'qr', '🔳 QR کد', 'بعد از qr متن یا لینک رو بنویس');
+            self::guide('qr', 'qr', L('🔳 QR کد', '🔳 QR code'), L('بعد از qr متن یا لینک رو بنویس', 'Type text or a link after qr'));
             return;
         }
         $text = mb_substr($text, 0, 1000);
@@ -504,7 +504,7 @@ final class InlineHandler
             'thumbnail_url' => Tools::qrUrl($text, 128),
             'photo_width'   => 512,
             'photo_height'  => 512,
-            'title'         => '🔳 QR کد',
+            'title'         => L('🔳 QR کد', '🔳 QR code'),
             'description'   => mb_substr($text, 0, 60),
             'caption'       => '🔳 <code>' . h(mb_substr($text, 0, 1000)) . '</code>',
             'parse_mode'    => 'HTML',
@@ -515,12 +515,12 @@ final class InlineHandler
     {
         $url = ShortLink::extract($rest);
         if ($url === null) {
-            self::guide('short', 'short', '🔗 کوتاه‌کننده لینک', 'بعد از sh لینک بلند رو بنویس');
+            self::guide('short', 'short', L('🔗 کوتاه‌کننده لینک', '🔗 Link shortener'), L('بعد از sh لینک بلند رو بنویس', 'Type the long link after sh'));
             return;
         }
         $short = ShortLink::shorten($url);
         if ($short === null) {
-            self::fail('sh_fail', '❌ کوتاه نشد', 'چند لحظه‌ی دیگه دوباره امتحان کن', '❌ الان نتونستم این لینک رو کوتاه کنم. چند لحظه‌ی دیگه دوباره امتحان کن.');
+            self::fail('sh_fail', L('❌ کوتاه نشد', '❌ Couldn\'t shorten'), L('چند لحظه‌ی دیگه دوباره امتحان کن', 'Try again in a moment'), L('❌ الان نتونستم این لینک رو کوتاه کنم. چند لحظه‌ی دیگه دوباره امتحان کن.', '❌ I couldn\'t shorten this link right now. Try again in a moment.'));
             return;
         }
         self::answer([Ui::article('sh_' . substr(md5($url), 0, 16), 'short', '🔗 ' . $short, mb_substr($url, 0, 80), ShortLink::text($short, $url), ShortLink::keyboard($short))], 0);
@@ -529,20 +529,20 @@ final class InlineHandler
     private static function search(string $q): void
     {
         if ($q === '') {
-            self::guide('search', 'search', '🔍 سرچ گوگل', 'بعد از g هر چی می‌خوای بنویس');
+            self::guide('search', 'search', L('🔍 سرچ گوگل', '🔍 Google search'), L('بعد از g هر چی می‌خوای بنویس', 'Type whatever you want after g'));
             return;
         }
         $q     = mb_substr($q, 0, 200);
         $items = [Ui::article(
             'gs_' . substr(md5($q), 0, 16),
             'search',
-            '🔍 سرچ گوگل: ' . $q,
-            'دکمه‌ها مستقیم به گوگل وصل می‌شن',
-            "🔍 <b>" . h($q) . "</b>\n\n👇 نتایج رو همین‌جا تو تلگرام ببین",
+            L('🔍 سرچ گوگل: ', '🔍 Google search: ') . $q,
+            L('دکمه‌ها مستقیم به گوگل وصل می‌شن', 'The buttons link directly to Google'),
+            "🔍 <b>" . h($q) . L("</b>\n\n👇 نتایج رو همین‌جا تو تلگرام ببین", "</b>\n\n👇 See the results right here in Telegram"),
             Search::keyboard($q)
         )];
         foreach (Search::results($q, 10) as $i => $r) {
-            $a                  = Ui::article('sr_' . substr(md5($r['url']), 0, 16), 'search', $r['title'], $r['snippet'] !== '' ? $r['snippet'] : $r['url'], Search::resultText($r), ikb([[urlBtn('🌐 باز کردن', $r['url'], null)]]));
+            $a                  = Ui::article('sr_' . substr(md5($r['url']), 0, 16), 'search', $r['title'], $r['snippet'] !== '' ? $r['snippet'] : $r['url'], Search::resultText($r), ikb([[urlBtn(L('🌐 باز کردن', '🌐 Open'), $r['url'], null)]]));
             $a['thumbnail_url'] = Search::favicon($r['url']);
             $a['url']           = $r['url'];
             $a['hide_url']      = true;
@@ -560,7 +560,7 @@ final class InlineHandler
     private static function font(string $text): void
     {
         if ($text === '') {
-            self::guide('font', 'font', '✨ فونت‌ساز', 'بعد از ft اسم یا متنت رو بنویس');
+            self::guide('font', 'font', L('✨ فونت‌ساز', '✨ Font maker'), L('بعد از ft اسم یا متنت رو بنویس', 'Type your name or text after ft'));
             return;
         }
         $items = [];
@@ -571,11 +571,11 @@ final class InlineHandler
                 mb_substr($styled, 0, 120),
                 $name,
                 h($styled),
-                ikb([[['text' => '📋 کپی', 'copy_text' => ['text' => mb_substr($styled, 0, 256)]]]])
+                ikb([[['text' => L('📋 کپی', '📋 Copy'), 'copy_text' => ['text' => mb_substr($styled, 0, 256)]]]])
             );
         }
         if (!$items) {
-            self::guide('font', 'font', '✨ فونت‌ساز', 'بعد از ft اسم یا متنت رو بنویس');
+            self::guide('font', 'font', L('✨ فونت‌ساز', '✨ Font maker'), L('بعد از ft اسم یا متنت رو بنویس', 'Type your name or text after ft'));
             return;
         }
         self::answer($items, 300, false);
@@ -605,37 +605,37 @@ final class InlineHandler
         [$infoText, $infoKb] = UserInfo::card($from, self::$iq['chat_type'] ?? null);
 
         $items = [
-            Ui::article('info', 'info', '👤 اطلاعات من', 'آیدی، عمر اکانت، DC و...', $infoText, $infoKb),
-            Ui::article('chess', 'chess', '♟️ شطرنج', 'با ربات در ۳ سطح سختی، یا با دوستت', Chess::intro(), Chess::modeKeyboard()),
-            Ui::article('calc', 'calc', '🧮 ماشین‌حساب', 'با پرانتز و توان', Calculator::render('0'), Calculator::keyboard()),
-            Ui::article('rates', 'rates', '💱 نرخ ارز و طلا', 'دلار، یورو، سکه، تتر، بیت‌کوین...', "<b>💱 نرخ لحظه‌ای بازار</b>\n\nبرای دیدن قیمت‌ها دکمه‌ی زیر رو بزن 👇", Currency::pendingKeyboard()),
-            Ui::article('unit', 'unit', '⚖️ تبدیل واحد', 'طول، وزن، دما، حجم، سرعت و...', UnitConvert::render(UnitConvert::initial()), UnitConvert::keyboard(UnitConvert::initial())),
-            Ui::article('date', 'date', '📅 تاریخ و ساعت', 'شمسی و میلادی، به وقت ایران', Tools::dateText()),
-            Ui::article('pass', 'pass', '🔑 پسورد ساز', 'یه رمز قوی و غیرقابل حدس', Tools::passwordText(16), Tools::passwordKeyboard()),
-            Ui::article('ttt', 'ttt', '⭕ دوز', 'دوز کلاسیک، با ربات یا دوستت', TicTacToe::intro(), TicTacToe::modeKeyboard()),
-            Ui::article('c4', 'c4', '🔴 دوز سکه‌ای', '۴ تا پشت سر هم، با ربات یا دوستت', ConnectFour::intro(), ConnectFour::modeKeyboard()),
-            Ui::article('rps', 'rps', '✊ سنگ کاغذ قیچی', 'بهترین از ۳ دور', Rps::intro(), Rps::modeKeyboard()),
-            Ui::article('math', 'math', '🔢 دوئل ریاضی', 'مسابقه‌ی سرعت حساب، چندنفره', MathDuel::intro(), MathDuel::modeKeyboard()),
-            Ui::article('coin', 'coin', '🪙 سکه', 'شیر یا خط؟', "<b>🪙 سکه</b>\n\nآماده‌ی پرتاب! 👇", Tools::coinKeyboard()),
-            Ui::article('fal', 'fal', '🔮 فال حافظ', 'یه فال از دیوان حافظ', Tools::hafezCaption(), Tools::hafezKeyboard()),
-            Ui::article('help_group', 'group', '👥 در گروه', 'نالین رو به گروهت اضافه کن', Ui::guide('group'), Ui::tryKeyboard('group')),
-            Ui::article('help_image', 'image', '🎨 ساخت عکس', 'فقط بگو چی بکشم؛ تو پیوی یا گروه', Ui::guide('image'), Ui::tryKeyboard('image')),
-            Ui::article('help_whisper', 'whisper', '🤫 نجوا', 'nj [متن] [@یوزرنیم] [آیدی]', Ui::guide('whisper'), Ui::tryKeyboard('whisper')),
-            Ui::article('help_like', 'like', '❤️ لایک‌ساز', 'like [متن]', Ui::guide('like'), Ui::tryKeyboard('like')),
-            Ui::article('help_giveaway', 'gift', '🎁 قرعه‌کشی', 'gw [تعداد] [زمان] [جایزه]', Ui::guide('giveaway'), Ui::tryKeyboard('giveaway')),
-            Ui::article('help_wiki', 'wiki', '📖 ویکی‌پدیا', 'wk [موضوع]', Ui::guide('wiki'), Ui::tryKeyboard('wiki')),
-            Ui::article('help_ai', 'ai', '🧠 هوش مصنوعی', 'ai [سؤالت]', Ui::guide('ai'), Ui::tryKeyboard('ai')),
-            Ui::article('help_translate', 'translate', '🌐 ترجمه', 'tr [متن]', Ui::guide('translate'), Ui::tryKeyboard('translate')),
-            Ui::article('help_search', 'search', '🔍 سرچ گوگل', 'g [هر چی بخوای]', Ui::guide('search'), Ui::tryKeyboard('search')),
-            Ui::article('help_font', 'font', '✨ فونت‌ساز', 'ft [اسم یا متن]', Ui::guide('font'), Ui::tryKeyboard('font')),
-            Ui::article('help_weather', 'weather', '🌦 آب‌وهوا', 'hv [شهر]', Ui::guide('weather'), Ui::tryKeyboard('weather')),
-            Ui::article('help_qr', 'qr', '🔳 QR کد', 'qr [متن یا لینک]', Ui::guide('qr'), Ui::tryKeyboard('qr')),
-            Ui::article('help_short', 'short', '🔗 کوتاه‌کننده لینک', 'sh [لینک بلند]', Ui::guide('short'), Ui::tryKeyboard('short')),
-            Ui::article('help_roast', 'roast', '🔥 روست', 'roast [@یوزرنیم] [آیدی]', Ui::guide('roast'), Ui::tryKeyboard('roast')),
-            Ui::article('help_love', 'love', '💘 تطابق عشقی', 'love [یوزرنیم/آیدی] [یوزرنیم/آیدی۲]', Ui::guide('love'), Ui::tryKeyboard('love')),
-            Ui::article('help_nid', 'nid', '🪪 کد ملی', 'meli [کد ملی]', Ui::guide('nid'), Ui::tryKeyboard('nid')),
-            Ui::article('help_linkcheck', 'linkcheck', '🛡 ردیاب اشتراک', 'st [لینک اشتراک]', Ui::guide('linkcheck'), Ui::tryKeyboard('linkcheck')),
-            Ui::article('help_funstat', 'funstat', '🔍 استعلام کاربر', 'id [آیدی عددی]', Ui::guide('funstat'), Ui::tryKeyboard('funstat')),
+            Ui::article('info', 'info', L('👤 اطلاعات من', '👤 My info'), L('آیدی، عمر اکانت، DC و...', 'ID, account age, DC and more...'), $infoText, $infoKb),
+            Ui::article('chess', 'chess', L('♟️ شطرنج', '♟️ Chess'), L('با ربات در ۳ سطح سختی، یا با دوستت', 'Against the bot on 3 difficulty levels, or with a friend'), Chess::intro(), Chess::modeKeyboard()),
+            Ui::article('calc', 'calc', L('🧮 ماشین‌حساب', '🧮 Calculator'), L('با پرانتز و توان', 'With parentheses and powers'), Calculator::render('0'), Calculator::keyboard()),
+            Ui::article('rates', 'rates', L('💱 نرخ ارز و طلا', '💱 Currency & gold rates'), L('دلار، یورو، سکه، تتر، بیت‌کوین...', 'Dollar, euro, coins, Tether, Bitcoin...'), L("<b>💱 نرخ لحظه‌ای بازار</b>\n\nبرای دیدن قیمت‌ها دکمه‌ی زیر رو بزن 👇", "<b>💱 Live market rates</b>\n\nTap the button below to see the prices 👇"), Currency::pendingKeyboard()),
+            Ui::article('unit', 'unit', L('⚖️ تبدیل واحد', '⚖️ Unit converter'), L('طول، وزن، دما، حجم، سرعت و...', 'Length, weight, temperature, volume, speed and more...'), UnitConvert::render(UnitConvert::initial()), UnitConvert::keyboard(UnitConvert::initial())),
+            Ui::article('date', 'date', L('📅 تاریخ و ساعت', '📅 Date & time'), L('شمسی و میلادی، به وقت ایران', 'Jalali and Gregorian, Iran time'), Tools::dateText()),
+            Ui::article('pass', 'pass', L('🔑 پسورد ساز', '🔑 Password maker'), L('یه رمز قوی و غیرقابل حدس', 'A strong, unguessable password'), Tools::passwordText(16), Tools::passwordKeyboard()),
+            Ui::article('ttt', 'ttt', L('⭕ دوز', '⭕ Tic-tac-toe'), L('دوز کلاسیک، با ربات یا دوستت', 'Classic tic-tac-toe, against the bot or a friend'), TicTacToe::intro(), TicTacToe::modeKeyboard()),
+            Ui::article('c4', 'c4', L('🔴 دوز سکه‌ای', '🔴 Connect Four'), L('۴ تا پشت سر هم، با ربات یا دوستت', '4 in a row, against the bot or a friend'), ConnectFour::intro(), ConnectFour::modeKeyboard()),
+            Ui::article('rps', 'rps', L('✊ سنگ کاغذ قیچی', '✊ Rock paper scissors'), L('بهترین از ۳ دور', 'Best of 3 rounds'), Rps::intro(), Rps::modeKeyboard()),
+            Ui::article('math', 'math', L('🔢 دوئل ریاضی', '🔢 Math duel'), L('مسابقه‌ی سرعت حساب، چندنفره', 'A math speed contest, multiplayer'), MathDuel::intro(), MathDuel::modeKeyboard()),
+            Ui::article('coin', 'coin', L('🪙 سکه', '🪙 Coin'), L('شیر یا خط؟', 'Heads or tails?'), L("<b>🪙 سکه</b>\n\nآماده‌ی پرتاب! 👇", "<b>🪙 Coin</b>\n\nReady to flip! 👇"), Tools::coinKeyboard()),
+            Ui::article('fal', 'fal', L('🔮 فال حافظ', '🔮 Hafez fortune'), L('یه فال از دیوان حافظ', 'A fortune from the Divan of Hafez'), Tools::hafezCaption(), Tools::hafezKeyboard()),
+            Ui::article('help_group', 'group', L('👥 در گروه', '👥 In groups'), L('نالین رو به گروهت اضافه کن', 'Add Nullin to your group'), Ui::guide('group'), Ui::tryKeyboard('group')),
+            Ui::article('help_image', 'image', L('🎨 ساخت عکس', '🎨 Create image'), L('فقط بگو چی بکشم؛ تو پیوی یا گروه', 'Just say what to draw; in private or group'), Ui::guide('image'), Ui::tryKeyboard('image')),
+            Ui::article('help_whisper', 'whisper', L('🤫 نجوا', '🤫 Whisper'), L('nj [متن] [@یوزرنیم] [آیدی]', 'nj [text] [@username] [ID]'), Ui::guide('whisper'), Ui::tryKeyboard('whisper')),
+            Ui::article('help_like', 'like', L('❤️ لایک‌ساز', '❤️ Like maker'), L('like [متن]', 'like [text]'), Ui::guide('like'), Ui::tryKeyboard('like')),
+            Ui::article('help_giveaway', 'gift', L('🎁 قرعه‌کشی', '🎁 Giveaway'), L('gw [تعداد] [زمان] [جایزه]', 'gw [count] [time] [prize]'), Ui::guide('giveaway'), Ui::tryKeyboard('giveaway')),
+            Ui::article('help_wiki', 'wiki', L('📖 ویکی‌پدیا', '📖 Wikipedia'), L('wk [موضوع]', 'wk [topic]'), Ui::guide('wiki'), Ui::tryKeyboard('wiki')),
+            Ui::article('help_ai', 'ai', L('🧠 هوش مصنوعی', '🧠 AI'), L('ai [سؤالت]', 'ai [your question]'), Ui::guide('ai'), Ui::tryKeyboard('ai')),
+            Ui::article('help_translate', 'translate', L('🌐 ترجمه', '🌐 Translate'), L('tr [متن]', 'tr [text]'), Ui::guide('translate'), Ui::tryKeyboard('translate')),
+            Ui::article('help_search', 'search', L('🔍 سرچ گوگل', '🔍 Google search'), L('g [هر چی بخوای]', 'g [anything you want]'), Ui::guide('search'), Ui::tryKeyboard('search')),
+            Ui::article('help_font', 'font', L('✨ فونت‌ساز', '✨ Font maker'), L('ft [اسم یا متن]', 'ft [name or text]'), Ui::guide('font'), Ui::tryKeyboard('font')),
+            Ui::article('help_weather', 'weather', L('🌦 آب‌وهوا', '🌦 Weather'), L('hv [شهر]', 'hv [city]'), Ui::guide('weather'), Ui::tryKeyboard('weather')),
+            Ui::article('help_qr', 'qr', L('🔳 QR کد', '🔳 QR code'), L('qr [متن یا لینک]', 'qr [text or link]'), Ui::guide('qr'), Ui::tryKeyboard('qr')),
+            Ui::article('help_short', 'short', L('🔗 کوتاه‌کننده لینک', '🔗 Link shortener'), L('sh [لینک بلند]', 'sh [long link]'), Ui::guide('short'), Ui::tryKeyboard('short')),
+            Ui::article('help_roast', 'roast', L('🔥 روست', '🔥 Roast'), L('roast [@یوزرنیم] [آیدی]', 'roast [@username] [ID]'), Ui::guide('roast'), Ui::tryKeyboard('roast')),
+            Ui::article('help_love', 'love', L('💘 تطابق عشقی', '💘 Love match'), L('love [یوزرنیم/آیدی] [یوزرنیم/آیدی۲]', 'love [username/ID] [username/ID 2]'), Ui::guide('love'), Ui::tryKeyboard('love')),
+            Ui::article('help_nid', 'nid', L('🪪 کد ملی', '🪪 National ID'), L('meli [کد ملی]', 'meli [national ID]'), Ui::guide('nid'), Ui::tryKeyboard('nid')),
+            Ui::article('help_linkcheck', 'linkcheck', L('🛡 ردیاب اشتراک', '🛡 Invite link tracker'), L('st [لینک اشتراک]', 'st [invite link]'), Ui::guide('linkcheck'), Ui::tryKeyboard('linkcheck')),
+            Ui::article('help_funstat', 'funstat', L('🔍 استعلام کاربر', '🔍 User lookup'), L('id [آیدی عددی]', 'id [numeric ID]'), Ui::guide('funstat'), Ui::tryKeyboard('funstat')),
         ];
 
         $swMap = ['info' => 'userinfo', 'chess' => 'chess', 'ttt' => 'ttt', 'c4' => 'c4', 'rps' => 'rps', 'math' => 'math', 'calc' => 'calc', 'unit' => 'unit', 'rates' => 'rates', 'date' => 'date', 'pass' => 'password', 'coin' => 'coin', 'fal' => 'fal',

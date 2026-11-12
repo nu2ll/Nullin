@@ -7,7 +7,7 @@ final class Broadcast
 
     private static function keyboard(): array
     {
-        return ikb([[btn('❌ انصراف', 'bc:x', null)]]);
+        return ikb([[btn(L('❌ انصراف', '❌ Cancel'), 'bc:x', null)]]);
     }
 
     public static function waiting(int $uid): ?array

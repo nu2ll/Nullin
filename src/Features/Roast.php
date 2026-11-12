@@ -38,7 +38,7 @@ final class Roast
         }
         if ($tok === '' && is_array($reply) && self::ours($reply)) {
             $rt = trim((string) ($reply['text'] ?? $reply['caption'] ?? ''));
-            if (str_starts_with($rt, '🔥 روست') || !empty($reply['from']['is_bot'])) {
+            if (str_starts_with($rt, '🔥 روست') || str_starts_with($rt, '🔥 Roast') || !empty($reply['from']['is_bot'])) {
                 return ['skip' => true];
             }
             return self::user($reply['from'] ?? []) + ['quote' => ''];
@@ -136,7 +136,7 @@ final class Roast
     public static function head(array $t): string
     {
         $who = userTag((int) $t['id'], mb_substr((string) $t['name'], 0, 40), (string) ($t['username'] ?? '') ?: null);
-        return '🔥 <b>روست ' . $who . "</b>\n\n";
+        return L('🔥 <b>روست ', '🔥 <b>Roast ') . $who . "</b>\n\n";
     }
 
     public static function text(array $t, ?LiveReply $live = null): string
@@ -151,62 +151,63 @@ final class Roast
         $names = array_values(array_diff((array) ($c['active_usernames'] ?? []), [$t['username']]));
         $msg   = trim((string) ($t['quote'] ?? ''));
 
+        $picLine = 'This image is their Telegram profile photo.';
         $l   = [];
-        $l[] = 'این کاربر تلگرام رو روست کن؛ بی‌فیلتر، بی‌رحم، به فارسی.';
+        $l[] = 'Roast this Telegram user; unfiltered, merciless, in ' . Lang::aiName() . '.';
         $l[] = '';
-        $l[] = 'اسم: ' . $t['name'];
-        $l[] = 'یوزرنیم: ' . ($t['username'] !== '' ? '@' . $t['username'] : 'نداره');
+        $l[] = 'Name: ' . $t['name'];
+        $l[] = 'Username: ' . ($t['username'] !== '' ? '@' . $t['username'] : 'none');
         if ($names) {
-            $l[] = 'یوزرنیم‌های دیگه: @' . implode('، @', $names);
+            $l[] = 'Other usernames: @' . implode(', @', $names);
         }
-        $l[] = 'بیو: ' . ($bio !== '' ? $bio : ($c !== null ? 'خالی' : 'معلوم نیست'));
+        $l[] = 'Bio: ' . ($bio !== '' ? $bio : ($c !== null ? 'empty' : 'unknown'));
         if ($age) {
-            $l[] = 'عمر اکانت: حدود ' . UserInfo::ageText($age) . ' (ساخت حدود ' . Jalali::numericDate($age) . ')';
+            $l[] = 'Account age: about ' . UserInfo::ageText($age) . ' (created around ' . Jalali::numericDate($age) . ')';
         }
         if (is_array($birth) && !empty($birth['day'])) {
-            $l[] = 'تولد: ' . (int) $birth['day'] . '/' . (int) $birth['month'] . (!empty($birth['year']) ? '/' . (int) $birth['year'] : '');
+            $l[] = 'Birthday: ' . (int) $birth['day'] . '/' . (int) $birth['month'] . (!empty($birth['year']) ? '/' . (int) $birth['year'] : '');
         }
         if (!empty($c['personal_chat']['title'])) {
-            $l[] = 'کانال شخصی تو پروفایلش: ' . $c['personal_chat']['title'];
+            $l[] = 'Personal channel on their profile: ' . $c['personal_chat']['title'];
         }
         if ($p['photos'] !== null) {
-            $l[] = 'تعداد عکس پروفایل: ' . (int) $p['photos'];
+            $l[] = 'Number of profile photos: ' . (int) $p['photos'];
         }
         if (!empty($t['premium'])) {
-            $l[] = 'تلگرام پریمیوم داره';
+            $l[] = 'Has Telegram Premium';
         }
         if (!empty($p['stars'])) {
-            $l[] = 'برای پیام دادن بهش باید ' . (int) $p['stars'] . ' استار پول داد';
+            $l[] = ('You have to pay ' . (int) $p['stars'] . ' Stars to message them');
         }
         if ($p['level'] !== null) {
-            $l[] = 'سطح اکانت: ' . (int) $p['level'];
+            $l[] = 'Account level: ' . (int) $p['level'];
         }
         if (!empty($p['dc'])) {
-            $l[] = 'دیتاسنتر: DC' . (int) $p['dc'];
+            $l[] = 'Data center: DC' . (int) $p['dc'];
         }
         if (($t['lang'] ?? '') !== '') {
-            $l[] = 'زبان تلگرامش: ' . $t['lang'];
+            $l[] = 'Telegram language: ' . $t['lang'];
         }
         if (!empty($t['bot'])) {
-            $l[] = 'این یه رباته';
+            $l[] = 'This is a bot';
         }
-        $l[] = $pic ? 'این عکس، عکس پروفایل تلگرامشه.' : 'عکس پروفایل نداره یا مخفیش کرده.';
+        $l[] = $pic ? $picLine : 'Has no profile photo or has hidden it.';
         if ($msg !== '') {
-            $l[] = 'پیامش:';
+            $l[] = 'Their message:';
             $l[] = $msg;
         }
         $prompt = implode("\n", $l);
 
-        $sys    = 'تو «نالین» هستی. فقط متن روست رو بنویس، بدون مقدمه و بدون ** یا #.';
+        $sys    = 'You are “Nullin”. Write only the roast text, with no preamble and no ** or #.';
         $stream = $live ? ['stream' => $live->feed(...)] : [];
         $out    = AI::chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => array_values(array_filter([$pic, ['type' => 'text', 'text' => $prompt]]))]],
             ['tier' => 'smart', 'temperature' => 1.0, 'deadline' => microtime(true) + 60, 'section' => 'roast'] + $stream);
         if ($out === null) {
-            $out = AI::chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => str_replace('این عکس، عکس پروفایل تلگرامشه.', 'عکس پروفایل داره.', $prompt)]],
+            $out = AI::chat([['role' => 'system', 'content' => $sys], ['role' => 'user', 'content' => str_replace($picLine, 'Has a profile photo.', $prompt)]],
                 ['tier' => 'lite', 'temperature' => 1.0, 'thinking' => null, 'section' => 'roast'] + $stream);
         }
         if ($out === null) {
-            return AI::FAIL_TEXT;
+            return (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT);
         }
         Users::hit('roast');
         $body = AI::fit(AI::clean($out), self::head($t));
@@ -218,12 +219,12 @@ final class Roast
         $token = bin2hex(random_bytes(6));
         Store::set('roast', $token, ['from' => $from, 'tok' => $tok]);
         $r   = $tok === '' ? null : UserInfo::resolve($tok);
-        $who = $r === null ? bidi('خودت') : userTag($r['id'], $r['name'], $r['username']);
+        $who = $r === null ? bidi(L('خودت', 'you')) : userTag($r['id'], $r['name'], $r['username']);
         return [
             'token' => $token,
-            'title' => $tok === '' ? '🔥 خودمو روست کن' : '🔥 روست ' . ($r['id'] ? $r['name'] : $tok),
-            'text'  => '🔥 <b>روست ' . $who . "</b>\n\n⏳ دارم سوژه رو آنالیز می‌کنم...",
-            'kb'    => ikb([[btn('⏳ صبر کن...', 'noop', null)]]),
+            'title' => $tok === '' ? L('🔥 خودمو روست کن', '🔥 Roast me') : L('🔥 روست ', '🔥 Roast ') . ($r['id'] ? $r['name'] : $tok),
+            'text'  => L('🔥 <b>روست ', '🔥 <b>Roast ') . $who . "</b>\n\n" . L('⏳ دارم سوژه رو آنالیز می‌کنم...', '⏳ Analyzing the target...'),
+            'kb'    => ikb([[btn(L('⏳ صبر کن...', '⏳ Hold on...'), 'noop', null)]]),
         ];
     }
 
@@ -236,6 +237,6 @@ final class Roast
         Store::delete('roast', $token);
         $t = $p['tok'] === '' ? self::user((array) $p['from']) + ['quote' => ''] : self::lookup((string) $p['tok']);
         $live = $t !== null && App::cfg('ai_stream', true) ? new LiveReply(['chat' => ['id' => 0, 'type' => 'inline'], 'message_id' => 0], $imid, self::head($t + ['quote' => '']), false) : null;
-        Rich::editInline($imid, $t === null ? '🤷 این آدم رو پیدا نکردم؛' . "\nآیدی عددی یا یوزرنیمش رو درست بنویس." : self::text($t + ['quote' => ''], $live));
+        Rich::editInline($imid, $t === null ? L('🤷 این آدم رو پیدا نکردم؛' . "\nآیدی عددی یا یوزرنیمش رو درست بنویس.", '🤷 I couldn’t find this person;' . "\nmake sure you typed the numeric ID or username correctly.") : self::text($t + ['quote' => ''], $live));
     }
 }

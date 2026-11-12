@@ -19,11 +19,11 @@ final class Calculator
 
     public static function render(string $expr, bool $done = false): string
     {
-        $pretty = strtr($expr, ['*' => '×', '/' => '÷', '-' => '−']);
+        $pretty = $expr === self::ERROR ? L('خطا', 'Error') : strtr($expr, ['*' => '×', '/' => '÷', '-' => '−']);
         if ($done) {
-            return "<b>🧮 ماشین‌حساب نالین</b>\n\n= <b>" . h($pretty) . '</b>';
+            return L("<b>🧮 ماشین‌حساب نالین</b>\n\n= <b>", "<b>🧮 Nullin calculator</b>\n\n= <b>") . h($pretty) . '</b>';
         }
-        return "<b>🧮 ماشین‌حساب نالین</b>\n\n<code>" . h($pretty) . '</code>';
+        return L("<b>🧮 ماشین‌حساب نالین</b>\n\n<code>", "<b>🧮 Nullin calculator</b>\n\n<code>") . h($pretty) . '</code>';
     }
 
     public static function press(string $expr, string $key): string

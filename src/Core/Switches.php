@@ -3,38 +3,38 @@
 final class Switches
 {
     public const TOOLS = [
-        'ai'       => '🧠 هوش مصنوعی',
-        'image'    => '🎨 ساخت عکس',
-        'translate' => '🌐 ترجمه',
-        'search'   => '🔍 سرچ گوگل',
-        'wiki'     => '📖 ویکی‌پدیا',
-        'weather'  => '🌦 آب‌وهوا',
-        'rates'    => '💱 نرخ ارز و طلا',
-        'download' => '⬇️ دانلودر',
-        'linkcheck' => '🛡 ردیاب اشتراک',
-        'business' => '🤝 منشی هوشمند',
-        'whisper'  => '🤫 نجوا',
-        'giveaway' => '🎁 قرعه‌کشی',
-        'like'     => '❤️ لایک‌ساز',
-        'font'     => '✨ فونت‌ساز',
-        'qr'       => '🔳 QR کد',
-        'short'    => '🔗 کوتاه‌کننده لینک',
-        'calc'     => '🧮 ماشین‌حساب',
-        'love'     => '💘 تطابق عشقی',
-        'roast'    => '🔥 روست',
-        'nid'      => '🪪 کد ملی',
-        'unit'     => '⚖️ تبدیل واحد',
-        'userinfo' => '👤 اطلاعات کاربر',
-        'funstat'  => '🔍 استعلام کاربر',
-        'fal'      => '🔮 فال حافظ',
-        'password' => '🔑 پسورد ساز',
-        'date'     => '📅 تاریخ و ساعت',
-        'coin'     => '🪙 شیر یا خط',
-        'chess'    => '♟️ شطرنج',
-        'ttt'      => '⭕ دوز',
-        'c4'       => '🔴 دوز سکه‌ای',
-        'rps'      => '✊ سنگ کاغذ قیچی',
-        'math'     => '🔢 دوئل ریاضی',
+        'ai'       => ['🧠 هوش مصنوعی', '🧠 AI'],
+        'image'    => ['🎨 ساخت عکس', '🎨 Image creation'],
+        'translate' => ['🌐 ترجمه', '🌐 Translate'],
+        'search'   => ['🔍 سرچ گوگل', '🔍 Google search'],
+        'wiki'     => ['📖 ویکی‌پدیا', '📖 Wikipedia'],
+        'weather'  => ['🌦 آب‌وهوا', '🌦 Weather'],
+        'rates'    => ['💱 نرخ ارز و طلا', '💱 Exchange rates & gold'],
+        'download' => ['⬇️ دانلودر', '⬇️ Downloader'],
+        'linkcheck' => ['🛡 ردیاب اشتراک', '🛡 Invite link tracker'],
+        'business' => ['🤝 منشی هوشمند', '🤝 Smart secretary'],
+        'whisper'  => ['🤫 نجوا', '🤫 Whisper'],
+        'giveaway' => ['🎁 قرعه‌کشی', '🎁 Giveaway'],
+        'like'     => ['❤️ لایک‌ساز', '❤️ Like maker'],
+        'font'     => ['✨ فونت‌ساز', '✨ Font maker'],
+        'qr'       => ['🔳 QR کد', '🔳 QR code'],
+        'short'    => ['🔗 کوتاه‌کننده لینک', '🔗 Link shortener'],
+        'calc'     => ['🧮 ماشین‌حساب', '🧮 Calculator'],
+        'love'     => ['💘 تطابق عشقی', '💘 Love match'],
+        'roast'    => ['🔥 روست', '🔥 Roast'],
+        'nid'      => ['🪪 کد ملی', '🪪 National ID'],
+        'unit'     => ['⚖️ تبدیل واحد', '⚖️ Unit converter'],
+        'userinfo' => ['👤 اطلاعات کاربر', '👤 User info'],
+        'funstat'  => ['🔍 استعلام کاربر', '🔍 User lookup'],
+        'fal'      => ['🔮 فال حافظ', '🔮 Hafez fortune'],
+        'password' => ['🔑 پسورد ساز', '🔑 Password maker'],
+        'date'     => ['📅 تاریخ و ساعت', '📅 Date & time'],
+        'coin'     => ['🪙 شیر یا خط', '🪙 Coin flip'],
+        'chess'    => ['♟️ شطرنج', '♟️ Chess'],
+        'ttt'      => ['⭕ دوز', '⭕ Tic-tac-toe'],
+        'c4'       => ['🔴 دوز سکه‌ای', '🔴 Connect Four'],
+        'rps'      => ['✊ سنگ کاغذ قیچی', '✊ Rock paper scissors'],
+        'math'     => ['🔢 دوئل ریاضی', '🔢 Math duel'],
     ];
 
     public const COMMAND_SWITCH = [
@@ -56,6 +56,12 @@ final class Switches
             $raw = array_merge($raw, self::GAME_KEYS);
         }
         return array_values(array_unique(array_filter($raw, static fn($k) => isset(self::TOOLS[$k]))));
+    }
+
+    public static function label(string $key): string
+    {
+        $v = self::TOOLS[$key] ?? [$key, $key];
+        return L($v[0], $v[1]);
     }
 
     public static function on(string $key): bool
@@ -84,11 +90,11 @@ final class Switches
         try {
             foreach (App::tokens() as $bi => $_) {
                 $tg = App::tgFor($bi);
-                $tg->call('setMyCommands', ['commands' => Ui::commands('private'), 'scope' => ['type' => 'all_private_chats']], 10);
-                $tg->call('setMyCommands', ['commands' => Ui::commands('group'), 'scope' => ['type' => 'all_group_chats']], 10);
+                Ui::pushCommands($tg, 'private', ['type' => 'all_private_chats']);
+                Ui::pushCommands($tg, 'group', ['type' => 'all_group_chats']);
                 foreach ((array) App::cfg('admins', []) as $adminId) {
                     if ((int) $adminId > 0) {
-                        $tg->call('setMyCommands', ['commands' => Ui::commands('admin'), 'scope' => ['type' => 'chat', 'chat_id' => (int) $adminId]], 10);
+                        Ui::pushCommands($tg, 'admin', ['type' => 'chat', 'chat_id' => (int) $adminId]);
                     }
                 }
             }
@@ -105,16 +111,16 @@ final class Switches
     public static function text(): string
     {
         $off = self::load();
-        return "<b>🧰 مدیریت ابزارها</b>\n\nروی هر دکمه بزنی روشن/خاموش می‌شه.\nسبز = روشن · قرمز = خاموش"
-            . ($off ? "\n\nخاموش: " . fa((string) count($off)) . ' از ' . fa((string) count(self::TOOLS)) : '');
+        return L("<b>🧰 مدیریت ابزارها</b>\n\nروی هر دکمه بزنی روشن/خاموش می‌شه.\nسبز = روشن · قرمز = خاموش", "<b>🧰 Tool management</b>\n\nTap a button to switch it on/off.\nGreen = on · Red = off")
+            . ($off ? L("\n\nخاموش: ", "\n\nOff: ") . fa((string) count($off)) . L(' از ', ' of ') . fa((string) count(self::TOOLS)) : '');
     }
 
     public static function keyboard(): array
     {
         $rows = [];
         $row  = [];
-        foreach (self::TOOLS as $k => $label) {
-            $row[] = btn($label, 'tl:t:' . $k, self::on($k) ? 'success' : 'danger');
+        foreach (array_keys(self::TOOLS) as $k) {
+            $row[] = btn(self::label($k), 'tl:t:' . $k, self::on($k) ? 'success' : 'danger');
             if (count($row) === 2) {
                 $rows[] = $row;
                 $row    = [];
@@ -123,7 +129,7 @@ final class Switches
         if ($row) {
             $rows[] = $row;
         }
-        $rows[] = [btn('روشن‌کردن همه', 'tl:all:1', null), btn('خاموش‌کردن همه', 'tl:all:0', null)];
+        $rows[] = [btn(L('روشن‌کردن همه', 'Turn all on'), 'tl:all:1', null), btn(L('خاموش‌کردن همه', 'Turn all off'), 'tl:all:0', null)];
         return ikb($rows);
     }
 
@@ -131,7 +137,7 @@ final class Switches
     {
         $tg = App::tg();
         if (!App::isAdmin((int) ($cq['from']['id'] ?? 0))) {
-            $tg->alert($cq, '🙅 این پنل مخصوص ادمینه.');
+            $tg->alert($cq, L('🙅 این پنل مخصوص ادمینه.', '🙅 This panel is for admins only.'));
             return;
         }
         $chatId = $cq['message']['chat']['id'] ?? null;

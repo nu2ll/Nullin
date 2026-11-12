@@ -33,7 +33,7 @@ final class ChosenHandler
             Rich::editInline($imid, Calculator::render('0'), Calculator::keyboard());
         }
         if ($id === 'coin') {
-            Rich::editInline($imid, "<b>🪙 سکه</b>\n\nآماده‌ی پرتاب! 👇", Tools::coinKeyboard());
+            Rich::editInline($imid, L("<b>🪙 سکه</b>\n\nآماده‌ی پرتاب! 👇", "<b>🪙 Coin</b>\n\nReady to flip! 👇"), Tools::coinKeyboard());
         }
         if ($id === 'pass') {
             Rich::editInline($imid, Tools::passwordText(16), Tools::passwordKeyboard());

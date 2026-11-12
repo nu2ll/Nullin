@@ -9,7 +9,7 @@ final class ConnectFour
 
     public static function intro(): string
     {
-        return "<b>🔴 دوز سکه‌ای</b>\n\nچهارتا هم‌رنگ پشت سر هم بچین!\nحالت بازی رو انتخاب کن:";
+        return L("<b>🔴 دوز سکه‌ای</b>\n\nچهارتا هم‌رنگ پشت سر هم بچین!\nحالت بازی رو انتخاب کن:", "<b>🔴 Connect Four</b>\n\nLine up four discs of your color!\nPick a game mode:");
     }
 
     public static function modeKeyboard(): array
@@ -105,14 +105,14 @@ final class ConnectFour
             }
             $rows[] = $row;
         }
-        $rows[] = $active ? GameKit::controlRow($s, self::P) : [btn('🔁 بازی دوباره', self::P . ':replay', 'success')];
+        $rows[] = $active ? GameKit::controlRow($s, self::P) : [btn(L('🔁 بازی دوباره', '🔁 Play again'), self::P . ':replay', 'success')];
         return ikb($rows);
     }
 
     private static function header(array $s): string
     {
-        return "<b>🔴 دوز سکه‌ای</b> · " . ($s['mode'] === 'bot' ? 'با ربات' : 'دو نفره') . "\n" . divider() . "\n"
-            . '🔴 ' . GameKit::name($s['p1']) . '  vs  🟡 ' . GameKit::name($s['p2'] ?? null, '❔ منتظر حریف') . "\n" . divider() . "\n";
+        return '<b>' . L('🔴 دوز سکه‌ای', '🔴 Connect Four') . '</b> · ' . ($s['mode'] === 'bot' ? L('با ربات', 'Vs bot') : L('دو نفره', 'Two players')) . "\n" . divider() . "\n"
+            . '🔴 ' . GameKit::name($s['p1']) . '  vs  🟡 ' . GameKit::name($s['p2'] ?? null, L('❔ منتظر حریف', '❔ Waiting for opponent')) . "\n" . divider() . "\n";
     }
 
     private static function render(string $imid, array $s): void
@@ -121,12 +121,12 @@ final class ConnectFour
         if ($s['status'] === 'over') {
             [$w] = self::winner($s['board']);
             $end = !empty($s['resigned']) ? GameKit::resignLine($s)
-                : ($w === 'draw' ? '🤝 <b>بازی مساوی شد!</b>' : '🏆 <b>' . GameKit::name($w === 'R' ? $s['p1'] : $s['p2']) . ' برد!</b>');
+                : ($w === 'draw' ? L('🤝 <b>بازی مساوی شد!</b>', '🤝 <b>It’s a draw!</b>') : '🏆 <b>' . GameKit::name($w === 'R' ? $s['p1'] : $s['p2']) . L(' برد!</b>', ' wins!</b>'));
             Rich::editInline($imid, self::header($s) . $end, self::board($s['board'], false));
             return;
         }
-        $turn = $s['turn'] === 'R' ? '🔴 ' . GameKit::name($s['p1']) : '🟡 ' . GameKit::name($s['p2'] ?? null, 'هر کی اول بزنه');
-        Rich::editInline($imid, self::header($s) . "👉 نوبت: {$turn}\n<i>روی هر خونه‌ی یه ستون بزنی،\nسکه میفته اون ستون.</i>" . GameKit::resignNote($s), self::board($s['board'], true, $s));
+        $turn = $s['turn'] === 'R' ? '🔴 ' . GameKit::name($s['p1']) : '🟡 ' . GameKit::name($s['p2'] ?? null, L('هر کی اول بزنه', 'Whoever taps first'));
+        Rich::editInline($imid, self::header($s) . L("👉 نوبت: {$turn}\n<i>روی هر خونه‌ی یه ستون بزنی،\nسکه میفته اون ستون.</i>", "👉 Turn: {$turn}\n<i>Tap any cell in a column\nand the disc drops into that column.</i>") . GameKit::resignNote($s), self::board($s['board'], true, $s));
     }
 
     public static function onCallback(array $cq, string $data, string $imid): void
@@ -141,7 +141,7 @@ final class ConnectFour
                 $s['status'] = 'playing';
                 $s['board']  = array_fill(0, self::ROWS * self::COLS, '');
                 $s['turn']   = 'R';
-                $s['p2']     = $s['mode'] === 'bot' ? ['id' => 0, 'name' => '🤖 نالین'] : null;
+                $s['p2']     = $s['mode'] === 'bot' ? ['id' => 0, 'name' => L('🤖 نالین', '🤖 Nullin')] : null;
                 GameKit::save($imid, $s);
                 self::render($imid, $s);
             },
@@ -152,7 +152,7 @@ final class ConnectFour
             },
             function (string $by) use (&$s, $imid, $tg) {
                 GameKit::save($imid, $s);
-                Rich::editInline($imid, self::header($s) . "✖️ بازی توسط {$by} لغو شد.", self::board($s['board'], false));
+                Rich::editInline($imid, self::header($s) . L("✖️ بازی توسط {$by} لغو شد.", "✖️ Game cancelled by {$by}."), self::board($s['board'], false));
             },
             function () use (&$s, $imid) {
                 GameKit::save($imid, $s);
@@ -164,7 +164,7 @@ final class ConnectFour
         }
 
         if (!str_starts_with($data, self::P . ':col:') || ($s['status'] ?? '') !== 'playing') {
-            $tg->answer($cq, '⌛️ این بازی تموم شده');
+            $tg->answer($cq, L('⌛️ این بازی تموم شده', '⌛️ This game is over'));
             return;
         }
         $col = (int) substr($data, strlen(self::P . ':col:'));
@@ -176,24 +176,24 @@ final class ConnectFour
         $turnSeat = $s['turn'] === 'R' ? 1 : 2;
         if ($s['mode'] === 'bot') {
             if (!GameKit::isCreator($s, (int) $from['id'])) {
-                $tg->alert($cq, '🚫 این بازی مال یکی دیگه‌ست؛' . "\n" . 'خودت از منو یکی بساز!');
+                $tg->alert($cq, L('🚫 این بازی مال یکی دیگه‌ست؛' . "\n" . 'خودت از منو یکی بساز!', '🚫 This game belongs to someone else;' . "\n" . 'start your own from the menu!'));
                 return;
             }
         } else {
             $seat = GameKit::seat($s, $from, $turnSeat);
             if ($seat === 0) {
-                $tg->alert($cq, '🚫 این بازی دو نفره پر شده.');
+                $tg->alert($cq, L('🚫 این بازی دو نفره پر شده.', '🚫 This two-player game is full.'));
                 return;
             }
             if ($seat !== $turnSeat) {
-                $tg->answer($cq, '⏳ نوبت تو نیست');
+                $tg->answer($cq, L('⏳ نوبت تو نیست', '⏳ It’s not your turn'));
                 return;
             }
         }
 
         $row = self::drop($s['board'], $col);
         if ($row === null) {
-            $tg->answer($cq, '🈵 این ستون پره');
+            $tg->answer($cq, L('🈵 این ستون پره', '🈵 This column is full'));
             return;
         }
         $s['board'][$row * self::COLS + $col] = $s['turn'];

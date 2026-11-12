@@ -7,41 +7,38 @@ final class VoicePick
     private const NS       = 'voice';
     private const PER_PAGE = 5;
 
-    // ۳۰ صدای رسمی Gemini TTS: اسم => [ایموجی، ویژگی]
-    // ویژگی‌ها: ترجمه‌ی توصیف رسمی گوگل (ai.google.dev/gemini-api/docs/speech-generation)
-    // جنسیت: طبق جدول رسمی Google Cloud (cloud.google.com/text-to-speech/docs/gemini-tts)؛ 👩 زن، 👨 مرد
-    // لدا تنها صدایی‌ه که گوگل «Youthful» (جوان) نوشته، برای همین 👧
+    // name => [emoji, fa, en]
     public const VOICES = [
-        'Zephyr'         => ['👩', 'روشن'],            // Bright
-        'Puck'           => ['👨', 'سرزنده'],          // Upbeat
-        'Charon'         => ['👨', 'آموزنده'],         // Informative
-        'Kore'           => ['👩', 'محکم'],            // Firm
-        'Fenrir'         => ['👨', 'پرشور'],           // Excitable
-        'Leda'           => ['👧', 'جوان'],            // Youthful
-        'Orus'           => ['👨', 'محکم'],            // Firm
-        'Aoede'          => ['👩', 'سبک و راحت'],      // Breezy
-        'Callirrhoe'     => ['👩', 'راحت'],            // Easy-going
-        'Autonoe'        => ['👩', 'روشن'],            // Bright
-        'Enceladus'      => ['👨', 'نفس‌دار'],         // Breathy
-        'Iapetus'        => ['👨', 'شفاف'],            // Clear
-        'Umbriel'        => ['👨', 'راحت'],            // Easy-going
-        'Algieba'        => ['👨', 'نرم'],             // Smooth
-        'Despina'        => ['👩', 'نرم'],             // Smooth
-        'Erinome'        => ['👩', 'شفاف'],            // Clear
-        'Algenib'        => ['👨', 'خش‌دار'],          // Gravelly
-        'Rasalgethi'     => ['👨', 'آموزنده'],         // Informative
-        'Laomedeia'      => ['👩', 'سرزنده'],          // Upbeat
-        'Achernar'       => ['👩', 'لطیف'],            // Soft
-        'Alnilam'        => ['👨', 'محکم'],            // Firm
-        'Schedar'        => ['👨', 'یکدست'],           // Even
-        'Gacrux'         => ['👩', 'پخته'],            // Mature
-        'Pulcherrima'    => ['👩', 'رک'],              // Forward
-        'Achird'         => ['👨', 'دوستانه'],         // Friendly
-        'Zubenelgenubi'  => ['👨', 'خودمونی'],         // Casual
-        'Vindemiatrix'   => ['👩', 'ملایم'],           // Gentle
-        'Sadachbia'      => ['👨', 'پرجنب‌وجوش'],      // Lively
-        'Sadaltager'     => ['👨', 'دانا'],            // Knowledgeable
-        'Sulafat'        => ['👩', 'گرم'],             // Warm
+        'Zephyr'         => ['👩', 'روشن', 'Bright'],
+        'Puck'           => ['👨', 'سرزنده', 'Upbeat'],
+        'Charon'         => ['👨', 'آموزنده', 'Informative'],
+        'Kore'           => ['👩', 'محکم', 'Firm'],
+        'Fenrir'         => ['👨', 'پرشور', 'Excitable'],
+        'Leda'           => ['👧', 'جوان', 'Youthful'],
+        'Orus'           => ['👨', 'محکم', 'Firm'],
+        'Aoede'          => ['👩', 'سبک و راحت', 'Breezy'],
+        'Callirrhoe'     => ['👩', 'راحت', 'Easy-going'],
+        'Autonoe'        => ['👩', 'روشن', 'Bright'],
+        'Enceladus'      => ['👨', 'نفس‌دار', 'Breathy'],
+        'Iapetus'        => ['👨', 'شفاف', 'Clear'],
+        'Umbriel'        => ['👨', 'راحت', 'Easy-going'],
+        'Algieba'        => ['👨', 'نرم', 'Smooth'],
+        'Despina'        => ['👩', 'نرم', 'Smooth'],
+        'Erinome'        => ['👩', 'شفاف', 'Clear'],
+        'Algenib'        => ['👨', 'خش‌دار', 'Gravelly'],
+        'Rasalgethi'     => ['👨', 'آموزنده', 'Informative'],
+        'Laomedeia'      => ['👩', 'سرزنده', 'Upbeat'],
+        'Achernar'       => ['👩', 'لطیف', 'Soft'],
+        'Alnilam'        => ['👨', 'محکم', 'Firm'],
+        'Schedar'        => ['👨', 'یکدست', 'Even'],
+        'Gacrux'         => ['👩', 'پخته', 'Mature'],
+        'Pulcherrima'    => ['👩', 'رک', 'Forward'],
+        'Achird'         => ['👨', 'دوستانه', 'Friendly'],
+        'Zubenelgenubi'  => ['👨', 'خودمونی', 'Casual'],
+        'Vindemiatrix'   => ['👩', 'ملایم', 'Gentle'],
+        'Sadachbia'      => ['👨', 'پرجنب‌وجوش', 'Lively'],
+        'Sadaltager'     => ['👨', 'دانا', 'Knowledgeable'],
+        'Sulafat'        => ['👩', 'گرم', 'Warm'],
     ];
 
     public static function valid(?string $name): ?string
@@ -70,26 +67,27 @@ final class VoicePick
 
         $rows = [];
         foreach (array_slice($names, $page * self::PER_PAGE, self::PER_PAGE) as $n) {
-            [$e, $d] = self::VOICES[$n];
+            [$e, $dFa, $dEn] = self::VOICES[$n];
+            $d       = L($dFa, $dEn);
             $rows[]  = [btn("{$e} {$n} · {$d}", "vc:{$uid}:s:{$n}", $n === $cur ? 'success' : null)];
         }
 
         $nav = [];
         if ($page > 0) {
-            $nav[] = btn('◀️ قبلی', "vc:{$uid}:p:" . ($page - 1), null);
+            $nav[] = btn(L('◀️ قبلی', '◀️ Previous'), "vc:{$uid}:p:" . ($page - 1), null);
         }
         $nav[] = btn(fa($page + 1) . ' / ' . fa($pages), 'noop', null);
         if ($page < $pages - 1) {
-            $nav[] = btn('بعدی ▶️', "vc:{$uid}:p:" . ($page + 1), null);
+            $nav[] = btn(L('بعدی ▶️', 'Next ▶️'), "vc:{$uid}:p:" . ($page + 1), null);
         }
         $rows[] = $nav;
 
-        [$e, $d] = self::VOICES[$cur];
-        $text = "🎙 <b>صدای نالین</b>\n\n"
-            . "صدای فعلی تو: <b>{$e} {$cur}</b> · {$d}\n\n"
-            . "یکی از صداها رو بزن تا همون لحظه فعال بشه.\n"
-            . "از این به بعد تو هر چتی (پیوی، گروه، مهمان و...) \n"
-            . 'وقتی نالین برای تو ویس بفرسته، با همین حرف می‌زنه.';
+        [$e, $dFa, $dEn] = self::VOICES[$cur];
+        $d    = L($dFa, $dEn);
+        $text = L(
+            "🎙 <b>صدای نالین</b>\n\nصدای فعلی تو: <b>{$e} {$cur}</b> · {$d}\n\nیکی از صداها رو بزن تا همون لحظه فعال بشه.\nاز این به بعد تو هر چتی (پیوی، گروه، مهمان و...) \nوقتی نالین برای تو ویس بفرسته، با همین حرف می‌زنه.",
+            "🎙 <b>Nullin’s voice</b>\n\nYour current voice: <b>{$e} {$cur}</b> · {$d}\n\nTap a voice to switch to it right away.\nFrom now on, in every chat (private, group, guest and so on),\nthis is the voice Nullin will use when it sends you a voice message."
+        );
 
         return [$text, ikb($rows)];
     }
@@ -119,7 +117,7 @@ final class VoicePick
                 return;
             }
             Store::set(self::NS, (string) $uid, $voice);
-            $tg->answer($cq, "✅ {$voice} انتخاب شد");
+            $tg->answer($cq, L("✅ {$voice} انتخاب شد", "✅ {$voice} selected"));
             $page = intdiv((int) array_search($voice, array_keys(self::VOICES), true), self::PER_PAGE);
         }
 

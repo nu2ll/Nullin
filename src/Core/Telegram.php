@@ -336,7 +336,7 @@ final class Telegram
                 'chat_id'          => $chatId,
                 'rich_message'     => [
                     'html'   => $html,
-                    'is_rtl' => true,
+                    'is_rtl' => Lang::is('fa'),
                     'media'  => [['id' => 'card', 'media' => ['type' => 'photo', 'media' => 'attach://cardfile']]],
                 ],
                 'cardfile'         => new CURLFile($tmp, 'image/png', 'card.png'),

@@ -43,7 +43,7 @@ function dirMark(string $text): string
 function userName(array $from): string
 {
     $name = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? ''));
-    return $name !== '' ? $name : 'کاربر';
+    return $name !== '' ? $name : L('کاربر', 'User');
 }
 
 function safeName(array $from, int $max = 32): string
@@ -63,8 +63,16 @@ function userTag(?int $id, string $name, ?string $username = null): string
     return bidi(h($name));
 }
 
+function L(string $fa, string $en): string
+{
+    return Lang::pick($fa, $en);
+}
+
 function fa($text): string
 {
+    if (Lang::is('en')) {
+        return (string) $text;
+    }
     return strtr((string) $text, ['0' => '۰', '1' => '۱', '2' => '۲', '3' => '۳', '4' => '۴',
         '5' => '۵', '6' => '۶', '7' => '۷', '8' => '۸', '9' => '۹']);
 }

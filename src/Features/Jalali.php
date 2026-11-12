@@ -5,6 +5,9 @@ final class Jalali
     private const MONTHS   = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
     private const WEEKDAYS = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
 
+    private const MONTHS_EN   = ['Farvardin', 'Ordibehesht', 'Khordad', 'Tir', 'Mordad', 'Shahrivar', 'Mehr', 'Aban', 'Azar', 'Dey', 'Bahman', 'Esfand'];
+    private const WEEKDAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
     public static function fromGregorian(int $gy, int $gm, int $gd): array
     {
         $gdm  = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
@@ -33,9 +36,12 @@ final class Jalali
         return self::fromGregorian((int) date('Y', $ts), (int) date('n', $ts), (int) date('j', $ts));
     }
 
-    public static function fullDate(int $ts): string
+    public static function fullDate(int $ts, bool $english = false): string
     {
         [$y, $m, $d] = self::parts($ts);
+        if ($english || Lang::is('en')) {
+            return self::WEEKDAYS_EN[(int) date('w', $ts)] . ", {$d} " . self::MONTHS_EN[$m - 1] . " {$y}";
+        }
         return fa(self::WEEKDAYS[(int) date('w', $ts)] . " {$d} " . self::MONTHS[$m - 1] . " {$y}");
     }
 

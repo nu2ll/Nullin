@@ -126,15 +126,15 @@ final class Whisper
         if ($multi) {
             return self::seenKeyboard($show, $token);
         }
-        return ikb([[btn('💬 نمایش', $show)]]);
+        return ikb([[btn(L('💬 نمایش', '💬 Show'), $show)]]);
     }
 
     public static function seenKeyboard(string $show = 'wh:show', string $ref = ''): array
     {
         $sfx = $ref === '' ? '' : ':' . $ref;
         return ikb([
-            [btn('🗑 حذف', 'wh:del' . $sfx, 'danger'), btn('💬 نمایش', $show), btn('📊 آمار', 'wh:stats' . $sfx, 'success')],
-            [self::switchBtn('↪️ پاسخ', 'nj ', null)],
+            [btn(L('🗑 حذف', '🗑 Delete'), 'wh:del' . $sfx, 'danger'), btn(L('💬 نمایش', '💬 Show'), $show), btn(L('📊 آمار', '📊 Stats'), 'wh:stats' . $sfx, 'success')],
+            [self::switchBtn(L('↪️ پاسخ', '↪️ Reply'), 'nj ', null)],
         ]);
     }
 
@@ -149,12 +149,12 @@ final class Whisper
 
     public static function emptyText(): string
     {
-        return '⚠️ به نظر میرسه متنی برای نجوا وارد نکردی';
+        return L('⚠️ به نظر میرسه متنی برای نجوا وارد نکردی', '⚠️ Looks like you didn’t enter any text for the whisper');
     }
 
     public static function emptyKeyboard(): array
     {
-        return ikb([[self::switchBtn('⬇️ ارسال دوباره', 'nj ', 'danger')]]);
+        return ikb([[self::switchBtn(L('⬇️ ارسال دوباره', '⬇️ Send again'), 'nj ', 'danger')]]);
     }
 
     public static function requestArticle(array $from): array
@@ -163,10 +163,10 @@ final class Whisper
         return Ui::article(
             'whr_' . $id,
             'whisper',
-            '📨 درخواست نجوا',
-            '🆔 آیدی عددی من: ' . $id,
-            '🆔 آیدی عددی من: <code>' . $id . "</code>\n\n👇 برای نجوا به من دکمه زیر رو بزن",
-            ikb([[self::switchBtn('ارسال به ' . mb_substr(userName($from), 0, 24), 'nj ' . $id . ' ', null)]])
+            L('📨 درخواست نجوا', '📨 Whisper request'),
+            L('🆔 آیدی عددی من: ', '🆔 My numeric ID: ') . $id,
+            L('🆔 آیدی عددی من: <code>', '🆔 My numeric ID: <code>') . $id . L("</code>\n\n👇 برای نجوا به من دکمه زیر رو بزن", "</code>\n\n👇 Tap the button below to whisper to me"),
+            ikb([[self::switchBtn(L('ارسال به ', 'Send to ') . mb_substr(userName($from), 0, 24), 'nj ' . $id . ' ', null)]])
         );
     }
 
@@ -232,7 +232,7 @@ final class Whisper
 
     public static function deletedKeyboard(): array
     {
-        return ikb([[btn('📊 آمار', 'wh:stats', 'success')]]);
+        return ikb([[btn(L('📊 آمار', '📊 Stats'), 'wh:stats', 'success')]]);
     }
 
     public static function label(array $w): string
@@ -242,7 +242,7 @@ final class Whisper
 
     public static function mention(array $w): string
     {
-        return implode('، ', array_map(
+        return implode(L('، ', ', '), array_map(
             static fn($r) => '<u>' . userTag(!empty($r['id']) ? (int) $r['id'] : null, (string) ($r['name'] ?? ''), $r['username'] ?? null) . '</u>',
             self::recipients($w)
         ));
@@ -252,23 +252,23 @@ final class Whisper
     {
         $n = count(self::recipients($w));
         if ($n > 1) {
-            return '📫 یک نجوای چندنفره برای ' . fa($n) . " نفر ارسال شد\n" . self::mention($w);
+            return L('📫 یک نجوای چندنفره برای ' . fa($n) . " نفر ارسال شد\n", '📫 A group whisper was sent to ' . $n . " people\n") . self::mention($w);
         }
-        return '📫 یک نجوا برای ' . self::mention($w) . ' ارسال شد';
+        return L('📫 یک نجوا برای ', '📫 A whisper was sent to ') . self::mention($w) . L(' ارسال شد', '');
     }
 
     public static function seenText(array $w): string
     {
         $rs = self::recipients($w);
         if (count($rs) <= 1) {
-            return '📭 نجوای ' . self::mention($w) . ' مشاهده شد 🔹';
+            return L('📭 نجوای ', '📭 Whisper to ') . self::mention($w) . L(' مشاهده شد 🔹', ' was seen 🔹');
         }
         $readers = (array) ($w['readers'] ?? []);
         $names   = [];
         foreach ($readers as $id => $name) {
             $names[] = '<u>' . userTag((int) $id, (string) $name) . '</u>';
         }
-        return '📭 نجوای ' . implode('، ', $names) . ' مشاهده شد (' . fa(count($readers)) . ' از ' . fa(count($rs)) . ') 🔹';
+        return L('📭 نجوای ', '📭 Whisper to ') . implode(L('، ', ', '), $names) . L(' مشاهده شد (', ' was seen (') . fa(count($readers)) . L(' از ', ' of ') . fa(count($rs)) . ') 🔹';
     }
 
     public static function draft(array $from, string $text, array $opts): string
@@ -359,7 +359,7 @@ final class Whisper
             }
         }
         if (!is_array($w)) {
-            $tg->alert($cq, '⌛️ این نجوا منقضی شده.');
+            $tg->alert($cq, L('⌛️ این نجوا منقضی شده.', '⌛️ This whisper has expired.'));
             return;
         }
 
@@ -369,7 +369,7 @@ final class Whisper
         switch ($data) {
             case 'wh:show':
                 if (!empty($w['deleted'])) {
-                    $tg->alert($cq, '🗑 فرستنده پشیمون شد و پاکش کرد.');
+                    $tg->alert($cq, L('🗑 فرستنده پشیمون شد و پاکش کرد.', '🗑 The sender changed their mind and deleted it.'));
                     return;
                 }
                 if (!$isSender && !$isRecipient) {
@@ -381,7 +381,7 @@ final class Whisper
                         $s['snoopers'][$k] = ['name' => userName($from), 'count' => (int) ($s['snoopers'][$k]['count'] ?? 0) + 1];
                         return $s;
                     });
-                    $tg->alert($cq, '⚠️ برای نمایش باید فرستنده یا گیرنده‌ی نجوا باشی');
+                    $tg->alert($cq, L('⚠️ برای نمایش باید فرستنده یا گیرنده‌ی نجوا باشی', '⚠️ Only the sender or a recipient of the whisper can view it'));
                     return;
                 }
 
@@ -416,28 +416,28 @@ final class Whisper
 
             case 'wh:del':
                 if (!$isSender) {
-                    $tg->alert($cq, '⚠️ برای حذف باید فرستنده‌ی نجوا باشی');
+                    $tg->alert($cq, L('⚠️ برای حذف باید فرستنده‌ی نجوا باشی', '⚠️ Only the sender of the whisper can delete it'));
                     return;
                 }
                 if (!empty($w['deleted'])) {
-                    $tg->answer($cq, '🗑 این یکی رو قبلاً پاک کردی');
+                    $tg->answer($cq, L('🗑 این یکی رو قبلاً پاک کردی', '🗑 You already deleted this one'));
                     return;
                 }
                 Store::update('whisper', $imid, static fn($s) => is_array($s) ? ['deleted' => true, 'text' => ''] + $s : null);
                 Rich::editInline($imid, !empty($w['seen']) ? self::seenText($w) : self::pendingText($w), self::deletedKeyboard());
-                $tg->answer($cq, '🗑 پاک شد؛ دیگه کسی نمی‌تونه بخونه');
+                $tg->answer($cq, L('🗑 پاک شد؛ دیگه کسی نمی‌تونه بخونه', '🗑 Deleted; nobody can read it anymore'));
                 return;
 
             case 'wh:stats':
                 if (!$isSender && !$isRecipient) {
-                    $tg->alert($cq, '🙈 آمار رو فقط فرستنده و گیرنده می‌بینن.');
+                    $tg->alert($cq, L('🙈 آمار رو فقط فرستنده و گیرنده می‌بینن.', '🙈 Only the sender and recipient can see the stats.'));
                     return;
                 }
                 $sn  = array_values((array) ($w['snoopers'] ?? []));
-                $msg = ((int) ($w['seen'] ?? 0) > 0 ? '👁 ' . fa((int) $w['seen']) . ' بار خونده شده' : '⚠️ هنوز کسی ندیده') . "\n\n";
+                $msg = ((int) ($w['seen'] ?? 0) > 0 ? L('👁 ' . fa((int) $w['seen']) . ' بار خونده شده', '👁 Read ' . (int) $w['seen'] . ' time(s)') : L('⚠️ هنوز کسی ندیده', '⚠️ Nobody has seen it yet')) . "\n\n";
                 $msg .= $sn === []
-                    ? '😇 فضول‌ها: هیچ‌کس'
-                    : '😁 فضول‌ها: ' . fa(count($sn)) . " نفر\n" . implode(' ', array_map(static fn($x) => '[' . $x['name'] . ']', array_slice($sn, 0, 8)));
+                    ? L('😇 فضول‌ها: هیچ‌کس', '😇 Snoopers: nobody')
+                    : L('😁 فضول‌ها: ' . fa(count($sn)) . " نفر\n", '😁 Snoopers: ' . count($sn) . " people\n") . implode(' ', array_map(static fn($x) => '[' . $x['name'] . ']', array_slice($sn, 0, 8)));
                 $tg->alert($cq, $msg);
                 return;
         }

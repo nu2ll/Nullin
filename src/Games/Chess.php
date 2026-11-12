@@ -8,11 +8,14 @@ final class Chess
         'K' => '♔', 'Q' => '♕', 'R' => '♖', 'B' => '♗', 'N' => '♘', 'P' => '♙',
         'k' => '♚', 'q' => '♛', 'r' => '♜', 'b' => '♝', 'n' => '♞', 'p' => '♟️',
     ];
-    private const LEVELS = [1 => '🙂 آسون', 2 => '😎 متوسط', 3 => '🔥 سخت'];
+    private static function levels(): array
+    {
+        return [1 => L('🙂 آسون', '🙂 Easy'), 2 => L('😎 متوسط', '😎 Medium'), 3 => L('🔥 سخت', '🔥 Hard')];
+    }
 
     public static function intro(): string
     {
-        return "<b>♟️ شطرنج</b>\n\nشطرنج کامل با همه‌ی قوانین رسمی!\nبا ربات (۳ سطح سختی) یا با دوستت.\n\nحالت بازی رو انتخاب کن:";
+        return L("<b>♟️ شطرنج</b>\n\nشطرنج کامل با همه‌ی قوانین رسمی!\nبا ربات (۳ سطح سختی) یا با دوستت.\n\nحالت بازی رو انتخاب کن:", "<b>♟️ Chess</b>\n\nFull chess with all the official rules!\nPlay the bot (3 difficulty levels) or a friend.\n\nPick a game mode:");
     }
 
     public static function modeKeyboard(): array
@@ -69,7 +72,7 @@ final class Chess
 
         if ($frozen) {
         } elseif (!$active) {
-            $rows[] = [btn('🔁 بازی دوباره', self::P . ':replay', 'success')];
+            $rows[] = [btn(L('🔁 بازی دوباره', '🔁 Play again'), self::P . ':replay', 'success')];
         } elseif (!empty($s['promo'])) {
             $white  = $pos['t'] === 'w';
             $choice = [];
@@ -81,7 +84,7 @@ final class Chess
         } else {
             $ctl = GameKit::controlRow($s, self::P);
             if ($s['mode'] === 'pvp' && !empty($s['p2'])) {
-                array_unshift($ctl, btn('🤝 تساوی', self::P . ':draw', null));
+                array_unshift($ctl, btn(L('🤝 تساوی', '🤝 Draw'), self::P . ':draw', null));
             }
             $rows[] = $ctl;
         }
@@ -125,14 +128,14 @@ final class Chess
             return '';
         }
         $side = ChessEngine::color($p) === 'w' ? '⚪' : '⚫';
-        return "🔄 حرکت آخر {$side}: <code>" . self::glyph($p) . ' ' . self::sqName($from) . ' → ' . self::sqName($to) . '</code>';
+        return L("🔄 حرکت آخر {$side}: <code>", "🔄 Last move {$side}: <code>") . self::glyph($p) . ' ' . self::sqName($from) . ' → ' . self::sqName($to) . '</code>';
     }
 
     private static function text(array $s, string $status): string
     {
-        $mode = $s['mode'] === 'bot' ? 'با ربات · ' . self::LEVELS[$s['level']] : 'دو نفره';
-        $l    = ["<b>♟️ شطرنج</b> · {$mode}", divider()];
-        $l[]  = '⚪ ' . GameKit::name($s['p1']) . '  vs  ⚫ ' . GameKit::name($s['p2'] ?? null, '❔ منتظر حریف');
+        $mode = $s['mode'] === 'bot' ? L('با ربات · ', 'Vs bot · ') . self::levels()[$s['level']] : L('دو نفره', 'Two players');
+        $l    = ['<b>' . L('♟️ شطرنج', '♟️ Chess') . "</b> · {$mode}", divider()];
+        $l[]  = '⚪ ' . GameKit::name($s['p1']) . '  vs  ⚫ ' . GameKit::name($s['p2'] ?? null, L('❔ منتظر حریف', '❔ Waiting for opponent'));
         $l[]  = divider();
         if ($lm = self::lastMove($s)) {
             $l[] = $lm;
@@ -148,17 +151,17 @@ final class Chess
     private static function turnLine(array $s): string
     {
         $pos  = $s['pos'];
-        $line = ChessEngine::inCheck($pos) ? "⚠️ <b>کیش!</b>\n" : '';
+        $line = ChessEngine::inCheck($pos) ? L("⚠️ <b>کیش!</b>\n", "⚠️ <b>Check!</b>\n") : '';
         if (!empty($s['draw_offer'])) {
             $who   = GameKit::name($s['draw_offer'] === 1 ? $s['p1'] : $s['p2']);
-            $line .= "🤝 {$who} پیشنهاد مساوی داده؛\nحریف دکمه‌ی «تساوی» رو بزنه تا قبول بشه.\n";
+            $line .= L("🤝 {$who} پیشنهاد مساوی داده؛\nحریف دکمه‌ی «تساوی» رو بزنه تا قبول بشه.\n", "🤝 {$who} offered a draw;\nthe opponent can tap “Draw” to accept.\n");
         }
-        $turn = $pos['t'] === 'w' ? '⚪ ' . GameKit::name($s['p1']) : '⚫ ' . GameKit::name($s['p2'] ?? null, 'هر کی اول بازی کنه');
-        $line .= "👉 نوبت: {$turn}";
+        $turn = $pos['t'] === 'w' ? '⚪ ' . GameKit::name($s['p1']) : '⚫ ' . GameKit::name($s['p2'] ?? null, L('هر کی اول بازی کنه', 'Whoever moves first'));
+        $line .= L("👉 نوبت: {$turn}", "👉 Turn: {$turn}");
         if (!empty($s['promo'])) {
-            $line .= "\n👑 پیاده به ته رسید؛\nتبدیلش کن به:";
+            $line .= L("\n👑 پیاده به ته رسید؛\nتبدیلش کن به:", "\n👑 Your pawn reached the end;\npromote it to:");
         } elseif (count($s['hist'] ?? []) < 2) {
-            $line .= "\n<i>اول مهره رو بزن، بعد یکی از خونه‌های سبز رو.</i>";
+            $line .= L("\n<i>اول مهره رو بزن، بعد یکی از خونه‌های سبز رو.</i>", "\n<i>Tap a piece first, then one of the green squares.</i>");
         }
         return $line . GameKit::resignNote($s);
     }
@@ -177,15 +180,15 @@ final class Chess
             return $color === 'w' ? '⚪ ' . GameKit::name($s['p1']) : '⚫ ' . GameKit::name($s['p2'] ?? null);
         };
         return match ($r) {
-            'mate'       => '🏆 <b>کیش و مات!</b> ' . $winnerName($s['winner']) . ' برد 🎉',
-            'resign'     => '🏳 ' . $winnerName(ChessEngine::opp($s['winner'])) . ' تسلیم شد؛ 🏆 <b>' . $winnerName($s['winner']) . ' برد!</b>',
-            'stalemate'  => '🤝 <b>پات!</b> بازی مساوی شد.',
-            'repetition' => '🤝 تکرار سه‌باره‌ی موقعیت؛ مساوی.',
-            'fifty'      => '🤝 قانون ۵۰ حرکت؛ مساوی.',
-            'material'   => '🤝 مهره‌ی کافی برای مات نمونده؛ مساوی.',
-            'agreed'     => '🤝 با توافق، مساوی شد.',
-            'cancel'     => '✖️ بازی لغو شد.',
-            default      => 'بازی تموم شد.',
+            'mate'       => L('🏆 <b>کیش و مات!</b> ', '🏆 <b>Checkmate!</b> ') . $winnerName($s['winner']) . L(' برد 🎉', ' wins 🎉'),
+            'resign'     => '🏳 ' . $winnerName(ChessEngine::opp($s['winner'])) . L(' تسلیم شد؛ 🏆 <b>', ' resigned; 🏆 <b>') . $winnerName($s['winner']) . L(' برد!</b>', ' wins!</b>'),
+            'stalemate'  => L('🤝 <b>پات!</b> بازی مساوی شد.', '🤝 <b>Stalemate!</b> The game is a draw.'),
+            'repetition' => L('🤝 تکرار سه‌باره‌ی موقعیت؛ مساوی.', '🤝 Threefold repetition; draw.'),
+            'fifty'      => L('🤝 قانون ۵۰ حرکت؛ مساوی.', '🤝 Fifty-move rule; draw.'),
+            'material'   => L('🤝 مهره‌ی کافی برای مات نمونده؛ مساوی.', '🤝 Not enough pieces left to checkmate; draw.'),
+            'agreed'     => L('🤝 با توافق، مساوی شد.', '🤝 Draw by agreement.'),
+            'cancel'     => L('✖️ بازی لغو شد.', '✖️ Game cancelled.'),
+            default      => L('بازی تموم شد.', 'The game is over.'),
         };
     }
 
@@ -201,7 +204,7 @@ final class Chess
         $s['reps']       = [ChessEngine::key($s['pos']) => 1];
         $s['promo']      = null;
         $s['draw_offer'] = 0;
-        $s['p2']         = $mode === 'bot' ? ['id' => 0, 'name' => '🤖 نالین'] : null;
+        $s['p2']         = $mode === 'bot' ? ['id' => 0, 'name' => L('🤖 نالین', '🤖 Nullin')] : null;
         return $s;
     }
 
@@ -245,10 +248,10 @@ final class Chess
                     $s['status'] = 'mode';
                     GameKit::save($imid, $s);
                     $row = [];
-                    foreach (self::LEVELS as $lvl => $label) {
+                    foreach (self::levels() as $lvl => $label) {
                         $row[] = btn($label, self::P . ":lvl:{$lvl}", $lvl === 3 ? 'danger' : ($lvl === 1 ? 'success' : 'primary'));
                     }
-                    self::show($imid, $s, "<b>♟️ شطرنج</b> · با ربات\n\nچقدر سخت بگیرم؟ 😏", ikb([$row, GameKit::cancelRow(self::P)]));
+                    self::show($imid, $s, L("<b>♟️ شطرنج</b> · با ربات\n\nچقدر سخت بگیرم؟ 😏", "<b>♟️ Chess</b> · Vs bot\n\nHow hard should I go? 😏"), ikb([$row, GameKit::cancelRow(self::P)]));
                     return;
                 }
                 $s = self::start($s, 'pvp');
@@ -267,7 +270,7 @@ final class Chess
                     self::render($imid, $s);
                 } else {
                     GameKit::save($imid, $s);
-                    self::show($imid, $s, "<b>♟️ شطرنج</b>\n\n✖️ بازی توسط {$by} لغو شد.", GameKit::replayKeyboard(self::P));
+                    self::show($imid, $s, L("<b>♟️ شطرنج</b>\n\n✖️ بازی توسط {$by} لغو شد.", "<b>♟️ Chess</b>\n\n✖️ Game cancelled by {$by}."), GameKit::replayKeyboard(self::P));
                 }
             },
             function (bool $done) use (&$s, $imid) {
@@ -285,19 +288,19 @@ final class Chess
 
         if (str_starts_with($data, self::P . ':lvl:')) {
             if (($s['status'] ?? '') !== 'mode' || !GameKit::isCreator($s, $uid)) {
-                $tg->answer($cq, '🔒 فقط سازنده انتخاب می‌کنه');
+                $tg->answer($cq, L('🔒 فقط سازنده انتخاب می‌کنه', '🔒 Only the creator can choose'));
                 return;
             }
             $lvl = max(1, min(3, (int) substr($data, strlen(self::P . ':lvl:'))));
             $s   = self::start($s, 'bot', $lvl);
             GameKit::save($imid, $s);
             self::render($imid, $s);
-            $tg->answer($cq, 'تو سفیدی، شروع کن! ⚪');
+            $tg->answer($cq, L('تو سفیدی، شروع کن! ⚪', 'You’re white, you start! ⚪'));
             return;
         }
 
         if (($s['status'] ?? '') !== 'playing') {
-            $tg->answer($cq, '⌛️ این بازی تموم شده');
+            $tg->answer($cq, L('⌛️ این بازی تموم شده', '⌛️ This game is over'));
             return;
         }
 
@@ -306,7 +309,7 @@ final class Chess
 
         if ($data === self::P . ':draw') {
             if ($s['mode'] !== 'pvp' || empty($s['p2']) || !GameKit::isPlayer($s, $uid)) {
-                $tg->alert($cq, '🚫 تساوی فقط بین دو بازیکن این بازی ممکنه.');
+                $tg->alert($cq, L('🚫 تساوی فقط بین دو بازیکن این بازی ممکنه.', '🚫 Only the two players of this game can agree to a draw.'));
                 return;
             }
             $seat = GameKit::isCreator($s, $uid) ? 1 : 2;
@@ -315,33 +318,33 @@ final class Chess
                 $s['result'] = 'agreed';
                 GameKit::save($imid, $s);
                 self::render($imid, $s);
-                $tg->answer($cq, '🤝 قبول شد');
+                $tg->answer($cq, L('🤝 قبول شد', '🤝 Accepted'));
                 return;
             }
             $s['draw_offer'] = $seat;
             GameKit::save($imid, $s);
             self::render($imid, $s);
-            $tg->answer($cq, '🤝 پیشنهاد مساوی فرستاده شد');
+            $tg->answer($cq, L('🤝 پیشنهاد مساوی فرستاده شد', '🤝 Draw offer sent'));
             return;
         }
 
         if ($s['mode'] === 'bot') {
             if (!GameKit::isCreator($s, $uid)) {
-                $tg->alert($cq, '🚫 این بازی مال یکی دیگه‌ست؛' . "\n" . 'خودت از منو یکی بساز!');
+                $tg->alert($cq, L('🚫 این بازی مال یکی دیگه‌ست؛' . "\n" . 'خودت از منو یکی بساز!', '🚫 This game belongs to someone else;' . "\n" . 'start your own from the menu!'));
                 return;
             }
             if ($turnSeat !== 1) {
-                $tg->answer($cq, '🤔 صبر کن، دارم فکر می‌کنم...');
+                $tg->answer($cq, L('🤔 صبر کن، دارم فکر می‌کنم...', '🤔 Hold on, I’m thinking...'));
                 return;
             }
         } else {
             $seat = GameKit::seat($s, $from, $turnSeat);
             if ($seat === 0) {
-                $tg->alert($cq, '🚫 این بازی دو نفره پر شده.');
+                $tg->alert($cq, L('🚫 این بازی دو نفره پر شده.', '🚫 This two-player game is full.'));
                 return;
             }
             if ($seat !== $turnSeat) {
-                $tg->answer($cq, '⏳ نوبت حریفته');
+                $tg->answer($cq, L('⏳ نوبت حریفته', '⏳ It’s your opponent’s turn'));
                 return;
             }
         }
@@ -358,7 +361,7 @@ final class Chess
                 $s['sel']   = -1;
                 GameKit::save($imid, $s);
                 self::render($imid, $s);
-                $tg->answer($cq, 'لغو شد');
+                $tg->answer($cq, L('لغو شد', 'Cancelled'));
                 return;
             }
             self::commit($cq, $imid, $s, ChessEngine::move($pp[0], $pp[1], $code));
@@ -370,7 +373,7 @@ final class Chess
             return;
         }
         if (!empty($s['promo'])) {
-            $tg->answer($cq, '👑 اول مهره‌ی ارتقا رو انتخاب کن');
+            $tg->answer($cq, L('👑 اول مهره‌ی ارتقا رو انتخاب کن', '👑 Choose the promotion piece first'));
             return;
         }
 
@@ -387,7 +390,7 @@ final class Chess
                 return;
             }
             if (!ChessEngine::legalFrom($pos, $sq)) {
-                $tg->answer($cq, '🚫 این مهره الان حرکتی نداره');
+                $tg->answer($cq, L('🚫 این مهره الان حرکتی نداره', '🚫 This piece has no moves right now'));
                 return;
             }
             $s['sel'] = $sq;
@@ -398,7 +401,7 @@ final class Chess
         }
 
         if ($sel < 0) {
-            $tg->answer($cq, '👆 اول یکی از مهره‌های خودت رو انتخاب کن');
+            $tg->answer($cq, L('👆 اول یکی از مهره‌های خودت رو انتخاب کن', '👆 Pick one of your own pieces first'));
             return;
         }
 
@@ -407,14 +410,14 @@ final class Chess
             $s['sel'] = -1;
             GameKit::save($imid, $s);
             self::render($imid, $s);
-            $tg->answer($cq, '🚫 حرکت غیرمجاز');
+            $tg->answer($cq, L('🚫 حرکت غیرمجاز', '🚫 Illegal move'));
             return;
         }
         if (count($candidates) > 1) {
             $s['promo'] = [$sel, $sq];
             GameKit::save($imid, $s);
             self::render($imid, $s);
-            $tg->answer($cq, '👑 ارتقا!');
+            $tg->answer($cq, L('👑 ارتقا!', '👑 Promoted!'));
             return;
         }
         self::commit($cq, $imid, $s, $candidates[0]);
@@ -428,12 +431,12 @@ final class Chess
 
         if ($s['status'] !== 'playing' || $s['mode'] !== 'bot') {
             self::render($imid, $s);
-            $tg->answer($cq, $s['status'] === 'over' ? '🏁 بازی تموم شد' : null);
+            $tg->answer($cq, $s['status'] === 'over' ? L('🏁 بازی تموم شد', '🏁 Game over') : null);
             return;
         }
 
-        $tg->answer($cq, '🤔 بذار فکر کنم...');
-        self::render($imid, $s, '🤖 نالین داره فکر می‌کنه...' . (ChessEngine::inCheck($s['pos']) ? ' (کیشم کردی! 😳)' : ''));
+        $tg->answer($cq, L('🤔 بذار فکر کنم...', '🤔 Let me think...'));
+        self::render($imid, $s, L('🤖 نالین داره فکر می‌کنه...', '🤖 Nullin is thinking...') . (ChessEngine::inCheck($s['pos']) ? L(' (کیشم کردی! 😳)', ' (you put me in check! 😳)') : ''));
 
         $bm = ChessEngine::bestMove($s['pos'], (int) $s['level']);
         if ($bm !== null) {

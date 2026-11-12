@@ -9,33 +9,53 @@ final class Currency
     ];
 
     private const FIAT = [
-        '🇺🇸 دلار'       => 'price_dollar_rl',
-        '🇪🇺 یورو'       => 'price_eur',
-        '🇬🇧 پوند'       => 'price_gbp',
-        '🇦🇪 درهم'       => 'price_aed',
-        '🇹🇷 لیر'        => 'price_try',
-        '🇨🇭 فرانک'      => 'price_chf',
-        '🇨🇦 دلار کانادا' => 'price_cad',
-        '🇨🇳 یوان'       => 'price_cny',
-        '🇷🇺 روبل'       => 'price_rub',
-        '🇮🇳 روپیه'      => 'price_inr',
-        '🇮🇶 دینار'      => 'price_iqd',
-        '🇦🇫 افغانی'     => 'price_afn',
+        'price_dollar_rl' => ['🇺🇸', 'دلار', 'US Dollar'],
+        'price_eur'       => ['🇪🇺', 'یورو', 'Euro'],
+        'price_gbp'       => ['🇬🇧', 'پوند', 'British Pound'],
+        'price_aed'       => ['🇦🇪', 'درهم', 'UAE Dirham'],
+        'price_try'       => ['🇹🇷', 'لیر', 'Turkish Lira'],
+        'price_chf'       => ['🇨🇭', 'فرانک', 'Swiss Franc'],
+        'price_cad'       => ['🇨🇦', 'دلار کانادا', 'Canadian Dollar'],
+        'price_cny'       => ['🇨🇳', 'یوان', 'Chinese Yuan'],
+        'price_rub'       => ['🇷🇺', 'روبل', 'Russian Ruble'],
+        'price_inr'       => ['🇮🇳', 'روپیه', 'Indian Rupee'],
+        'price_iqd'       => ['🇮🇶', 'دینار', 'Iraqi Dinar'],
+        'price_afn'       => ['🇦🇫', 'افغانی', 'Afghan Afghani'],
     ];
 
     private const CRYPTO = [
-        '₿ بیت‌کوین'   => 'crypto-bitcoin',
-        '💠 اتریوم'    => 'crypto-ethereum',
-        '🟡 بایننس'    => 'crypto-binance-coin',
-        '🟣 سولانا'    => 'crypto-solana',
-        '💎 گرام'       => 'crypto-toncoin',
-        '⚪ ریپل'      => 'crypto-ripple',
-        '🔴 ترون'      => 'crypto-tron',
-        '🐕 دوج‌کوین'  => 'crypto-dogecoin',
-        '🥈 لایت‌کوین' => 'crypto-litecoin',
+        'crypto-bitcoin'      => ['₿', 'بیت‌کوین', 'Bitcoin'],
+        'crypto-ethereum'     => ['💠', 'اتریوم', 'Ethereum'],
+        'crypto-binance-coin' => ['🟡', 'بایننس', 'Binance'],
+        'crypto-solana'       => ['🟣', 'سولانا', 'Solana'],
+        'crypto-toncoin'      => ['💎', 'گرام', 'Gram'],
+        'crypto-ripple'       => ['⚪', 'ریپل', 'Ripple'],
+        'crypto-tron'         => ['🔴', 'ترون', 'Tron'],
+        'crypto-dogecoin'     => ['🐕', 'دوج‌کوین', 'Dogecoin'],
+        'crypto-litecoin'     => ['🥈', 'لایت‌کوین', 'Litecoin'],
     ];
 
     private const MESGHAL_GRAMS = 4.3318;
+
+    private static function label(array $e): string
+    {
+        return $e[0] . ' ' . L($e[1], $e[2]);
+    }
+
+    public static function unavailable(): string
+    {
+        return L("⚠️ الان به منبع قیمت‌ها دسترسی ندارم؛\nچند لحظه دیگه دوباره بزن.", "⚠️ I can’t reach the price source right now;\nplease try again in a moment.");
+    }
+
+    private static function headText(): string
+    {
+        return L('نرخ لحظه‌ای بازار', 'Live market rates');
+    }
+
+    private static function sourceNote(): string
+    {
+        return L('ت = تومان · منبع: بازار آزاد', 'T = Toman · Source: open market');
+    }
 
     private static function fetchFeed(): ?array
     {
@@ -82,20 +102,20 @@ final class Currency
 
     public static function rates(): ?array
     {
-        return Store::remember('cache', 'rates', 120, static function () {
+        return Store::remember('cache', 'rates2', 120, static function () {
             $feed = self::fetchFeed();
             if ($feed === null) {
                 return null;
             }
             $out = ['fiat' => [], 'crypto' => [], 'gold' => [], 'chg' => ['fiat' => [], 'crypto' => [], 'gold' => [], 'tether' => null]];
-            foreach (self::FIAT as $label => $key) {
-                $rial                        = self::num($feed, $key);
-                $out['fiat'][$label]         = $rial !== null ? $rial / 10 : null;
-                $out['chg']['fiat'][$label]  = self::chg($feed, $key);
+            foreach (self::FIAT as $key => $e) {
+                $rial                     = self::num($feed, $key);
+                $out['fiat'][$key]        = $rial !== null ? $rial / 10 : null;
+                $out['chg']['fiat'][$key] = self::chg($feed, $key);
             }
-            foreach (self::CRYPTO as $label => $key) {
-                $out['crypto'][$label]        = self::num($feed, $key);
-                $out['chg']['crypto'][$label] = self::chg($feed, $key);
+            foreach (self::CRYPTO as $key => $e) {
+                $out['crypto'][$key]        = self::num($feed, $key);
+                $out['chg']['crypto'][$key] = self::chg($feed, $key);
             }
             $tether          = self::num($feed, 'crypto-tether-irr');
             $gram            = self::num($feed, 'geram18');
@@ -120,7 +140,7 @@ final class Currency
 
     private static function toman(?float $v): string
     {
-        return $v === null ? '—' : number_format($v) . ' ت';
+        return $v === null ? '—' : number_format($v) . L(' ت', ' T');
     }
 
     private static function usd(?float $v): string
@@ -135,37 +155,47 @@ final class Currency
     {
         $now  = time();
         $r    = self::rates();
-        $head = "<b>💱 نرخ لحظه‌ای بازار</b>\n🕒 " . Jalali::fullDate($now) . ' · ' . Jalali::time($now);
+        $head = '<b>💱 ' . self::headText() . "</b>\n🕒 " . Jalali::fullDate($now) . ' · ' . Jalali::time($now);
 
         if ($r === null) {
-            return $head . "\n\n⚠️ الان به منبع قیمت‌ها دسترسی ندارم؛\nچند لحظه دیگه دوباره بزن.";
+            return $head . "\n\n" . self::unavailable();
         }
 
-        $l   = [$head, '', '<b>💵 ارزها</b>'];
-        foreach ($r['fiat'] as $label => $v) {
-            $l[] = "{$label}: <code>" . self::toman($v) . '</code>';
+        $l   = [$head, '', '<b>💵 ' . L('ارزها', 'Currencies') . '</b>'];
+        foreach ($r['fiat'] as $key => $v) {
+            $l[] = self::label(self::FIAT[$key]) . ': <code>' . self::toman($v) . '</code>';
         }
         $g   = $r['gold'];
         $l[] = '';
-        $l[] = '<b>🥇 طلا و سکه</b>';
-        $l[] = '🪙 سکه امامی: <code>' . self::toman($g['coin']) . '</code>';
-        $l[] = '🔸 مثقال طلا: <code>' . self::toman($g['mesghal']) . '</code>';
-        $l[] = '🔹 گرم ۱۸ عیار: <code>' . self::toman($g['gram']) . '</code>';
-        $l[] = '🌕 انس جهانی: <code>' . self::usd($g['ounce']) . '</code>';
+        $l[] = '<b>🥇 ' . L('طلا و سکه', 'Gold & coins') . '</b>';
+        $l[] = '🪙 ' . self::goldName('coin') . ': <code>' . self::toman($g['coin']) . '</code>';
+        $l[] = '🔸 ' . self::goldName('mesghal') . ': <code>' . self::toman($g['mesghal']) . '</code>';
+        $l[] = '🔹 ' . self::goldName('gram') . ': <code>' . self::toman($g['gram']) . '</code>';
+        $l[] = '🌕 ' . self::goldName('ounce') . ': <code>' . self::usd($g['ounce']) . '</code>';
         $l[] = '';
-        $l[] = '<b>🪙 ارز دیجیتال</b>';
-        $l[] = '💵 تتر: <code>' . self::toman($r['tether']) . '</code>';
-        foreach ($r['crypto'] as $label => $v) {
-            $l[] = "{$label}: <code>" . self::usd($v) . '</code>';
+        $l[] = '<b>🪙 ' . L('ارز دیجیتال', 'Crypto') . '</b>';
+        $l[] = '💵 ' . L('تتر', 'Tether') . ': <code>' . self::toman($r['tether']) . '</code>';
+        foreach ($r['crypto'] as $key => $v) {
+            $l[] = self::label(self::CRYPTO[$key]) . ': <code>' . self::usd($v) . '</code>';
         }
         $l[] = '';
-        $l[] = '<i>ت = تومان · منبع: بازار آزاد</i>';
+        $l[] = '<i>' . self::sourceNote() . '</i>';
         return implode("\n", $l);
+    }
+
+    private static function goldName(string $k): string
+    {
+        return match ($k) {
+            'coin'    => L('سکه امامی', 'Imami coin'),
+            'mesghal' => L('مثقال طلا', 'Gold mithqal'),
+            'gram'    => L('گرم ۱۸ عیار', '18k gold gram'),
+            default   => L('انس جهانی', 'Global ounce'),
+        };
     }
 
     private static function faNum(string $n): string
     {
-        return strtr(fa($n), [',' => '٬', '.' => '٫']);
+        return Lang::is('en') ? $n : strtr(fa($n), [',' => '٬', '.' => '٫']);
     }
 
     private static function tomanFa(?float $v): string
@@ -184,64 +214,64 @@ final class Currency
             return '—';
         }
         if (abs($v) < 0.005) {
-            return '▫️ ۰٪';
+            return '▫️ ' . L('۰٪', '0%');
         }
-        return ($v > 0 ? '🟢 ▲ ' : '🔴 ▼ ') . self::faNum(number_format(abs($v), 2)) . '٪';
+        return ($v > 0 ? '🟢 ▲ ' : '🔴 ▼ ') . self::faNum(number_format(abs($v), 2)) . L('٪', '%');
     }
 
     public static function richMessage(string $view = 'fiat'): string
     {
         $now  = time();
         $r    = self::rates();
-        $head = '**💱 نرخ لحظه‌ای بازار**' . "\n🕒 " . Jalali::fullDate($now) . ' · ' . Jalali::time($now);
+        $head = '**💱 ' . self::headText() . '**' . "\n🕒 " . Jalali::fullDate($now) . ' · ' . Jalali::time($now);
 
         if ($r === null) {
-            return $head . "\n\n⚠️ الان به منبع قیمت‌ها دسترسی ندارم؛\nچند لحظه دیگه دوباره بزن.";
+            return $head . "\n\n" . self::unavailable();
         }
 
         $chg = $r['chg'] ?? [];
         $g   = $r['gold'];
 
         if ($view === 'gold') {
-            $title = '🥇 طلا و سکه';
+            $title = '🥇 ' . L('طلا و سکه', 'Gold & coins');
             $rows  = [
-                ['🪙 سکه امامی', self::tomanFa($g['coin']) . ' ت', self::pct($chg['gold']['coin'] ?? null)],
-                ['🔸 مثقال طلا', self::tomanFa($g['mesghal']) . ' ت', self::pct($chg['gold']['mesghal'] ?? null)],
-                ['🔹 گرم ۱۸ عیار', self::tomanFa($g['gram']) . ' ت', self::pct($chg['gold']['gram'] ?? null)],
-                ['🌕 انس جهانی', self::usdFa($g['ounce']), self::pct($chg['gold']['ounce'] ?? null)],
+                ['🪙 ' . self::goldName('coin'), self::tomanFa($g['coin']) . L(' ت', ' T'), self::pct($chg['gold']['coin'] ?? null)],
+                ['🔸 ' . self::goldName('mesghal'), self::tomanFa($g['mesghal']) . L(' ت', ' T'), self::pct($chg['gold']['mesghal'] ?? null)],
+                ['🔹 ' . self::goldName('gram'), self::tomanFa($g['gram']) . L(' ت', ' T'), self::pct($chg['gold']['gram'] ?? null)],
+                ['🌕 ' . self::goldName('ounce'), self::usdFa($g['ounce']), self::pct($chg['gold']['ounce'] ?? null)],
             ];
-            $table = Rich::mdTable(['طلا', 'قیمت', 'تغییر'], $rows);
+            $table = Rich::mdTable([L('طلا', 'Gold'), L('قیمت', 'Price'), L('تغییر', 'Change')], $rows);
         } elseif ($view === 'crypto') {
-            $title = '🪙 ارز دیجیتال';
+            $title = '🪙 ' . L('ارز دیجیتال', 'Crypto');
             $rows  = [];
-            foreach ($r['crypto'] as $label => $v) {
-                $rows[] = [$label, self::usdFa($v), self::pct($chg['crypto'][$label] ?? null)];
+            foreach ($r['crypto'] as $key => $v) {
+                $rows[] = [self::label(self::CRYPTO[$key]), self::usdFa($v), self::pct($chg['crypto'][$key] ?? null)];
             }
-            $table = Rich::mdTable(['ارز', 'قیمت', 'تغییر'], $rows);
+            $table = Rich::mdTable([L('ارز', 'Currency'), L('قیمت', 'Price'), L('تغییر', 'Change')], $rows);
         } else {
-            $title = '💵 ارزها';
-            $rows  = [['💵 تتر', self::tomanFa($r['tether']) . ' ت', self::pct($chg['tether'] ?? null)]];
-            foreach ($r['fiat'] as $label => $v) {
-                $rows[] = [$label, self::tomanFa($v) . ' ت', self::pct($chg['fiat'][$label] ?? null)];
+            $title = '💵 ' . L('ارزها', 'Currencies');
+            $rows  = [['💵 ' . L('تتر', 'Tether'), self::tomanFa($r['tether']) . L(' ت', ' T'), self::pct($chg['tether'] ?? null)]];
+            foreach ($r['fiat'] as $key => $v) {
+                $rows[] = [self::label(self::FIAT[$key]), self::tomanFa($v) . L(' ت', ' T'), self::pct($chg['fiat'][$key] ?? null)];
             }
-            $table = Rich::mdTable(['ارز', 'قیمت', 'تغییر'], $rows);
+            $table = Rich::mdTable([L('ارز', 'Currency'), L('قیمت', 'Price'), L('تغییر', 'Change')], $rows);
         }
 
-        return $head . "\n\n**{$title}**\n\n" . $table . "\n\n_ت = تومان · منبع: بازار آزاد_";
+        return $head . "\n\n**{$title}**\n\n" . $table . "\n\n_" . self::sourceNote() . '_';
     }
 
     public static function keyboard(string $view = 'fiat'): array
     {
         $tabs = [];
-        foreach (['fiat' => '💵 ارز', 'gold' => '🥇 طلا', 'crypto' => '🪙 کریپتو'] as $k => $label) {
+        foreach (['fiat' => '💵 ' . L('ارز', 'Currency'), 'gold' => '🥇 ' . L('طلا', 'Gold'), 'crypto' => '🪙 ' . L('کریپتو', 'Crypto')] as $k => $label) {
             $tabs[] = $k === $view ? btn($label . ' ✓', 'rates:' . $k, 'success') : btn($label, 'rates:' . $k, 'primary');
         }
-        return ikb([$tabs, [btn('🔄 بروزرسانی', 'rates:refresh:' . $view, 'danger')]]);
+        return ikb([$tabs, [btn('🔄 ' . L('بروزرسانی', 'Refresh'), 'rates:refresh:' . $view, 'danger')]]);
     }
 
     public static function pendingKeyboard(): array
     {
-        return ikb([[btn('📊 نمایش نرخ‌ها', 'rates:show', 'success')]]);
+        return ikb([[btn('📊 ' . L('نمایش نرخ‌ها', 'Show rates'), 'rates:show', 'success')]]);
     }
 
     public static function onCallback(array $cq, string $data, ?string $imid = null): void
@@ -249,10 +279,10 @@ final class Currency
         $tg   = App::tg();
         $view = preg_match('/^rates:(?:refresh:)?(fiat|gold|crypto)$/', $data, $m) === 1 ? $m[1] : 'fiat';
         if (self::rates() === null) {
-            $tg->alert($cq, '⚠️ الان نتونستم نرخ‌ها رو بگیرم؛' . "\n" . 'یه‌کم دیگه امتحان کن.');
+            $tg->alert($cq, L('⚠️ الان نتونستم نرخ‌ها رو بگیرم؛', '⚠️ Couldn’t fetch the rates right now;') . "\n" . L('یه‌کم دیگه امتحان کن.', 'please try again in a bit.'));
             return;
         }
         Rich::editCbMd($cq, $imid, self::richMessage($view), self::keyboard($view));
-        $tg->answer($cq, str_starts_with($data, 'rates:refresh') ? '🔄 به‌روز شد' : null);
+        $tg->answer($cq, str_starts_with($data, 'rates:refresh') ? L('🔄 به‌روز شد', '🔄 Updated') : null);
     }
 }

@@ -10,7 +10,7 @@ final class AnswerButtons
 
     public static function plain(string $answer): string
     {
-        return trim((string) preg_replace('/\n\n🔗 منابع:.*$/su', '', $answer));
+        return trim((string) preg_replace('/\n\n🔗 (?:منابع|Sources):.*$/su', '', $answer));
     }
 
     public static function keyboard(bool $searched, bool $voice = true, bool $noSearch = false): array
@@ -284,7 +284,7 @@ final class AnswerButtons
                     self::applyKb($chatId, $mid, $rec, true);
                 }
                 self::unlock($key, 'v');
-                $tg->answer($cq, $voiced ? null : '😕 نتونستم ویس بسازم، یه‌کم دیگه دوباره امتحان کن.');
+                $tg->answer($cq, $voiced ? null : L('😕 نتونستم ویس بسازم، یه‌کم دیگه دوباره امتحان کن.', '😕 I couldn\'t make the voice, try again in a bit.'));
                 return;
 
             case 's':
@@ -352,7 +352,7 @@ final class AnswerButtons
                 Store::delete(self::NS, $key);
                 Rich::editInline($imid, (string) ($rec['h'] ?? '') . h($out));
             } else {
-                Rich::editInline($imid, (string) ($rec['x'] ?? '') . AI::toHtml(AI::FAIL_TEXT), self::retryKeyboard());
+                Rich::editInline($imid, (string) ($rec['x'] ?? '') . AI::toHtml((Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT)), self::retryKeyboard());
             }
             self::unlock($key, $act);
             return;
@@ -374,7 +374,7 @@ final class AnswerButtons
                 $q   = (string) $rec['q'];
                 $opt = ['max_len' => PHP_INT_MAX, 'reaction' => false] + ($live && App::cfg('ai_stream', true) ? ['on_text' => $live->feed(...)] : []);
             } else {
-                $q   = (string) $rec['q'] . "\n\n[دستور سیستم: این بار حتماً قبل از جواب دادن با ابزار web_search توی وب سرچ کن و جوابت رو بر اساس نتایج به‌روز بنویس.]";
+                $q   = (string) $rec['q'] . "\n\n[System instruction: this time, before answering, you must search the web with the web_search tool and base your answer on up-to-date results.]";
                 $opt = ['max_len' => PHP_INT_MAX, 'reaction' => false, 'force_search' => true];
             }
             $res = AI::reply($q, $ctx, [], $opt);
@@ -408,10 +408,10 @@ final class AnswerButtons
             $live?->stop();
             if ($retry) {
                 if (!$done) {
-                    Rich::editInline($imid, $head . AI::toHtml(AI::FAIL_TEXT), self::retryKeyboard());
+                    Rich::editInline($imid, $head . AI::toHtml((Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT)), self::retryKeyboard());
                 }
             } else {
-                $tg->answer($cq, $done ? null : AI::FAIL_TEXT);
+                $tg->answer($cq, $done ? null : (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT));
                 if (!$done) {
                     $tg->call('editMessageReplyMarkup', ['inline_message_id' => $imid, 'reply_markup' => self::searchOnly() ?? ['inline_keyboard' => []]], 8);
                 }

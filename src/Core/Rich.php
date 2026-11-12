@@ -50,7 +50,7 @@ final class Rich
     private static function mdPayload(string $md, ?array $kb): array
     {
         $btn = self::buttonsHtml($kb);
-        return ['markdown' => self::markdown($md) . ($btn !== '' ? "\n\n" . $btn : ''), 'is_rtl' => true];
+        return ['markdown' => self::markdown($md) . ($btn !== '' ? "\n\n" . $btn : ''), 'is_rtl' => Lang::is('fa')];
     }
 
     public static function inlineContentMd(string $md, ?array $kb = null): array
@@ -146,8 +146,9 @@ final class Rich
         return $out;
     }
 
-    private static function payload(string $html, ?array $kb, ?string $img, bool $rtl = true): array
+    private static function payload(string $html, ?array $kb, ?string $img, ?bool $rtl = null): array
     {
+        $rtl ??= Lang::is('fa');
         $body = '<p>' . str_replace("\n", '<br>', $html) . '</p>' . self::buttonsHtml($kb);
         if ($img !== null && preg_match('#^(?:https://|[A-Za-z0-9_-]{20,}$)#', $img)) {
             return ['html' => '<img src="tg://photo?id=thumb"/>' . $body] + ($rtl ? ['is_rtl' => true] : []) + ['media' => [['id' => 'thumb', 'media' => ['type' => 'photo', 'media' => $img]]]];
@@ -155,13 +156,13 @@ final class Rich
         return ['html' => $body] + ($rtl ? ['is_rtl' => true] : []);
     }
 
-    public static function editHtml(int|string $chatId, int $mid, string $html, ?array $kb = null, ?string $img = null, bool $rtl = true): bool
+    public static function editHtml(int|string $chatId, int $mid, string $html, ?array $kb = null, ?string $img = null, ?bool $rtl = null): bool
     {
         $r = App::tg()->call('editMessageText', ['chat_id' => $chatId, 'message_id' => $mid, 'rich_message' => self::payload($html, $kb, $img, $rtl)], 10);
         return !empty($r['ok']) || stripos((string) ($r['description'] ?? ''), 'not modified') !== false;
     }
 
-    public static function editInline(string $inlineId, string $html, ?array $kb = null, ?string $img = null, bool $isHtml = true, ?array $preview = null, bool $rtl = true): ?array
+    public static function editInline(string $inlineId, string $html, ?array $kb = null, ?string $img = null, bool $isHtml = true, ?array $preview = null, ?bool $rtl = null): ?array
     {
         $tg   = App::tg();
         $body = $isHtml ? $html : h($html);
@@ -178,7 +179,7 @@ final class Rich
         return $r;
     }
 
-    public static function editInlinePhoto(string $inlineId, string $html, string $fileId, ?array $kb = null, bool $rtl = true): ?array
+    public static function editInlinePhoto(string $inlineId, string $html, string $fileId, ?array $kb = null, ?bool $rtl = null): ?array
     {
         return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($html, $kb, $fileId, $rtl)], 15);
     }
@@ -221,7 +222,7 @@ final class Rich
         return $r;
     }
 
-    public static function send(int|string $chatId, string $html, ?array $kb = null, ?int $replyTo = null, ?string $img = null, array $plain = [], bool $rtl = true): ?array
+    public static function send(int|string $chatId, string $html, ?array $kb = null, ?int $replyTo = null, ?string $img = null, array $plain = [], ?bool $rtl = null): ?array
     {
         if (self::hasButtons($kb) && !self::supports($kb)) {
             return App::tg()->send($chatId, $html, ($replyTo ? ['reply_parameters' => ['message_id' => $replyTo, 'allow_sending_without_reply' => true]] : []) + ['reply_markup' => $kb] + $plain);
@@ -251,7 +252,7 @@ final class Rich
         self::editHtml($chatId, $mid, $html, $kb, $img);
     }
 
-    public static function sendHtml(int|string $chatId, string $html, ?int $replyTo = null, ?array $kb = null, ?string $img = null, bool $rtl = true): ?array
+    public static function sendHtml(int|string $chatId, string $html, ?int $replyTo = null, ?array $kb = null, ?string $img = null, ?bool $rtl = null): ?array
     {
         return App::tg()->call('sendRichMessage', [
             'chat_id'          => $chatId,

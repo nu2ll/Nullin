@@ -28,7 +28,7 @@ final class Likes
             'lk_' . $token,
             'like',
             '❤️ ' . mb_substr($text, 0, 60),
-            'پیام با دکمه‌ی لایک می‌فرسته',
+            L('پیام با دکمه‌ی لایک می‌فرسته', 'Sends a message with a like button'),
             self::body($text),
             self::keyboard($token, 0)
         );
@@ -76,11 +76,11 @@ final class Likes
         });
 
         if ($missing || !is_array($state)) {
-            $tg->alert($cq, '⌛️ این لایک منقضی شده.');
+            $tg->alert($cq, L('⌛️ این لایک منقضی شده.', '⌛️ This like has expired.'));
             return;
         }
 
         Rich::editInline($imid, self::body((string) $state['t']), self::keyboard($token, count((array) $state['u'])));
-        $tg->answer($cq, $liked ? '❤️ لایک شد' : '💔 لایکت برداشته شد');
+        $tg->answer($cq, $liked ? L('❤️ لایک شد', '❤️ Liked') : L('💔 لایکت برداشته شد', '💔 Like removed'));
     }
 }

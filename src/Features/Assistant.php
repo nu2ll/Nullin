@@ -2,25 +2,26 @@
 
 final class Assistant
 {
+    // key => label
     private const TAGS = [
-        'title'         => 'عنوان',
-        'artist'        => 'خواننده',
-        'album'         => 'آلبوم',
-        'album_artist'  => 'خواننده آلبوم',
-        'date'          => 'تاریخ ساخت آهنگ',
-        'year'          => 'سال',
-        'originaldate'  => 'تاریخ انتشار اصلی',
-        'genre'         => 'ژانر',
-        'track'         => 'شماره ترک',
-        'disc'          => 'شماره دیسک',
-        'composer'      => 'آهنگساز',
-        'lyricist'      => 'ترانه‌سرا',
-        'comment'       => 'توضیحات',
-        'copyright'     => 'کپی‌رایت',
-        'publisher'     => 'ناشر',
-        'language'      => 'زبان',
-        'lyrics'        => 'متن آهنگ',
-        'creation_time' => 'زمان ساخت فایل',
+        'title'         => 'Title',
+        'artist'        => 'Artist',
+        'album'         => 'Album',
+        'album_artist'  => 'Album artist',
+        'date'          => 'Track date',
+        'year'          => 'Year',
+        'originaldate'  => 'Original release date',
+        'genre'         => 'Genre',
+        'track'         => 'Track number',
+        'disc'          => 'Disc number',
+        'composer'      => 'Composer',
+        'lyricist'      => 'Lyricist',
+        'comment'       => 'Comment',
+        'copyright'     => 'Copyright',
+        'publisher'     => 'Publisher',
+        'language'      => 'Language',
+        'lyrics'        => 'Lyrics',
+        'creation_time' => 'File creation time',
     ];
 
     private static function memKey(int $chatId, int $userId): string
@@ -32,7 +33,7 @@ final class Assistant
     {
         $m = Store::get('ai_memory', self::memKey($chatId, $userId));
         $msgs = is_array($m) && ($m['day'] ?? '') === date('Y-m-d') ? ($m['messages'] ?? []) : [];
-        return array_values(array_filter($msgs, static fn($x) => !str_contains((string) ($x['content'] ?? ''), 'یه عکس براش ساختم')));
+        return array_values($msgs);
     }
 
     private static function remember(int $chatId, int $userId, string $user, string $assistant): void
@@ -55,16 +56,16 @@ final class Assistant
             return null;
         }
         $role = match ($m['status'] ?? '') {
-            'creator'       => 'مالک گروه',
-            'administrator' => 'ادمین',
-            'restricted', 'member' => 'ممبر',
+            'creator'       => 'Group owner',
+            'administrator' => 'Admin',
+            'restricted', 'member' => 'Member',
             default         => '',
         };
         if ($role === '') {
             return null;
         }
         $tag = trim((string) ($m['custom_title'] ?? $m['tag'] ?? ''));
-        return $role . ($tag !== '' ? " (تگ: {$tag})" : '');
+        return $role . ($tag !== '' ? " (tag: {$tag})" : '');
     }
 
     private static function chatInfo(int $chatId): array
@@ -110,10 +111,10 @@ final class Assistant
 
     public static function withAlbum(string $note, array $m): string
     {
-        if (empty($m['media_group_id']) || !str_starts_with($note, '[کاربر') || !str_ends_with($note, ']')) {
+        if (empty($m['media_group_id']) || !str_starts_with($note, '[The user') || !str_ends_with($note, ']')) {
             return $note;
         }
-        return substr($note, 0, -1) . '؛ این بخشی از یه آلبوم چندتاییه و فقط همین یکی پیوست شده]';
+        return substr($note, 0, -1) . '; this is part of a multi-item album and only this one item is attached]';
     }
 
     public static function fileInfo(array $m): ?string
@@ -129,15 +130,15 @@ final class Assistant
         }
         $music = isset($m['audio']) || str_starts_with((string) ($a['mime_type'] ?? ''), 'audio/');
         $size  = (int) ($a['file_size'] ?? 0);
-        $f     = ['نوع: ' . ($music ? 'آهنگ' : 'فایل') . ($ext !== '' ? " ({$ext})" : '')];
+        $f     = ['Type: ' . ($music ? 'Song' : 'File') . ($ext !== '' ? " ({$ext})" : '')];
         if ($name !== '') {
-            $f[] = 'نام: ' . $name;
+            $f[] = 'Name: ' . $name;
         }
         if ($music) {
             $f = array_merge($f, self::musicInfo($a));
         }
         if ($size > 0) {
-            $f[] = 'حجم: ' . ($size >= 1048576 ? round($size / 1048576, 1) . ' مگابایت' : max(1, (int) round($size / 1024)) . ' کیلوبایت');
+            $f[] = 'Size: ' . ($size >= 1048576 ? round($size / 1048576, 1) . ' MB' : max(1, (int) round($size / 1024)) . ' KB');
         }
         return implode(' | ', $f);
     }
@@ -148,60 +149,60 @@ final class Assistant
             $p = $m['poll'];
             $o = [];
             foreach ((array) ($p['options'] ?? []) as $i => $opt) {
-                $o[] = ($i + 1) . ') ' . ($opt['text'] ?? '') . (isset($opt['voter_count']) ? ' (' . $opt['voter_count'] . ' رأی)' : '');
+                $o[] = ($i + 1) . ') ' . ($opt['text'] ?? '') . (isset($opt['voter_count']) ? ' (' . $opt['voter_count'] . ' votes' . ')' : '');
             }
             $quiz = ($p['type'] ?? '') === 'quiz';
-            $f    = ['سؤال: ' . ($p['question'] ?? ''), 'گزینه‌ها: ' . implode('، ', $o)];
+            $f    = ['Question: ' . ($p['question'] ?? ''), 'Options: ' . implode(', ', $o)];
             if (isset($p['total_voter_count'])) {
-                $f[] = 'مجموع رأی: ' . $p['total_voter_count'];
+                $f[] = 'Total votes: ' . $p['total_voter_count'];
             }
-            $f[] = !empty($p['is_anonymous']) ? 'ناشناس' : 'عمومی';
+            $f[] = !empty($p['is_anonymous']) ? 'Anonymous' : 'Public';
             if (!empty($p['allows_multiple_answers'])) {
-                $f[] = 'چندجوابی';
+                $f[] = 'Multiple answers';
             }
             if (!empty($p['is_closed'])) {
-                $f[] = 'بسته‌شده';
+                $f[] = 'Closed';
             }
             if ($quiz && isset($p['correct_option_id'])) {
-                $f[] = 'جواب درست: گزینه‌ی ' . ((int) $p['correct_option_id'] + 1);
+                $f[] = 'Correct answer: option ' . ((int) $p['correct_option_id'] + 1);
             }
             if (!empty($p['explanation'])) {
-                $f[] = 'توضیح: ' . $p['explanation'];
+                $f[] = 'Explanation: ' . $p['explanation'];
             }
-            return [$quiz ? 'آزمون' : 'نظرسنجی', implode(' | ', $f)];
+            return [$quiz ? 'quiz' : 'poll', implode(' | ', $f)];
         }
         if (is_array($m['contact'] ?? null)) {
             $c    = $m['contact'];
             $name = trim((string) ($c['first_name'] ?? '') . ' ' . (string) ($c['last_name'] ?? ''));
             $f    = [];
             if ($name !== '') {
-                $f[] = 'نام: ' . $name;
+                $f[] = 'Name: ' . $name;
             }
             if (!empty($c['phone_number'])) {
-                $f[] = 'شماره: ' . $c['phone_number'];
+                $f[] = 'Phone: ' . $c['phone_number'];
             }
             if (!empty($c['user_id'])) {
-                $f[] = 'آیدی عددی تلگرام: ' . $c['user_id'] . ' (عضو تلگرامه)';
+                $f[] = 'Telegram numeric id: ' . $c['user_id'] . ' (is on Telegram)';
             }
             if (!empty($c['vcard'])) {
-                foreach (['ORG' => 'سازمان', 'TITLE' => 'عنوان', 'EMAIL' => 'ایمیل', 'URL' => 'لینک', 'BDAY' => 'تولد', 'NOTE' => 'یادداشت'] as $k => $label) {
+                foreach (['ORG' => 'Organization', 'TITLE' => 'Title', 'EMAIL' => 'Email', 'URL' => 'Link', 'BDAY' => 'Birthday', 'NOTE' => 'Note'] as $k => $label) {
                     if (preg_match('/^' . $k . '[^:\r\n]*:(.+)$/mi', (string) $c['vcard'], $mm) && trim($mm[1]) !== '') {
                         $f[] = $label . ': ' . mb_substr(trim($mm[1]), 0, 200);
                     }
                 }
             }
-            return $f ? ['مخاطب', implode(' | ', $f)] : null;
+            return $f ? ['contact', implode(' | ', $f)] : null;
         }
         if (is_array($m['dice'] ?? null)) {
             $emoji = (string) ($m['dice']['emoji'] ?? '🎲');
             $val   = (int) ($m['dice']['value'] ?? 0);
             [$name, $rule] = self::diceKind($emoji);
             $reels = '';
-            if ($name === 'اسلات' && $val >= 1 && $val <= 64) {
-                $sym   = ['بار', 'انگور', 'لیمو', '۷'];
-                $reels = ' | قرقره‌ها از چپ به راست: ' . $sym[($val - 1) % 4] . ' - ' . $sym[intdiv($val - 1, 4) % 4] . ' - ' . $sym[intdiv($val - 1, 16)];
+            if (str_replace("\u{FE0F}", '', $emoji) === '🎰' && $val >= 1 && $val <= 64) {
+                $sym   = ['BAR', 'grapes', 'lemon', '7'];
+                $reels = ' | Reels from left to right: ' . $sym[($val - 1) % 4] . ' - ' . $sym[intdiv($val - 1, 4) % 4] . ' - ' . $sym[intdiv($val - 1, 16)];
             }
-            return [$name, 'ایموجی: ' . $emoji . ' | نتیجه: ' . ($m['dice']['value'] ?? '?') . $reels . ($rule !== '' ? ' | ' . $rule : '')];
+            return [$name, 'Emoji: ' . $emoji . ' | Result: ' . ($m['dice']['value'] ?? '?') . $reels . ($rule !== '' ? ' | ' . $rule : '')];
         }
         $v = is_array($m['venue'] ?? null) ? $m['venue'] : null;
         $l = $v['location'] ?? $m['location'] ?? null;
@@ -210,37 +211,37 @@ final class Assistant
         }
         $f = [];
         if (!empty($v['title'])) {
-            $f[] = 'نام: ' . $v['title'];
+            $f[] = 'Name: ' . $v['title'];
         }
         if (!empty($v['address'])) {
-            $f[] = 'آدرس: ' . $v['address'];
+            $f[] = 'Address: ' . $v['address'];
         }
-        $f[] = 'عرض جغرافیایی: ' . $l['latitude'];
-        $f[] = 'طول جغرافیایی: ' . $l['longitude'];
+        $f[] = 'Latitude: ' . $l['latitude'];
+        $f[] = 'Longitude: ' . $l['longitude'];
         if (!empty($l['live_period'])) {
-            $f[] = 'لوکیشن زنده برای ' . intdiv((int) $l['live_period'], 60) . ' دقیقه';
+            $f[] = ('Live location for ' . intdiv((int) $l['live_period'], 60) . ' minutes');
         }
         if (($place = self::placeName((float) $l['latitude'], (float) $l['longitude'])) !== '') {
-            $f[] = 'آدرس تقریبی روی نقشه: ' . $place;
+            $f[] = 'Approximate address on the map: ' . $place;
         }
-        return [$v ? 'مکان' : 'لوکیشن', implode(' | ', $f)];
+        return [$v ? 'venue' : 'location', implode(' | ', $f)];
     }
 
     private static function diceKind(string $emoji): array
     {
         return match (str_replace("\u{FE0F}", '', $emoji)) {
-            '🎯'    => ['دارت', 'عدد ۱ یعنی خطا و ۶ یعنی وسط هدف'],
-            '🏀'    => ['بسکتبال', 'عدد ۴ و ۵ یعنی توپ داخل حلقه رفت، کمتر یعنی نرفت'],
-            '⚽'    => ['پنالتی فوتبال', 'عدد ۳ و ۴ و ۵ یعنی گل شد، ۱ و ۲ یعنی گل نشد'],
-            '🎳'    => ['بولینگ', 'عدد ۶ یعنی استرایک و ۱ یعنی خطا'],
-            '🎰'    => ['اسلات', 'سه نماد یکسان یعنی برد و سه تا ۷ یعنی جک‌پات'],
-            default => ['تاس', ''],
+            '🎯'    => ['darts', '1 means a miss and 6 means a bullseye'],
+            '🏀'    => ['basketball', '4 and 5 mean the ball went in the hoop, lower means it missed'],
+            '⚽'    => ['football penalty', '3, 4 and 5 mean a goal, 1 and 2 mean no goal'],
+            '🎳'    => ['bowling', '6 means a strike and 1 means a miss'],
+            '🎰'    => ['slot machine', 'three matching symbols win and three 7s is the jackpot'],
+            default => ['dice', ''],
         };
     }
 
     private static function placeName(float $lat, float $lon): string
     {
-        $j = Http::getJson('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&accept-language=fa&lat=' . $lat . '&lon=' . $lon, ['User-Agent: NulliniBot'], 8);
+        $j = Http::getJson('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&accept-language=' . Lang::get() . '&lat=' . $lat . '&lon=' . $lon, ['User-Agent: NulliniBot'], 8);
         return is_array($j) && !empty($j['display_name']) ? (string) $j['display_name'] : '';
     }
 
@@ -285,24 +286,24 @@ final class Assistant
         }
         $f = [];
         foreach (array_slice($tags, 0, 40, true) as $k => $v) {
-            $f[] = (self::TAGS[$k] ?? $k) . ': ' . mb_substr($v, 0, 300);
+            $f[] = (isset(self::TAGS[$k]) ? (self::TAGS[$k]) : $k) . ': ' . mb_substr($v, 0, 300);
         }
         $dur = (int) round((float) ($j['format']['duration'] ?? $a['duration'] ?? 0));
         if ($dur > 0) {
-            $f[] = 'مدت: ' . intdiv($dur, 60) . ':' . sprintf('%02d', $dur % 60);
+            $f[] = 'Duration: ' . intdiv($dur, 60) . ':' . sprintf('%02d', $dur % 60);
         }
         if (!empty($stream['codec_name'])) {
-            $f[] = 'کدک: ' . $stream['codec_name'];
+            $f[] = 'Codec: ' . $stream['codec_name'];
         }
         $br = (int) ($j['format']['bit_rate'] ?? $stream['bit_rate'] ?? 0);
         if ($br > 0) {
-            $f[] = 'بیت‌ریت: ' . (int) round($br / 1000) . ' kbps';
+            $f[] = 'Bitrate: ' . (int) round($br / 1000) . ' kbps';
         }
         if (!empty($stream['sample_rate'])) {
-            $f[] = 'سمپل‌ریت: ' . $stream['sample_rate'] . ' Hz';
+            $f[] = 'Sample rate: ' . $stream['sample_rate'] . ' Hz';
         }
         if (!empty($stream['channels'])) {
-            $f[] = 'کانال: ' . $stream['channels'];
+            $f[] = 'Channels: ' . $stream['channels'];
         }
         return $f;
     }
@@ -334,19 +335,19 @@ final class Assistant
     public static function kind(array $m): string
     {
         return match (true) {
-            isset($m['voice'])                       => 'ویس',
-            isset($m['audio'])                       => 'آهنگ',
-            isset($m['photo'])                       => 'عکس',
-            isset($m['sticker'])                     => 'استیکر',
-            isset($m['animation'])                   => 'گیف',
-            isset($m['video']) || isset($m['video_note']) => 'ویدیو',
-            isset($m['document'])                    => 'فایل',
-            isset($m['poll'])                        => 'نظرسنجی',
-            isset($m['contact'])                     => 'مخاطب',
+            isset($m['voice'])                       => 'voice message',
+            isset($m['audio'])                       => 'song',
+            isset($m['photo'])                       => 'photo',
+            isset($m['sticker'])                     => 'sticker',
+            isset($m['animation'])                   => 'GIF',
+            isset($m['video']) || isset($m['video_note']) => 'video',
+            isset($m['document'])                    => 'file',
+            isset($m['poll'])                        => 'poll',
+            isset($m['contact'])                     => 'contact',
             isset($m['dice'])                        => self::diceKind((string) ($m['dice']['emoji'] ?? '🎲'))[0],
-            isset($m['venue'])                       => 'مکان',
-            isset($m['location'])                    => 'لوکیشن',
-            default                                  => 'پیام',
+            isset($m['venue'])                       => 'venue',
+            isset($m['location'])                    => 'location',
+            default                                  => 'message',
         };
     }
 
@@ -402,7 +403,7 @@ final class Assistant
         $autoPost = !empty($msg['is_automatic_forward']);
 
         if (!$service && AI::busy($userId)) {
-            $tg->reply($msg, AI::BUSY_TEXT);
+            $tg->reply($msg, (Lang::is('en') ? AI::BUSY_TEXT_EN : AI::BUSY_TEXT));
             return;
         }
 
@@ -434,15 +435,15 @@ final class Assistant
             $rt = trim((string) ($reply['text'] ?? $reply['caption'] ?? ''));
             if ($media = self::mediaPart($reply)) {
                 $parts[] = $media;
-                $notes[] = '[کاربر روی یه ' . self::kind($reply) . ' ریپلای کرده که پیوست شده' . (self::isFrame($reply) ? '؛ فقط عکسِ فریم اولش پیوسته' : '') . ($rt !== '' ? "؛ متنش: {$rt}" : '') . ']';
+                $notes[] = ('[The user replied to a ' . self::kind($reply) . ' that is attached' . (self::isFrame($reply) ? '; only its first-frame image is attached' : '') . ($rt !== '' ? "; its text: {$rt}" : '') . ']');
             } elseif ($info = self::fileInfo($reply)) {
-                $notes[] = "[کاربر روی یه فایل ریپلای کرده؛ {$info}" . ($rt !== '' ? "؛ متنش: {$rt}" : '') . ']';
+                $notes[] = ("[The user replied to a file; {$info}" . ($rt !== '' ? "; its text: {$rt}" : '') . ']');
             } elseif ($data = self::dataInfo($reply)) {
-                $notes[] = "[کاربر روی یه {$data[0]} ریپلای کرده؛ {$data[1]}]";
+                $notes[] = "[The user replied to a {$data[0]}; {$data[1]}]";
             } elseif ($rt !== '') {
-                $notes[] = "[پیامی که کاربر روش ریپلای کرده]: {$rt}";
+                $notes[] = "[The message the user replied to]: {$rt}";
             } elseif (!empty($reply['from'])) {
-                $notes[] = '[کاربر روی یه پیام ریپلای کرده که متن نداره]';
+                $notes[] = '[The user replied to a message that has no text]';
             }
         }
         if ($reply && count($notes) > $n0) {
@@ -456,7 +457,7 @@ final class Assistant
             $info  = self::fileInfo($msg);
             $data  = self::dataInfo($msg);
             if (!$media && $info === null && $data === null) {
-                $tg->reply($msg, '😕 نتونستم فایلت رو دانلود کنم؛' . "\n" . 'دوباره بفرست.');
+                $tg->reply($msg, L("😕 نتونستم فایلت رو دانلود کنم؛\nدوباره بفرست.", "😕 I couldn’t download your file;\nplease send it again."));
                 return;
             }
             if ($media) {
@@ -464,12 +465,14 @@ final class Assistant
             }
             $isVoice = isset($msg['voice']);
             $notes[] = $data !== null
-                ? "[کاربر یه {$data[0]} فرستاده؛ {$data[1]}]"
+                ? "[The user sent a {$data[0]}; {$data[1]}]"
                 : ($info !== null
-                ? "[کاربر یه فایل فرستاده؛ {$info}]"
+                ? "[The user sent a file; {$info}]"
                 : ($isVoice
-                    ? '[کاربر ویس فرستاده؛ گوش بده و دقیقاً به حرفش جواب بده، انگار متنی پرسیده]'
-                    : (isset($msg['photo']) ? '[کاربر عکس فرستاده؛ ببینش و جواب بده]' : '[کاربر ' . self::kind($msg) . ' فرستاده؛ ' . (self::isFrame($msg) ? 'فقط عکسِ فریم اولش پیوست شده' : 'عکسش پیوست شده') . '، ببینش و جواب بده]')));
+                    ? '[The user sent a voice message; listen to it and answer exactly what they said, as if they had typed it]'
+                    : (isset($msg['photo'])
+                        ? '[The user sent a photo; look at it and answer]'
+                        : ('[The user sent a ' . self::kind($msg) . '; ' . (self::isFrame($msg) ? 'only its first-frame image is attached' : 'its image is attached') . ', look at it and answer]'))));
             $log = '[' . self::kind($msg) . '] ' . (isset($msg['contact']) && $data !== null ? $data[1] . ' ' : '') . $question;
             if (count($notes) > $n1) {
                 $notes[$n1] = self::withAlbum($notes[$n1], $msg);
@@ -478,7 +481,7 @@ final class Assistant
 
         $text = trim(implode("\n", $notes) . ($question !== '' ? "\n\n{$question}" : ''));
         if ($text === '') {
-            $text = 'سلام';
+            $text = 'Hello';
         }
         $content = $parts ? array_merge($parts, [['type' => 'text', 'text' => $text]]) : $text;
         if ($notes && $reply) {
@@ -492,8 +495,6 @@ final class Assistant
         $opt     = ['max_len' => PHP_INT_MAX] + ($live ? ['on_text' => $live->feed(...)] : []);
         $res     = AI::reply($content, $ctx, $history, $opt);
 
-        // استاپ جنریشن: کاربر دکمه‌ی توقفِ حباب رو زده. قطع‌کننده‌ی curl رو برمی‌داریم تا کارهای بعدی
-        // (ارسال جواب، TTS و ...) قطع نشن؛ اگه چیزی نوشته شده بود همون نصفه‌جواب ثبت می‌شه
         $wasStopped = $live !== null && $live->stopped();
         $live?->releaseStop();
         if ($wasStopped) {
@@ -518,7 +519,7 @@ final class Assistant
             [$act, $arg] = $res['action'];
             if (Intent::run($msg, $act, $arg)) {
                 if (!$service) {
-                    self::remember($chatId, $userId, $log, '[' . $act . ($arg !== '' ? ': ' . $arg : '') . ' رو براش انجام دادم]');
+                    self::remember($chatId, $userId, $log, ('[I did ' . $act . ($arg !== '' ? ': ' . $arg : '') . ' for them]'));
                 }
                 return;
             }
@@ -543,8 +544,8 @@ final class Assistant
             }
             return;
         }
-        $answer = $res['answer'] ?? AI::FAIL_TEXT;
-        $shown  = $wasStopped ? $answer . "\n\n⏹ متوقف شد" : $answer;
+        $answer = $res['answer'] ?? (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT);
+        $shown  = $wasStopped ? $answer . L("\n\n⏹ متوقف شد", "\n\n⏹ Stopped") : $answer;
 
         if ($res['answer'] !== null && $voiceIn) {
             self::voiceReply($msg, $res['answer'], $live);
@@ -581,7 +582,7 @@ final class Assistant
         }
 
         if ($res['answer'] !== null && !$service) {
-            self::remember($chatId, $userId, $log, preg_replace('/\n\n🔗 منابع:.*$/su', '', $res['answer']) ?? $res['answer']);
+            self::remember($chatId, $userId, $log, preg_replace('/\n\n🔗 (?:منابع|Sources):.*$/su', '', $res['answer']) ?? $res['answer']);
         }
 
         if ($res['answer'] !== null && !$service && $chatType === 'private' && !App::isAdmin($userId)) {
@@ -663,7 +664,7 @@ final class Assistant
             }
 
             $failed = $res['answer'] === null;
-            $answer = $res['answer'] ?? AI::FAIL_TEXT;
+            $answer = $res['answer'] ?? (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT);
 
             if (!$failed && $voiceIn) {
                 self::voiceReply($origMsg, $res['answer'], $live);
@@ -699,12 +700,12 @@ final class Assistant
                 ]);
             }
             if (!$failed && !$service) {
-                self::remember($chatId, $uid, $text, preg_replace('/\n\n🔗 منابع:.*$/su', '', $answer) ?? $answer);
+                self::remember($chatId, $uid, $text, preg_replace('/\n\n🔗 (?:منابع|Sources):.*$/su', '', $answer) ?? $answer);
             }
         } finally {
             $live->stop();
             if (!$settled) {
-                AnswerButtons::failEdit($chatId, $mid, AI::FAIL_TEXT);
+                AnswerButtons::failEdit($chatId, $mid, (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT));
             }
         }
     }
@@ -731,7 +732,7 @@ final class Assistant
                 }
                 Store::delete('aibtn', $chatId . ':' . $mid);
             } else {
-                AnswerButtons::failEdit($chatId, $mid, AI::FAIL_TEXT);
+                AnswerButtons::failEdit($chatId, $mid, (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT));
             }
         }
     }
@@ -769,8 +770,8 @@ final class Assistant
 
         $done = false;
         try {
-            $plainOld = (string) preg_replace('/\n\n🔗 منابع:.*$/su', '', $old);
-            $note     = "\n\n[دستور سیستم: این بار حتماً قبل از جواب دادن با ابزار web_search توی وب سرچ کن و جوابت رو بر اساس نتایج به‌روز بنویس.]";
+            $plainOld = (string) preg_replace('/\n\n🔗 (?:منابع|Sources):.*$/su', '', $old);
+            $note     = "\n\n[System instruction: this time, before answering, you must search the web with the web_search tool and base your answer on the up-to-date results.]";
             $text    = (string) $rec['q'] . $note;
             $content = $media ? array_merge($media, [['type' => 'text', 'text' => $text]]) : $text;
 
@@ -823,7 +824,7 @@ final class Assistant
             ], !$edited);
 
             if (!$service) {
-                self::replaceLastAnswer($chatId, $uid, $plainOld, preg_replace('/\n\n🔗 منابع:.*$/su', '', $answer) ?? $answer);
+                self::replaceLastAnswer($chatId, $uid, $plainOld, preg_replace('/\n\n🔗 (?:منابع|Sources):.*$/su', '', $answer) ?? $answer);
             }
         } finally {
             if (!$done) {
@@ -831,7 +832,7 @@ final class Assistant
                     AnswerButtons::editRich($chatId, $mid, $old, AnswerButtons::rows(!empty($rec['sr']), $voiceLeft));
                 }
             }
-            $tg->answer($cq, $done ? null : AI::FAIL_TEXT);
+            $tg->answer($cq, $done ? null : (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT));
         }
     }
 
@@ -875,12 +876,12 @@ final class Assistant
         $tg->action($msg['chat']['id'], 'typing');
         $out = AI::translateFast($source, $target !== '' ? $target : 'auto');
         if ($out) {
-            $tg->reply($msg, "🌐 <b>ترجمه:</b>\n\n" . h($out));
+            $tg->reply($msg, L("🌐 <b>ترجمه:</b>\n\n", "🌐 <b>Translation:</b>\n\n") . h($out));
             return;
         }
-        AnswerButtons::sendFail($msg, AI::FAIL_TEXT, [
+        AnswerButtons::sendFail($msg, (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT), [
             'k' => 'tr', 'u' => (int) ($msg['from']['id'] ?? 0), 'q' => $source, 't' => $target !== '' ? $target : 'auto',
-            'h' => "🌐 <b>ترجمه:</b>\n\n", 'o' => (int) $msg['message_id'],
+            'h' => L("🌐 <b>ترجمه:</b>\n\n", "🌐 <b>Translation:</b>\n\n"), 'o' => (int) $msg['message_id'],
         ]);
     }
 }

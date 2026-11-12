@@ -88,14 +88,14 @@ final class Ui
     public static function startText(array $from): string
     {
         $bot = App::botUsername();
-        return "سلام " . safeName($from) . " 👋\n"
-            . "من <b>نالین</b> ام؛\n"
-            . "یه ربات اینلاین و همه‌کاره با هوش مصنوعی 👾\n\n"
-            . "✨ تو <b>هر چتی</b> بنویس\n"
+        return L("سلام ", "Hi ") . safeName($from) . " 👋\n"
+            . L("من <b>نالین</b> ام؛\n", "I'm <b>Nullin</b>;\n")
+            . L("یه ربات اینلاین و همه‌کاره با هوش مصنوعی 👾\n\n", "an inline, do-it-all bot powered by AI 👾\n\n")
+            . L("✨ تو <b>هر چتی</b> بنویس\n", "✨ In <b>any chat</b> just type\n")
             . "<code>@{$bot}</code>\n"
-            . "و از منو انتخاب کن،\n"
-            . "یا همین‌جا مستقیم باهام حرف بزن؛\n\n"
-            . "🚀 دکمه‌ی پایین رو بزن و ببین چه کارایی ازم برمیاد!";
+            . L("و از منو انتخاب کن،\n", "and pick from the menu,\n")
+            . L("یا همین‌جا مستقیم باهام حرف بزن؛\n\n", "or talk to me right here;\n\n")
+            . L("🚀 دکمه‌ی پایین رو بزن و ببین چه کارایی ازم برمیاد!", "🚀 Tap the button below and see what I can do!");
     }
 
     public static function sendMain(int|string $chatId, array $from): void
@@ -110,40 +110,40 @@ final class Ui
 
     public static function groupText(): string
     {
-        return "سلام به همگی 👋 من <b>نالین</b>‌ام!\n\n"
-            . "🧠 هر وقت سؤالی داشتین\n"
-            . "پیامتون رو با «نالین» شروع کنین.\n\n"
-            . "🎮 بازی و ابزارها هم\n"
-            . "با نوشتن <code>@" . App::botUsername() . "</code> در دسترسه.\n\n"
-            . "<i>💡 اگه جواب ندادم، منو ادمین گروه کنین\n"
-            . "تا پیام‌هاتون به دستم برسه.</i>";
+        return L("سلام به همگی 👋 من <b>نالین</b>‌ام!\n\n", "Hi everyone 👋 I'm <b>Nullin</b>!\n\n")
+            . L("🧠 هر وقت سؤالی داشتین\n", "🧠 Whenever you have a question\n")
+            . L("پیامتون رو با «نالین» شروع کنین.\n\n", "start your message with \"Nullin\".\n\n")
+            . L("🎮 بازی و ابزارها هم\n", "🎮 Games and tools are\n")
+            . L("با نوشتن <code>@", "available by typing <code>@") . App::botUsername() . L("</code> در دسترسه.\n\n", "</code>.\n\n")
+            . L("<i>💡 اگه جواب ندادم، منو ادمین گروه کنین\n", "<i>💡 If I don't answer, make me a group admin\n")
+            . L("تا پیام‌هاتون به دستم برسه.</i>", "so I can receive your messages.</i>");
     }
 
     public static function hello(): string
     {
         $lines = [
-            'جانم؟ 😄 بگو چی کار داری',
-            'بله؟ اینجام 👋 سؤالت رو بپرس',
-            'در خدمتم 😎 چی لازم داری؟',
-            'صدام کردی؟ 👀 بگو ببینم',
-            'حاضرم! 🫡 امرتون؟',
-            'هوم؟ 🤔 گوشم با توئه',
-            'سلام سلام! 🙌 چه کمکی از دستم برمیاد؟',
-            'نالین گزارش می‌ده: آماده‌ام 🚀',
-            'جون دلم؟ 😁 بپرس',
-            'بگو، سراپا گوشم 🎧',
-            'اومدم! ⚡️ چی شده؟',
-            'یه سؤال بپرس، یه جواب تحویل بگیر 😉',
-            'آماده‌ی خدمتم 🫡 بفرمایید',
-            'بله بله؟ 😃 چی شده؟',
-            'من اینجام، تو بگو 🙌',
-            'جانم عزیز؟ 😍 چی می‌خوای؟',
-            'هوی! 👋 صدام کردی؟',
-            'بفرما، منتظرم ⏳',
-            'سلام! 😄 بگو ببینم چه خبره',
-            'نالین در دسترسه ✅ بپرس',
+            L('جانم؟ 😄 بگو چی کار داری', 'Yes? 😄 What do you need'),
+            L('بله؟ اینجام 👋 سؤالت رو بپرس', 'Yep? I\'m here 👋 Ask away'),
+            L('در خدمتم 😎 چی لازم داری؟', 'At your service 😎 What do you need?'),
+            L('صدام کردی؟ 👀 بگو ببینم', 'Did you call me? 👀 Tell me'),
+            L('حاضرم! 🫡 امرتون؟', 'Ready! 🫡 What\'s the order?'),
+            L('هوم؟ 🤔 گوشم با توئه', 'Hmm? 🤔 I\'m all ears'),
+            L('سلام سلام! 🙌 چه کمکی از دستم برمیاد؟', 'Hey hey! 🙌 How can I help?'),
+            L('نالین گزارش می‌ده: آماده‌ام 🚀', 'Nullin reporting: ready 🚀'),
+            L('جون دلم؟ 😁 بپرس', 'Yes dear? 😁 Ask'),
+            L('بگو، سراپا گوشم 🎧', 'Go on, I\'m all ears 🎧'),
+            L('اومدم! ⚡️ چی شده؟', 'I\'m here! ⚡️ What\'s up?'),
+            L('یه سؤال بپرس، یه جواب تحویل بگیر 😉', 'Ask a question, get an answer 😉'),
+            L('آماده‌ی خدمتم 🫡 بفرمایید', 'Ready to serve 🫡 Go ahead'),
+            L('بله بله؟ 😃 چی شده؟', 'Yes yes? 😃 What\'s up?'),
+            L('من اینجام، تو بگو 🙌', 'I\'m here, you talk 🙌'),
+            L('جانم عزیز؟ 😍 چی می‌خوای؟', 'Yes friend? 😍 What do you want?'),
+            L('هوی! 👋 صدام کردی؟', 'Hey! 👋 Did you call me?'),
+            L('بفرما، منتظرم ⏳', 'Go ahead, I\'m waiting ⏳'),
+            L('سلام! 😄 بگو ببینم چه خبره', 'Hi! 😄 Tell me what\'s going on'),
+            L('نالین در دسترسه ✅ بپرس', 'Nullin is online ✅ Ask away'),
         ];
-        return $lines[array_rand($lines)] . "\n<i>یا از منو یکی رو انتخاب کن 👇</i>";
+        return $lines[array_rand($lines)] . L("\n<i>یا از منو یکی رو انتخاب کن 👇</i>", "\n<i>or pick one from the menu 👇</i>");
     }
 
     private const PING_LINES = [
@@ -167,6 +167,28 @@ final class Ui
         'نترس 🛡 قطع نشدم',
         'ای جان 😍 یه پینگ دیگه؟ پونگ!',
         'سلام سلام 👋 زنده و سرحال',
+    ];
+    const PING_LINES_EN = [
+        'Pong! 🏓 I\'m alive, don\'t worry',
+        'I\'m here 😎 not dead yet',
+        'I\'m awake! 👀 What\'s up?',
+        'Pong 🏓 faster than you think',
+        'Online 🟢 give the order, champ',
+        'Heard you 🫡 at my post',
+        'Nullin present! ✋',
+        'You pinged? 😏 here\'s your pong',
+        'Why do you keep checking? 😂 I\'m alive, man',
+        'Not asleep, not gone 😅 I\'m here',
+        'Server is healthy 💪 don\'t worry',
+        'Having some tea ☕ but I\'m answering, pong!',
+        'Pong! 🏓 the ball is back in your court',
+        'Always ready 🔥 just say what you want',
+        'Here you go 🙌 Nullin is on the job',
+        'Still here 🥹 you haven\'t left me!',
+        'A fresh ping, a fresh pong 🏓✨',
+        'Fear not 🛡 I haven\'t dropped',
+        'Aww 😍 another ping? Pong!',
+        'Hello hello 👋 alive and kicking',
     ];
 
     private const DICE_LINES = [
@@ -339,6 +361,176 @@ final class Ui
             ],
         ],
     ];
+    const DICE_LINES_EN = [
+        '🎲' => [
+            'one' => [
+                'Rolled a one 😂 pure bad luck',
+                'Oh no, a 1! 🥲 the die is mad at you',
+                'One? 😬 I think the die is asleep today',
+                'You don\'t want to know what came up... a 1 😅',
+                'A one 💀 you\'ll make up for it next time',
+            ],
+            'low' => [
+                'Low number 😕 but don\'t give up',
+                'The die isn\'t generous today 😅',
+                'Not bad, not good 🫤 one more try?',
+                'Low-ish 🤏 roll again',
+                'Luck is a bit low today 😬 but keep going',
+            ],
+            'high' => [
+                'Nice number 😎 you\'re getting lucky',
+                'Not bad! 👌 almost a 6',
+                'Almost six 😏 but that\'s still good',
+                'High number 🔥 nice one',
+                'The die smiled at you 😁 good number',
+            ],
+            'six' => [
+                'Six! 🔥 wow, lucky you',
+                'A 6 😎 a pro dice roller has arrived',
+                'Jackpot! Rolled a six 🎉',
+                'The die respects you 🙌 a six',
+                'A 6 😏 I had a feeling',
+            ],
+        ],
+        '🎯' => [
+            'miss' => [
+                'Miss 😂 didn\'t even touch the board',
+                'The dart flew into the air 🙈 the target is safe',
+                'Missed the board 😅 the wall is angry',
+                'Your dart got lost 😬 open your eyes',
+                'The target was over there, champ 😅',
+                'A clean miss 💀 be more precise next time',
+            ],
+            'hit' => [
+                'Hit the board 👌 but not the center',
+                'Landed near the center 😏 a bit more',
+                'Not bad, the dart landed 🎯',
+                'Hit the target but not the middle 🤏',
+                'Your hand works fine 😎 just a little short of the center',
+                'An ordinary dart; not a miss, not great 😌',
+                'Landed in the rings 🎯 not bad',
+                'Landed on the board 👍 but missed the center',
+            ],
+            'top' => [
+                'Bullseye! 🎯 nice one',
+                'Right in the center 🔥 pro archer',
+                'Six! 🎯 dead center',
+                'Wow! 😍 you hit the target exactly',
+                'Are you the dart master? 😎 bullseye',
+                'Great aim! 🏆 take this',
+            ],
+        ],
+        '🏀' => [
+            'miss' => [
+                'The ball missed the hoop 😅 hit the rim',
+                'Hit the rim and bounced back 😬',
+                'Your throw was sloppy 🙈 didn\'t go in',
+                'The hoop dodged it; no basket 😂',
+                'Oh man! 🏀 no luck',
+                'The ball circled the rim and fell out 😮‍💨',
+                'That throw was so close... but no 🫠',
+                'No points 😕 next time',
+                'The hoop doesn\'t want the ball today 🙅',
+                'Missed the basket 😅 try once more',
+            ],
+            'win' => [
+                'It\'s in! 🏀 three-pointer',
+                'Clean swish 🔥 it went in',
+                'Score! 😎 the ball landed in the basket',
+                'Great shot 👏 it went in',
+                'There\'s your point 🏆 nice one',
+                'The ball went in ruthlessly 😏',
+                'Pro shot! 🔥 the point is yours',
+                'Straight into the basket 🙌',
+                'An NBA star has arrived 😎 it\'s in',
+                'You smashed the hoop 💥 score',
+            ],
+        ],
+        '⚽' => [
+            'miss' => [
+                'The goalkeeper caught it 🧤 no goal',
+                'The ball went out 😬 oh oh',
+                'Hit the post and bounced back 😭',
+                'No goal 😂 the goalkeeper laughed',
+                'Your shot went over the bar 🙈',
+                'Penalty missed 😮‍💨',
+                'The ball went wide ⚽ sorry, no goal',
+                'The goalkeeper was ready 🧤 no luck',
+            ],
+            'win' => [
+                'Goal! ⚽ the net exploded',
+                'It\'s a goal 🔥 nice one',
+                'Landed in the corner 😎 goal',
+                'You confused the goalkeeper 😏 goal',
+                'The crowd jumped up 🙌 goal',
+                'A clean, ruthless goal 🥅',
+                'Into the net! ⚽ congrats',
+                'A pro penalty taker has arrived 🏆 goal',
+                'Goal goal goal! 🎉',
+                'The goalkeeper just watched 😂 goal',
+                'Straight into the goal ⚽🔥',
+                'Even Ronaldo envies you 😎 goal',
+            ],
+        ],
+        '🎳' => [
+            'miss' => [
+                'The ball went into the gutter 😂 nothing fell',
+                'Oh no, gutter! 😭 no pins fell',
+                'The ball lost its way 🙈 zero pins',
+                'Miss 💀 the pins slept peacefully',
+                'The ball passed by the pins 😅',
+                'A clean zero 😬',
+            ],
+            'hit' => [
+                'A few pins fell 🎳 but not all',
+                'Almost a strike 😏 a few left',
+                'Not bad 👌 a few pins still standing',
+                'Half the pins are gone 😄 the rest survived',
+                'Good roll but not complete 🎳',
+                'An ordinary roll; no gutter, no strike 😌',
+                'The pins wobbled but didn\'t all fall 😬',
+                'Half-hearted hit 🤏 try again',
+            ],
+            'top' => [
+                'Strike! 🎳 all the pins fell',
+                'You knocked them all down 😎 strike',
+                'The pins got massacred 💥 strike!',
+                'A clean strike 🔥 nice one',
+                'A pro bowler has arrived 🏆 all down',
+                'One roll, ten pins 😏 strike',
+            ],
+        ],
+        '🎰' => [
+            'jackpot' => [
+                'Jackpot! 🎰 three 7s',
+                '7 7 7 😱 you smashed it',
+                'Three sevens?! 🤑 go buy a lottery ticket',
+                'You beat the machine 🎉 jackpot',
+                'Can\'t believe it 🙌 three sevens',
+            ],
+            'triple' => [
+                'Three of a kind 🎉 you win',
+                'The reels aligned 😎 you\'re a winner',
+                'Triple! 🍀 luck is on your side',
+                'You won 🔥 nice one',
+                'Three matching; the slot surrendered 🏆',
+            ],
+            'pair' => [
+                'Two of a kind 😏 almost there',
+                'Almost a jackpot 😭 two matching',
+                'One reel ruined it 😅 two matching',
+                'So close 🤏 spin again',
+                'Two came up, the third didn\'t 😬',
+            ],
+            'lose' => [
+                'None matched 😂 you lost',
+                'The slot eats your money today 😅 no win',
+                'Each reel went its own way 🙈 lose',
+                'Bad luck 💀 nothing came up',
+                'It just didn\'t work 🎰 spin again',
+            ],
+        ],
+    ];
 
     private static function diceBucket(string $emoji, int $value): string
     {
@@ -366,54 +558,65 @@ final class Ui
 
     public static function ping(int $ms): string
     {
-        return 'پینگ: ' . fa((string) $ms) . " میلی‌ثانیه\n" . self::PING_LINES[array_rand(self::PING_LINES)];
+        return L('پینگ: ', 'Ping: ') . fa((string) $ms) . L(" میلی‌ثانیه\n", " ms\n") . (Lang::is('en') ? self::PING_LINES_EN : self::PING_LINES)[array_rand((Lang::is('en') ? self::PING_LINES_EN : self::PING_LINES))];
     }
 
     public static function diceHello(string $emoji, int $value): string
     {
         $emoji = str_replace("\u{FE0F}", '', $emoji);
-        if (!isset(self::DICE_LINES[$emoji])) {
+        if (!isset((Lang::is('en') ? self::DICE_LINES_EN : self::DICE_LINES)[$emoji])) {
             $emoji = '🎲';
         }
-        $lines = self::DICE_LINES[$emoji][self::diceBucket($emoji, $value)];
+        $lines = (Lang::is('en') ? self::DICE_LINES_EN : self::DICE_LINES)[$emoji][self::diceBucket($emoji, $value)];
         return $lines[array_rand($lines)];
     }
 
     public static function groupKeyboard(): array
     {
-        return ikb([[['text' => '🚀 منوی نالین', 'switch_inline_query_current_chat' => '', 'style' => 'success']]]);
+        return ikb([[['text' => L('🚀 منوی نالین', '🚀 Nullin menu'), 'switch_inline_query_current_chat' => '', 'style' => 'success']]]);
+    }
+
+    public static function pushCommands($tg, string $kind, array $scope): void
+    {
+        $prev = Lang::get();
+        Lang::set('en');
+        $tg->call('setMyCommands', ['commands' => self::commands($kind), 'scope' => $scope], 10);
+        Lang::set('fa');
+        $tg->call('setMyCommands', ['commands' => self::commands($kind), 'scope' => $scope, 'language_code' => 'fa'], 10);
+        Lang::set($prev);
     }
 
     public static function commands(string $scope): array
     {
         $c = static fn(string $cmd, string $d) => ['command' => $cmd, 'description' => $d];
         $base = [
-            $c('start', '🏠 شروع'),
-            $c('help', '📘 راهنما'),
-            $c('voice', '🎙 انتخاب صدای نالین'),
-            $c('forget', '🧹 پاک کردن حافظه‌ی نالین'),
-            $c('ping', '🏓 پینگ'),
+            $c('start', L('🏠 شروع', '🏠 Start')),
+            $c('help', L('📘 راهنما', '📘 Help')),
+            $c('voice', L('🎙 انتخاب صدای نالین', '🎙 Choose Nullin\'s voice')),
+            $c('forget', L('🧹 پاک کردن حافظه‌ی نالین', '🧹 Clear Nullin\'s memory')),
+            $c('ping', L('🏓 پینگ', '🏓 Ping')),
+            $c('lang', '🌐 زبان / Language'),
         ];
-        foreach ([['img', '🎨 ساخت عکس'], ['tr', '🌐 ترجمه'], ['ft', '✨ فونت‌ساز'], ['gw', '🎁 قرعه‌کشی'], ['wk', '📖 ویکی‌پدیا'], ['st', '🛡 ردیاب اشتراک']] as [$cmd, $desc]) {
+        foreach ([['img', L('🎨 ساخت عکس', '🎨 Create image')], ['tr', L('🌐 ترجمه', '🌐 Translate')], ['ft', L('✨ فونت‌ساز', '✨ Font maker')], ['gw', L('🎁 قرعه‌کشی', '🎁 Giveaway')], ['wk', L('📖 ویکی‌پدیا', '📖 Wikipedia')], ['st', L('🛡 ردیاب اشتراک', '🛡 Invite link tracker')]] as [$cmd, $desc]) {
             if (Switches::on(Switches::COMMAND_SWITCH[$cmd])) {
                 $base[] = $c($cmd, $desc);
             }
         }
         if ($scope !== 'group' && Switches::on(Switches::COMMAND_SWITCH['monshi'])) {
-            $base[] = $c('monshi', '🤝 منشی هوشمند');
+            $base[] = $c('monshi', L('🤝 منشی هوشمند', '🤝 Smart secretary'));
         }
         if ($scope === 'admin') {
             return array_merge($base, [
-                $c('stats', '📊 آمار ربات'),
-                $c('ai', '🤖 پنل هوش مصنوعی'),
-                $c('quota', '🔋 سهمیه‌ی هوش مصنوعی'),
-                $c('backup', '💾 بکاپ دستی دیتابیس'),
-                $c('cookies', '🍪 آپدیت فایل کوکی دانلودر'),
-                $c('broadcast', '📣 پیام همگانی'),
-                $c('tools', '🧰 روشن/خاموش کردن ابزارها'),
-                $c('ban', '⛔ بن کاربر (ریپلای یا آیدی)'),
-                $c('unban', '✅ آنبن کاربر (ریپلای یا آیدی)'),
-                $c('banned', '📋 لیست بن‌شده‌ها'),
+                $c('stats', L('📊 آمار ربات', '📊 Bot stats')),
+                $c('ai', L('🤖 پنل هوش مصنوعی', '🤖 AI panel')),
+                $c('quota', L('🔋 سهمیه‌ی هوش مصنوعی', '🔋 AI quota')),
+                $c('backup', L('💾 بکاپ دستی دیتابیس', '💾 Manual DB backup')),
+                $c('cookies', L('🍪 آپدیت فایل کوکی دانلودر', '🍪 Update downloader cookie file')),
+                $c('broadcast', L('📣 پیام همگانی', '📣 Broadcast')),
+                $c('tools', L('🧰 روشن/خاموش کردن ابزارها', '🧰 Toggle tools on/off')),
+                $c('ban', L('⛔ بن کاربر (ریپلای یا آیدی)', '⛔ Ban user (reply or ID)')),
+                $c('unban', L('✅ آنبن کاربر (ریپلای یا آیدی)', '✅ Unban user (reply or ID)')),
+                $c('banned', L('📋 لیست بن‌شده‌ها', '📋 Banned list')),
             ]);
         }
         return $base;
@@ -422,11 +625,12 @@ final class Ui
     public static function startKeyboard(): array
     {
         $bot = App::botUsername();
-        $mid = Switches::on('business') ? [btn('🤝 منشی', 'bz:menu:h')] : [];
+        $mid = Switches::on('business') ? [btn(L('🤝 منشی', '🤝 Secretary'), 'bz:menu:h')] : [];
         return ikb([
-            [['text' => '🚀 امتحانش کن', 'switch_inline_query_current_chat' => '', 'style' => 'primary']],
-            array_merge([btn('📘 راهنما', 'help:menu')], $mid, [btn('ℹ️ درباره', 'about')]),
-            [urlBtn('➕ افزودن به گروه', "https://t.me/{$bot}?startgroup=true", 'primary')],
+            [['text' => L('🚀 امتحانش کن', '🚀 Try it'), 'switch_inline_query_current_chat' => '', 'style' => 'primary']],
+            array_merge([btn(L('📘 راهنما', '📘 Help'), 'help:menu')], $mid, [btn(L('ℹ️ درباره', 'ℹ️ About'), 'about')]),
+            [urlBtn(L('➕ افزودن به گروه', '➕ Add to group'), "https://t.me/{$bot}?startgroup=true", 'primary')],
+            [btn('🌐 زبان / Language', 'lang:menu', null)],
         ]);
     }
 
@@ -434,13 +638,13 @@ final class Ui
     {
         $c = App::cfg('creator_name', 'Arown');
         $v = App::cfg('bot_version', '3.0.0');
-        return "<b>ℹ️ درباره‌ی نالین</b>\n\n"
-            . "اسمم از <code>null</code> (یعنی «خالی») میاد، ولی دستم پره 😉\n"
-            . "یه دستیار فارسیِ اینلاین\n"
-            . "با هوش مصنوعی، ابزار و بازی؛\n"
-            . "تو هر چتی، بدون این‌که عضوش باشم.\n\n"
-            . "👨‍💻 سازنده: <b>" . h($c) . "</b>\n"
-            . "🔖 نسخه: <code>" . h($v) . "</code>";
+        return L("<b>ℹ️ درباره‌ی نالین</b>\n\n", "<b>ℹ️ About Nullin</b>\n\n")
+            . L("اسمم از <code>null</code> (یعنی «خالی») میاد، ولی دستم پره 😉\n", "My name comes from <code>null</code> (meaning \"empty\"), but my hands are full 😉\n")
+            . L("یه دستیار فارسیِ اینلاین\n", "An inline assistant\n")
+            . L("با هوش مصنوعی، ابزار و بازی؛\n", "with AI, tools and games;\n")
+            . L("تو هر چتی، بدون این‌که عضوش باشم.\n\n", "in any chat, without being a member.\n\n")
+            . L("👨‍💻 سازنده: <b>", "👨‍💻 Creator: <b>") . h($c) . "</b>\n"
+            . L("🔖 نسخه: <code>", "🔖 Version: <code>") . h($v) . "</code>";
     }
 
     public static function aboutKeyboard(bool $withBack): array
@@ -448,14 +652,14 @@ final class Ui
         $rows = [];
         $row  = [];
         if (App::cfg('creator_username')) {
-            $row[] = urlBtn('👤 سازنده', 'https://t.me/' . App::cfg('creator_username'));
+            $row[] = urlBtn(L('👤 سازنده', '👤 Creator'), 'https://t.me/' . App::cfg('creator_username'));
         }
         if (App::cfg('channel_url')) {
-            $row[] = urlBtn('📢 کانال', App::cfg('channel_url'));
+            $row[] = urlBtn(L('📢 کانال', '📢 Channel'), App::cfg('channel_url'));
         }
         $rows[] = $row;
         if ($withBack) {
-            $rows[] = [btn('🔙 برگشت', 'home', null)];
+            $rows[] = [btn(L('🔙 برگشت', '🔙 Back'), 'home', null)];
         }
         return ikb(array_values(array_filter($rows)));
     }
@@ -484,6 +688,30 @@ final class Ui
         'games'     => '🎮 بازی‌ها',
         'group'     => '👥 در گروه',
     ];
+    const GUIDES_EN = [
+        'ai'        => '🧠 AI',
+        'image'     => '🎨 Create image',
+        'translate' => '🌐 Translate',
+        'search'    => '🔍 Google search',
+        'font'      => '✨ Font maker',
+        'download'  => '📥 Downloader',
+        'giveaway'  => '🎁 Giveaway',
+        'like'      => '❤️ Like maker',
+        'wiki'      => '📖 Wikipedia',
+        'whisper'   => '🤫 Whisper',
+        'weather'   => '🌦 Weather',
+        'calc'      => '🧮 Quick calc',
+        'qr'        => '🔳 QR code',
+        'short'     => '🔗 Link shortener',
+        'love'      => '💘 Love match',
+        'roast'     => '🔥 Roast',
+        'nid'       => '🪪 National ID',
+        'unit'      => '⚖️ Unit converter',
+        'funstat'   => '🔍 User lookup',
+        'linkcheck' => '🛡 Invite link tracker',
+        'games'     => '🎮 Games',
+        'group'     => '👥 In groups',
+    ];
 
     public static function guide(string $key): string
     {
@@ -491,191 +719,191 @@ final class Ui
         $c = static fn(string $s) => "<code>{$b} {$s}</code>";
 
         return match ($key) {
-            'ai' => "<b>🧠 هوش مصنوعی</b>\n"
-                . "هر سؤالی داری بپرس؛\n"
-                . "از درس و کد تا مشاوره و گپ.\n\n"
-                . "• اینلاین:\n" . $c('ai سلام نالین') . "\n"
-                . "• پیوی ربات:\n"
-                . "بدون هیچ دستور خاصی،\n"
-                . "هر چی خواستی همون‌جا برام بفرست.\n"
-                . "• گروه:\n"
-                . "اول یا جایی در پیامت بنویس «نالین»،\n"
-                . "منو تگ کن یا روی پیامم ریپلای کن\n\n"
-                . "💡 ۲۰ پیام آخر هر چت یادم می‌مونه؛\n"
-                . "هر شب ساعت ۱۲ همه‌چی از نو شروع می‌شه.\n\n"
-                . "<b>🧠 حافظه‌ی نالین</b>\n"
-                . "چیزای مهم درباره‌ات رو یادم می‌مونه؛\n"
-                . "تو پیوی، گروه و هر چتی که صدام کنی.\n\n"
-                . "• بگو «یادت بمونه ...» تا ذخیره کنم\n"
-                . "• بگو «فلان رو فراموش کن» تا اون مورد پاک بشه\n"
-                . "• دستور:\n"
+            'ai' => L("<b>🧠 هوش مصنوعی</b>\n", "<b>🧠 AI</b>\n")
+                . L("هر سؤالی داری بپرس؛\n", "Ask anything;\n")
+                . L("از درس و کد تا مشاوره و گپ.\n\n", "from homework and code to advice and chat.\n\n")
+                . L("• اینلاین:\n", "• Inline:\n") . $c(L('ai سلام نالین', 'ai hello Nullin')) . "\n"
+                . L("• پیوی ربات:\n", "• Private chat with the bot:\n")
+                . L("بدون هیچ دستور خاصی،\n", "No special command needed,\n")
+                . L("هر چی خواستی همون‌جا برام بفرست.\n", "just send me whatever you want there.\n")
+                . L("• گروه:\n", "• Group:\n")
+                . L("اول یا جایی در پیامت بنویس «نالین»،\n", "Write \"Nullin\" at the start or anywhere in your message,\n")
+                . L("منو تگ کن یا روی پیامم ریپلای کن\n\n", "tag me or reply to my message\n\n")
+                . L("💡 ۲۰ پیام آخر هر چت یادم می‌مونه؛\n", "💡 I remember the last 20 messages of each chat;\n")
+                . L("هر شب ساعت ۱۲ همه‌چی از نو شروع می‌شه.\n\n", "every night at 12 everything starts fresh.\n\n")
+                . L("<b>🧠 حافظه‌ی نالین</b>\n", "<b>🧠 Nullin's memory</b>\n")
+                . L("چیزای مهم درباره‌ات رو یادم می‌مونه؛\n", "I remember important things about you;\n")
+                . L("تو پیوی، گروه و هر چتی که صدام کنی.\n\n", "in private, groups and any chat you call me in.\n\n")
+                . L("• بگو «یادت بمونه ...» تا ذخیره کنم\n", "• Say \"remember that ...\" and I'll save it\n")
+                . L("• بگو «فلان رو فراموش کن» تا اون مورد پاک بشه\n", "• Say \"forget such-and-such\" to remove that item\n")
+                . L("• دستور:\n", "• Command:\n")
                 . "/forget\n"
-                . "💡 همه‌ی چیزایی که ازت یادمه رو پاک می‌کنه.",
+                . L("💡 همه‌ی چیزایی که ازت یادمه رو پاک می‌کنه.", "💡 It erases everything I remember about you."),
 
-            'image' => "<b>🎨 ساخت عکس</b>\n"
-                . "لازم نیست دستور خاصی بلد باشی؛\n"
-                . "عادی بگو چی می‌خوای،\n"
-                . "خودم می‌فهمم و می‌کشم.\n\n"
-                . "• پیوی:\n<code>یه گربه‌ی فضانورد برام بکش</code>\n"
-                . "• گروه:\n<code>نالین یه والپیپر از جنگل بارونی می‌خوام</code>\n"
-                . "• یا دستور:\n<code>/img شهر آینده‌نگر در شب</code>",
+            'image' => L("<b>🎨 ساخت عکس</b>\n", "<b>🎨 Create image</b>\n")
+                . L("لازم نیست دستور خاصی بلد باشی؛\n", "No special command needed;\n")
+                . L("عادی بگو چی می‌خوای،\n", "just say what you want normally,\n")
+                . L("خودم می‌فهمم و می‌کشم.\n\n", "and I'll understand and draw it.\n\n")
+                . L("• پیوی:\n<code>یه گربه‌ی فضانورد برام بکش</code>\n", "• Private:\n<code>draw me an astronaut cat</code>\n")
+                . L("• گروه:\n<code>نالین یه والپیپر از جنگل بارونی می‌خوام</code>\n", "• Group:\n<code>Nullin I want a rainforest wallpaper</code>\n")
+                . L("• یا دستور:\n<code>/img شهر آینده‌نگر در شب</code>", "• Or command:\n<code>/img a futuristic city at night</code>"),
 
-            'translate' => "<b>🌐 ترجمه</b>\n"
-                . "فارسی ⇄ انگلیسی خودکار،\n"
-                . "با هوش مصنوعی.\n\n"
-                . "• اینلاین:\n" . $c('tr سلام، حالت چطوره؟') . "\n"
-                . "• پیوی یا گروه:\n"
-                . "روی یه پیام ریپلای کن و بنویس\n"
-                . "<code>نالین ترجمه کن</code>",
+            'translate' => L("<b>🌐 ترجمه</b>\n", "<b>🌐 Translate</b>\n")
+                . L("فارسی ⇄ انگلیسی خودکار،\n", "Automatic Persian ⇄ English,\n")
+                . L("با هوش مصنوعی.\n\n", "powered by AI.\n\n")
+                . L("• اینلاین:\n", "• Inline:\n") . $c(L('tr سلام، حالت چطوره؟', 'tr hello, how are you?')) . "\n"
+                . L("• پیوی یا گروه:\n", "• Private or group:\n")
+                . L("روی یه پیام ریپلای کن و بنویس\n", "Reply to a message and write\n")
+                . L("<code>نالین ترجمه کن</code>", "<code>Nullin translate this</code>"),
 
-            'search' => "<b>🔍 سرچ گوگل</b>\n"
-                . "تو هر چتی سرچ کن و نتیجه رو بفرست؛\n"
-                . "دکمه‌ها مستقیم به گوگل وصل می‌شن.\n\n"
-                . "• " . $c('g هوای تهران فردا') . "\n"
+            'search' => L("<b>🔍 سرچ گوگل</b>\n", "<b>🔍 Google search</b>\n")
+                . L("تو هر چتی سرچ کن و نتیجه رو بفرست؛\n", "Search in any chat and send the result;\n")
+                . L("دکمه‌ها مستقیم به گوگل وصل می‌شن.\n\n", "the buttons link directly to Google.\n\n")
+                . "• " . $c(L('g هوای تهران فردا', 'g weather in London tomorrow')) . "\n"
                 . "• " . $c('g best php framework') . "\n\n"
-                . "💡 علاوه بر دکمه‌ی گوگل،\n"
-                . "چندتا نتیجه‌ی آماده هم زیرش میاد\n"
-                . "که می‌تونی مستقیم بفرستی.",
+                . L("💡 علاوه بر دکمه‌ی گوگل،\n", "💡 Besides the Google button,\n")
+                . L("چندتا نتیجه‌ی آماده هم زیرش میاد\n", "a few ready results appear below it\n")
+                . L("که می‌تونی مستقیم بفرستی.", "that you can send directly."),
 
-            'download' => "<b>📥 دانلودر</b>\n"
-                . "لینک رو بفرست،\n"
-                . "ویدیو یا آهنگش رو تحویل بگیر!\n\n"
-                . "• پیوی ربات: فقط لینک رو بفرست\n"
-                . "• گروه: لینک رو تنها بفرست یا ربات رو تگ کن\n"
-                . "• هر چتی (حتی بدون عضویت): ربات رو تگ کن + لینک\n\n"
-                . "🌐 یوتیوب، اینستاگرام، تیک‌تاک،\n"
-                . "توییتر، فیسبوک، ردیت، پینترست، اسنپ‌چت،\n"
-                . "ساندکلاد و اسپاتیفای\n\n"
-                . "🖼 پستای عکس‌دار\n"
-                . "اینستا، پینترست، توییتر و ردیت هم عکسشون رو می‌گیرم\n\n"
-                . "💡 تا " . Downloader::limitText() . "؛\n"
-                . "برای ویدیوی بلند\n"
-                . "«کم‌حجم» یا «فقط صدا» رو بزن.",
+            'download' => L("<b>📥 دانلودر</b>\n", "<b>📥 Downloader</b>\n")
+                . L("لینک رو بفرست،\n", "Send a link,\n")
+                . L("ویدیو یا آهنگش رو تحویل بگیر!\n\n", "get the video or song!\n\n")
+                . L("• پیوی ربات: فقط لینک رو بفرست\n", "• Private chat with the bot: just send the link\n")
+                . L("• گروه: لینک رو تنها بفرست یا ربات رو تگ کن\n", "• Group: send the link alone or tag the bot\n")
+                . L("• هر چتی (حتی بدون عضویت): ربات رو تگ کن + لینک\n\n", "• Any chat (even without membership): tag the bot + link\n\n")
+                . L("🌐 یوتیوب، اینستاگرام، تیک‌تاک،\n", "🌐 YouTube, Instagram, TikTok,\n")
+                . L("توییتر، فیسبوک، ردیت، پینترست، اسنپ‌چت،\n", "Twitter, Facebook, Reddit, Pinterest, Snapchat,\n")
+                . L("ساندکلاد و اسپاتیفای\n\n", "SoundCloud and Spotify\n\n")
+                . L("🖼 پستای عکس‌دار\n", "🖼 Posts with photos\n")
+                . L("اینستا، پینترست، توییتر و ردیت هم عکسشون رو می‌گیرم\n\n", "I grab the images from Instagram, Pinterest, Twitter and Reddit too\n\n")
+                . L("💡 تا ", "💡 Up to ") . Downloader::limitText() . L("؛\n", ";\n")
+                . L("برای ویدیوی بلند\n", "for long videos\n")
+                . L("«کم‌حجم» یا «فقط صدا» رو بزن.", "tap \"Low size\" or \"Audio only\"."),
 
-            'giveaway' => "<b>🎁 قرعه‌کشی</b>\n"
-                . "برای کانال، گروه یا هر چتی قرعه‌کشی بساز؛\n"
-                . "بقیه با یه دکمه شرکت می‌کنن\n"
-                . "و خودم سر وقت برنده‌ها رو انتخاب و اعلام می‌کنم 🎉\n\n"
-                . "• پیوی: /gw بزن یا بگو «یه قرعه‌کشی بساز»\n"
-                . "• گروه: ادمین /gw بزنه\n"
-                . "• اینلاین تو هر چتی:\n" . $c('gw 2 1h آیفون') . "\n"
-                . "(۲ برنده، ۱ ساعت دیگه، جایزه آیفون)\n\n"
-                . "💡 تو کانال باید ادمین باشم؛\n"
-                . "اون‌جا فقط اعضا می‌تونن شرکت کنن.",
+            'giveaway' => L("<b>🎁 قرعه‌کشی</b>\n", "<b>🎁 Giveaway</b>\n")
+                . L("برای کانال، گروه یا هر چتی قرعه‌کشی بساز؛\n", "Create a giveaway for a channel, group or any chat;\n")
+                . L("بقیه با یه دکمه شرکت می‌کنن\n", "others join with one button\n")
+                . L("و خودم سر وقت برنده‌ها رو انتخاب و اعلام می‌کنم 🎉\n\n", "and I pick and announce the winners on time 🎉\n\n")
+                . L("• پیوی: /gw بزن یا بگو «یه قرعه‌کشی بساز»\n", "• Private: send /gw or say \"create a giveaway\"\n")
+                . L("• گروه: ادمین /gw بزنه\n", "• Group: an admin sends /gw\n")
+                . L("• اینلاین تو هر چتی:\n", "• Inline in any chat:\n") . $c(L('gw 2 1h آیفون', 'gw 2 1h iPhone')) . "\n"
+                . L("(۲ برنده، ۱ ساعت دیگه، جایزه آیفون)\n\n", "(2 winners, in 1 hour, prize iPhone)\n\n")
+                . L("💡 تو کانال باید ادمین باشم؛\n", "💡 In a channel I must be an admin;\n")
+                . L("اون‌جا فقط اعضا می‌تونن شرکت کنن.", "only members can join there."),
 
-            'font' => "<b>✨ فونت‌ساز</b>\n"
-                . "اسم یا متنت رو\n"
-                . "با کلی فونت و استایل خوشگل بنویس؛\n"
-                . "هم انگلیسی، هم فارسی.\n\n"
+            'font' => L("<b>✨ فونت‌ساز</b>\n", "<b>✨ Font maker</b>\n")
+                . L("اسم یا متنت رو\n", "Write your name or text\n")
+                . L("با کلی فونت و استایل خوشگل بنویس؛\n", "in lots of beautiful fonts and styles;\n")
+                . L("هم انگلیسی، هم فارسی.\n\n", "both English and Persian.\n\n")
                 . "• " . $c('ft Arown') . "\n"
-                . "• " . $c('ft نالین') . "\n"
-                . "• پیوی ربات:\n<code>فونت Arown</code>\n\n"
-                . "💡 هر نتیجه یه دکمه‌ی «📋 کپی» داره.",
+                . "• " . $c(L('ft نالین', 'ft Nullin')) . "\n"
+                . L("• پیوی ربات:\n<code>فونت Arown</code>\n\n", "• Private chat with the bot:\n<code>font Arown</code>\n\n")
+                . L("💡 هر نتیجه یه دکمه‌ی «📋 کپی» داره.", "💡 Every result has a \"📋 Copy\" button."),
 
-            'wiki' => "<b>📖 ویکی‌پدیا</b>\n"
-                . "خلاصه‌ی هر موضوعی\n"
-                . "از ویکی‌پدیای فارسی و انگلیسی.\n\n"
-                . "• " . $c('wk تخت جمشید') . "\n"
+            'wiki' => L("<b>📖 ویکی‌پدیا</b>\n", "<b>📖 Wikipedia</b>\n")
+                . L("خلاصه‌ی هر موضوعی\n", "A summary of any topic\n")
+                . L("از ویکی‌پدیای فارسی و انگلیسی.\n\n", "from Persian and English Wikipedia.\n\n")
+                . "• " . $c(L('wk تخت جمشید', 'wk Eiffel Tower')) . "\n"
                 . "• " . $c('wk Albert Einstein') . "\n"
-                . "• پیوی یا گروه:\n"
-                . "<code>نالین ویکی‌پدیا درباره‌ی حافظ چی میگه</code>\n"
-                . "• دستور:\n<code>/wk حافظ</code>",
+                . L("• پیوی یا گروه:\n", "• Private or group:\n")
+                . L("<code>نالین ویکی‌پدیا درباره‌ی حافظ چی میگه</code>\n", "<code>Nullin what does Wikipedia say about Einstein</code>\n")
+                . L("• دستور:\n<code>/wk حافظ</code>", "• Command:\n<code>/wk Einstein</code>"),
 
-            'whisper' => "<b>🤫 نجوا</b>\n"
-                . "پیام مخفی وسط هر چتی\n"
-                . "که فقط گیرنده می‌تونه بخونه.\n\n"
-                . "• " . $c('nj متن پیام @username') . "\n"
-                . "• " . $c('nj متن پیام 12345678') . "\n\n"
-                . "حداکثر " . fa(Whisper::MAX_LEN) . " کاراکتر؛\n"
-                . "فرستنده می‌تونه پاکش کنه و ببینه کیا فضولی کردن 🕵️\n"
-                . "برای چند نفر هم می‌شه فرستاد؛\n"
-                . "یوزرنیم یا آیدی‌ها رو پشت هم بنویس.",
+            'whisper' => L("<b>🤫 نجوا</b>\n", "<b>🤫 Whisper</b>\n")
+                . L("پیام مخفی وسط هر چتی\n", "A secret message in the middle of any chat\n")
+                . L("که فقط گیرنده می‌تونه بخونه.\n\n", "that only the recipient can read.\n\n")
+                . "• " . $c(L('nj متن پیام @username', 'nj message text @username')) . "\n"
+                . "• " . $c(L('nj متن پیام 12345678', 'nj message text 12345678')) . "\n\n"
+                . L("حداکثر ", "Max ") . fa(Whisper::MAX_LEN) . L(" کاراکتر؛\n", " characters;\n")
+                . L("فرستنده می‌تونه پاکش کنه و ببینه کیا فضولی کردن 🕵️\n", "The sender can delete it and see who peeked 🕵️\n")
+                . L("برای چند نفر هم می‌شه فرستاد؛\n", "You can send it to several people;\n")
+                . L("یوزرنیم یا آیدی‌ها رو پشت هم بنویس.", "write the usernames or IDs one after another."),
 
-            'weather' => "<b>🌦 آب‌وهوا</b>\n"
-                . "وضعیت هوا و پیش‌بینی دو روز آینده‌ی هر شهری.\n\n"
+            'weather' => L("<b>🌦 آب‌وهوا</b>\n", "<b>🌦 Weather</b>\n")
+                . L("وضعیت هوا و پیش‌بینی دو روز آینده‌ی هر شهری.\n\n", "Current weather and a two-day forecast for any city.\n\n")
                 . "• " . $c('hv tehran') . "\n"
-                . "• " . $c('hv رشت') . "\n\n"
-                . "💡 فارسی یا انگلیسی فرقی نداره؛\n"
-                . "مستقیم بنویس.",
+                . "• " . $c(L('hv رشت', 'hv London')) . "\n\n"
+                . L("💡 فارسی یا انگلیسی فرقی نداره؛\n", "💡 Persian or English doesn't matter;\n")
+                . L("مستقیم بنویس.", "just type it directly."),
 
-            'calc' => "<b>🧮 محاسبه سریع</b>\n"
-                . "یه عبارت ریاضی بنویس،\n"
-                . "جوابش رو همون لحظه می‌بینی.\n\n"
+            'calc' => L("<b>🧮 محاسبه سریع</b>\n", "<b>🧮 Quick calc</b>\n")
+                . L("یه عبارت ریاضی بنویس،\n", "Type a math expression,\n")
+                . L("جوابش رو همون لحظه می‌بینی.\n\n", "and see the answer instantly.\n\n")
                 . "• " . $c('(12+8)*3^2') . "\n\n"
-                . "💡 ماشین‌حساب دکمه‌ای هم\n"
-                . "تو منوی اصلی هست.",
+                . L("💡 ماشین‌حساب دکمه‌ای هم\n", "💡 There's also a button calculator\n")
+                . L("تو منوی اصلی هست.", "in the main menu."),
 
-            'qr' => "<b>🔳 QR کد</b>\n"
-                . "هر متن یا لینکی رو به QR تبدیل کن.\n\n"
+            'qr' => L("<b>🔳 QR کد</b>\n", "<b>🔳 QR code</b>\n")
+                . L("هر متن یا لینکی رو به QR تبدیل کن.\n\n", "Turn any text or link into a QR code.\n\n")
                 . "• " . $c('qr https://t.me/NullHubs'),
 
-            'short' => "<b>🔗 کوتاه‌کننده لینک</b>\n"
-                . "هر لینک بلندی رو کوتاه کن.\n\n"
+            'short' => L("<b>🔗 کوتاه‌کننده لینک</b>\n", "<b>🔗 Link shortener</b>\n")
+                . L("هر لینک بلندی رو کوتاه کن.\n\n", "Shorten any long link.\n\n")
                 . "• " . $c('sh https://t.me/NullHubs'),
 
-            'like' => "<b>❤️ لایک‌ساز</b>\n"
-                . "هر متنی بنویسی با دکمه‌ی ❤️ و شمارنده می‌فرستمش؛\n"
-                . "هر نفر یه بار می‌تونه لایک کنه و با زدن دوباره برمی‌داره.\n\n"
-                . "• " . $c('like نالین'),
+            'like' => L("<b>❤️ لایک‌ساز</b>\n", "<b>❤️ Like maker</b>\n")
+                . L("هر متنی بنویسی با دکمه‌ی ❤️ و شمارنده می‌فرستمش؛\n", "Write any text and I'll send it with a ❤️ button and a counter;\n")
+                . L("هر نفر یه بار می‌تونه لایک کنه و با زدن دوباره برمی‌داره.\n\n", "each person can like once and tapping again removes it.\n\n")
+                . "• " . $c(L('like نالین', 'like Nullin')),
 
-            'love' => "<b>💘 تطابق عشقی</b>\n"
-                . "درصد عشق بین دو نفر (کاملاً شانسی و فان 😄).\n\n"
+            'love' => L("<b>💘 تطابق عشقی</b>\n", "<b>💘 Love match</b>\n")
+                . L("درصد عشق بین دو نفر (کاملاً شانسی و فان 😄).\n\n", "Love percentage between two people (purely random and for fun 😄).\n\n")
                 . "• " . $c('love @ali @sara') . "\n"
                 . "• " . $c('love @ali 12345678'),
 
-            'roast' => "<b>🔥 روست</b>\n"
-                . "با عکس پروفایل، اسم، بیو، یوزرنیم و حرفاش،\n"
-                . "حسابی می‌شورمش 😈\n\n"
-                . "• خودت: <code>نالین منو روست کن</code>\n"
-                . "• یه نفر دیگه: <code>نالین اینو روست کن</code>\n"
-                . "• با آیدی: <code>نالین @username رو روست کن</code>\n"
-                . "• تو هر چتی:\n" . $c('roast') . "\n" . $c('roast @username') . "\n\n"
-                . "💡 هر جوری بگی می‌فهمم 😉\n"
-                . "⏱ هر نفر دقیقه‌ای یه بار؛ فقط شوخیه، ناراحت نشی 😄",
+            'roast' => L("<b>🔥 روست</b>\n", "<b>🔥 Roast</b>\n")
+                . L("با عکس پروفایل، اسم، بیو، یوزرنیم و حرفاش،\n", "Using the profile photo, name, bio, username and messages,\n")
+                . L("حسابی می‌شورمش 😈\n\n", "I'll roast them thoroughly 😈\n\n")
+                . L("• خودت: <code>نالین منو روست کن</code>\n", "• Yourself: <code>Nullin roast me</code>\n")
+                . L("• یه نفر دیگه: <code>نالین اینو روست کن</code>\n", "• Someone else: <code>Nullin roast this person</code>\n")
+                . L("• با آیدی: <code>نالین @username رو روست کن</code>\n", "• By username: <code>Nullin roast @username</code>\n")
+                . L("• تو هر چتی:\n", "• In any chat:\n") . $c('roast') . "\n" . $c('roast @username') . "\n\n"
+                . L("💡 هر جوری بگی می‌فهمم 😉\n", "💡 I understand however you phrase it 😉\n")
+                . L("⏱ هر نفر دقیقه‌ای یه بار؛ فقط شوخیه، ناراحت نشی 😄", "⏱ Once a minute per person; it's just a joke, don't be upset 😄"),
 
-            'nid' => "<b>🪪 کد ملی</b>\n"
-                . "بررسی سالم بودن ساختار کد ملی\n"
-                . "(رقم کنترل).\n\n"
+            'nid' => L("<b>🪪 کد ملی</b>\n", "<b>🪪 National ID</b>\n")
+                . L("بررسی سالم بودن ساختار کد ملی\n", "Checks that the structure of a national ID is valid\n")
+                . L("(رقم کنترل).\n\n", "(check digit).\n\n")
                 . "• " . $c('meli 0012345678') . "\n\n"
-                . "⚠️ فقط ساختار رو چک می‌کنه، نه ثبت‌احوال رو.",
+                . L("⚠️ فقط ساختار رو چک می‌کنه، نه ثبت‌احوال رو.", "⚠️ It only checks the structure, not the civil registry."),
 
-            'unit' => "<b>⚖️ تبدیل واحد</b>\n"
-                . "طول، وزن، حجم، سرعت، مساحت، دیتا و دما\n"
-                . "• از منوی اصلی:\n"
+            'unit' => L("<b>⚖️ تبدیل واحد</b>\n", "<b>⚖️ Unit converter</b>\n")
+                . L("طول، وزن، حجم، سرعت، مساحت، دیتا و دما\n", "Length, weight, volume, speed, area, data and temperature\n")
+                . L("• از منوی اصلی:\n", "• From the main menu:\n")
                 . "<code>{$b}</code>\n"
-                . "💡 دسته و واحدها رو با دکمه انتخاب کن و عدد رو بزن؛\n"
-                . "⇄ جای مبدأ و مقصد رو عوض می‌کنه.",
+                . L("💡 دسته و واحدها رو با دکمه انتخاب کن و عدد رو بزن؛\n", "💡 Pick the category and units with buttons and type the number;\n")
+                . L("⇄ جای مبدأ و مقصد رو عوض می‌کنه.", "⇄ swaps source and target."),
 
-            'funstat' => "<b>🔍 استعلام کاربر</b>\n"
-                . "آمار فعالیت یه کاربر تلگرام\n"
-                . "با آیدی عددیش.\n\n"
+            'funstat' => L("<b>🔍 استعلام کاربر</b>\n", "<b>🔍 User lookup</b>\n")
+                . L("آمار فعالیت یه کاربر تلگرام\n", "Activity stats of a Telegram user\n")
+                . L("با آیدی عددیش.\n\n", "by their numeric ID.\n\n")
                 . "• " . $c('id 12345678'),
 
-            'linkcheck' => "<b>🛡 ردیاب اشتراک</b>\n"
-                . "اطلاعات پشت یه لینک اشتراک رو ردیابی می‌کنه:\n"
-                . "تلگرام، دیسکورد، گیت‌هاب، گیت‌لب، هاگینگ‌فیس، تیک‌تاک، اینستاگرام، یوتیوب، ردیت، نوشن، لینکدین،\n"
-                . "چت‌جی‌پی‌تی، کلود، پرپلکسیتی، پینترست، سابستک،\n"
-                . "سونو، گوگل داکس و شیرپوینت\n\n"
-                . "• دستور: <code>/st https://example.com</code>\n"
-                . "• یا روی پیامی که لینک داره ریپلای کن و <code>/st</code> بزن",
+            'linkcheck' => L("<b>🛡 ردیاب اشتراک</b>\n", "<b>🛡 Invite link tracker</b>\n")
+                . L("اطلاعات پشت یه لینک اشتراک رو ردیابی می‌کنه:\n", "Traces the info behind an invite link:\n")
+                . L("تلگرام، دیسکورد، گیت‌هاب، گیت‌لب، هاگینگ‌فیس، تیک‌تاک، اینستاگرام، یوتیوب، ردیت، نوشن، لینکدین،\n", "Telegram, Discord, GitHub, GitLab, Hugging Face, TikTok, Instagram, YouTube, Reddit, Notion, LinkedIn,\n")
+                . L("چت‌جی‌پی‌تی، کلود، پرپلکسیتی، پینترست، سابستک،\n", "ChatGPT, Claude, Perplexity, Pinterest, Substack,\n")
+                . L("سونو، گوگل داکس و شیرپوینت\n\n", "Suno, Google Docs and SharePoint\n\n")
+                . L("• دستور: <code>/st https://example.com</code>\n", "• Command: <code>/st https://example.com</code>\n")
+                . L("• یا روی پیامی که لینک داره ریپلای کن و <code>/st</code> بزن", "• Or reply to a message that has a link and send <code>/st</code>"),
 
-            'games' => "<b>🎮 بازی‌ها</b>\n"
-                . "همه از منوی اصلی در دسترسن؛\n"
+            'games' => L("<b>🎮 بازی‌ها</b>\n", "<b>🎮 Games</b>\n")
+                . L("همه از منوی اصلی در دسترسن؛\n", "All available from the main menu;\n")
                 . "<code>{$b}</code>\n"
-                . "با ربات یا با دوستات:\n\n"
-                . "♟️ شطرنج (۳ سطح سختی)\n"
-                . "⭕ دوز · 🔴 دوز سکه‌ای\n"
-                . "✊ سنگ‌کاغذقیچی · 🔢 دوئل ریاضی",
+                . L("با ربات یا با دوستات:\n\n", "with the bot or with your friends:\n\n")
+                . L("♟️ شطرنج (۳ سطح سختی)\n", "♟️ Chess (3 difficulty levels)\n")
+                . L("⭕ دوز · 🔴 دوز سکه‌ای\n", "⭕ Tic-tac-toe · 🔴 Connect Four\n")
+                . L("✊ سنگ‌کاغذقیچی · 🔢 دوئل ریاضی", "✊ Rock-paper-scissors · 🔢 Math duel"),
 
-            'group' => "<b>👥 نالین در گروه</b>\n"
-                . "منو به گروهت اضافه کن و:\n\n"
-                . "• اول یا جایی از پیامت «نالین» رو بنویس\n"
-                . "• منو تگ کن تا جواب بدم\n"
-                . "• روی پیام‌های من ریپلای کن\n"
-                . "• پست‌های کانال متصل رو خودکار جواب می‌دم\n\n"
-                . "💡 اگه جواب ندادم،\n"
-                . "منو ادمین گروه کن تا پیام‌ها به دستم برسه.",
-            default => "<b>📘 راهنما</b>",
+            'group' => L("<b>👥 نالین در گروه</b>\n", "<b>👥 Nullin in groups</b>\n")
+                . L("منو به گروهت اضافه کن و:\n\n", "Add me to your group and:\n\n")
+                . L("• اول یا جایی از پیامت «نالین» رو بنویس\n", "• Write \"Nullin\" at the start or anywhere in your message\n")
+                . L("• منو تگ کن تا جواب بدم\n", "• Tag me and I'll answer\n")
+                . L("• روی پیام‌های من ریپلای کن\n", "• Reply to my messages\n")
+                . L("• پست‌های کانال متصل رو خودکار جواب می‌دم\n\n", "• I automatically answer posts from the linked channel\n\n")
+                . L("💡 اگه جواب ندادم،\n", "💡 If I don't answer,\n")
+                . L("منو ادمین گروه کن تا پیام‌ها به دستم برسه.", "make me a group admin so I can receive messages."),
+            default => L("<b>📘 راهنما</b>", "<b>📘 Help</b>"),
         };
     }
 
@@ -696,7 +924,7 @@ final class Ui
 
     public static function navButton(bool $next, string $data): array
     {
-        return $next ? btn('➡️ صفحه‌ی بعد', $data, 'primary') : btn('صفحه‌ی قبل ⬅️', $data, 'primary');
+        return $next ? btn(L('➡️ صفحه‌ی بعد', '➡️ Next page'), $data, 'primary') : btn(L('صفحه‌ی قبل ⬅️', 'Previous page ⬅️'), $data, 'primary');
     }
 
     public static function helpMenu(bool $private = true, int $page = 1): array
@@ -706,23 +934,25 @@ final class Ui
         foreach (self::HELP_LAYOUT[$page] as $keys) {
             $row = [];
             foreach ($keys as $key) {
-                if (isset(self::GUIDES[$key])) {
-                    $row[] = btn(self::GUIDES[$key], "help:{$key}", null);
+                if (isset((Lang::is('en') ? self::GUIDES_EN : self::GUIDES)[$key])) {
+                    $row[] = btn((Lang::is('en') ? self::GUIDES_EN : self::GUIDES)[$key], "help:{$key}", null);
                 }
             }
             $rows[] = $row;
         }
         $rows[] = [self::navButton($page === 1, $page === 1 ? 'help:p2' : 'help:p1')];
-        $rows[] = [btn('🔙 برگشت', 'home', null)];
+        $rows[] = [btn(L('🔙 برگشت', '🔙 Back'), 'home', null)];
         return ikb($rows);
     }
 
     private const TRY_PREFIX = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'love ', 'like' => 'like ', 'roast' => 'roast ',
         'nid' => 'meli ', 'unit' => 'تبدیل', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'calc' => '2+2', 'linkcheck' => 'st '];
+    const TRY_PREFIX_EN = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'love ', 'like' => 'like ', 'roast' => 'roast ',
+        'nid' => 'meli ', 'unit' => 'convert', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'calc' => '2+2', 'linkcheck' => 'st '];
 
     private static function tryButton(string $key): array
     {
-        return ['text' => '💬 تو چت امتحانش کن', 'switch_inline_query_current_chat' => self::TRY_PREFIX[$key] ?? '', 'style' => 'primary'];
+        return ['text' => L('💬 تو چت امتحانش کن', '💬 Try it in chat'), 'switch_inline_query_current_chat' => (Lang::is('en') ? self::TRY_PREFIX_EN : self::TRY_PREFIX)[$key] ?? '', 'style' => 'primary'];
     }
 
     public static function tryKeyboard(string $key): array
@@ -734,16 +964,16 @@ final class Ui
     {
         $try = self::tryButton($key);
         if ($private && $key === 'giveaway') {
-            $try = btn('🎁 بساز', 'gw:new', 'primary');
+            $try = btn(L('🎁 بساز', '🎁 Create'), 'gw:new', 'primary');
         }
         return ikb([
             [$try],
-            [btn('🔙 راهنما', self::helpPage($key) === 2 ? 'help:p2' : 'help:menu', null)],
+            [btn(L('🔙 راهنما', '🔙 Help'), self::helpPage($key) === 2 ? 'help:p2' : 'help:menu', null)],
         ]);
     }
 
     public static function helpText(int $page = 1): string
     {
-        return "<b>📘 راهنمای نالین</b>\n<i>صفحه‌ی " . fa((string) $page) . " از ۲</i>\n\nکدوم بخش رو می‌خوای یاد بگیری؟ 👇";
+        return L("<b>📘 راهنمای نالین</b>\n<i>صفحه‌ی ", "<b>📘 Nullin Help</b>\n<i>Page ") . fa((string) $page) . L(" از ۲</i>\n\nکدوم بخش رو می‌خوای یاد بگیری؟ 👇", " of 2</i>\n\nWhich section do you want to learn about? 👇");
     }
 }

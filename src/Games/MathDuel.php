@@ -11,12 +11,12 @@ final class MathDuel
 
     public static function intro(): string
     {
-        return "<b>🔢 دوئل ریاضی</b>\n\nمسابقه‌ی سرعت حساب!\nهر کی زودتر جواب درست بده امتیاز می‌گیره.\n\nحالت بازی رو انتخاب کن:";
+        return L("<b>🔢 دوئل ریاضی</b>\n\nمسابقه‌ی سرعت حساب!\nهر کی زودتر جواب درست بده امتیاز می‌گیره.\n\nحالت بازی رو انتخاب کن:", "<b>🔢 Math Duel</b>\n\nA mental-math speed contest!\nWhoever gives the right answer first scores.\n\nPick a game mode:");
     }
 
     public static function modeKeyboard(): array
     {
-        return GameKit::modeKeyboard(self::P, '👥 چند نفره');
+        return GameKit::modeKeyboard(self::P, L('👥 چند نفره', '👥 Multiplayer'));
     }
 
     private static function question(): array
@@ -76,16 +76,16 @@ final class MathDuel
 
     private static function lobbyText(array $s): string
     {
-        return "<b>🔢 دوئل ریاضی</b> · لابی\n" . divider() . "\n"
-            . '👥 بازیکن‌ها (' . fa(count($s['players'])) . "):\n" . self::playerList($s, false) . "\n" . divider() . "\n"
-            . '⏱ مدت بازی: ' . fa(self::GAME_SECONDS / 60) . " دقیقه · هر سوال " . fa(self::Q_SECONDS) . " ثانیه\n"
-            . '➕ برای اومدن دکمه‌ی «پیوستن» رو بزن؛' . "\n" . 'با حداقل ۲ نفر سازنده می‌تونه شروع کنه.';
+        return '<b>' . L('🔢 دوئل ریاضی', '🔢 Math Duel') . '</b> · ' . L('لابی', 'Lobby') . "\n" . divider() . "\n"
+            . L('👥 بازیکن‌ها (', '👥 Players (') . fa(count($s['players'])) . "):\n" . self::playerList($s, false) . "\n" . divider() . "\n"
+            . L('⏱ مدت بازی: ' . fa(self::GAME_SECONDS / 60) . ' دقیقه · هر سوال ' . fa(self::Q_SECONDS) . " ثانیه\n", '⏱ Game length: ' . (self::GAME_SECONDS / 60) . ' min · ' . self::Q_SECONDS . " s per question\n")
+            . L('➕ برای اومدن دکمه‌ی «پیوستن» رو بزن؛' . "\n" . 'با حداقل ۲ نفر سازنده می‌تونه شروع کنه.', '➕ Tap “Join” to get in;' . "\n" . 'the creator can start with at least 2 players.');
     }
 
     private static function lobbyKeyboard(): array
     {
         return ikb([
-            [btn('➕ پیوستن', self::P . ':join', 'success'), btn('▶️ شروع', self::P . ':start')],
+            [btn(L('➕ پیوستن', '➕ Join'), self::P . ':join', 'success'), btn(L('▶️ شروع', '▶️ Start'), self::P . ':start')],
             GameKit::cancelRow(self::P),
         ]);
     }
@@ -93,10 +93,10 @@ final class MathDuel
     private static function playText(array $s): string
     {
         $left = max(0, self::GAME_SECONDS - (time() - (int) $s['started']));
-        return "<b>🔢 دوئل ریاضی</b> · سوال " . fa($s['qid']) . "\n" . divider() . "\n"
-            . '❓ <b>' . fa($s['q']['text']) . " = ؟</b>\n\n"
-            . "🏅 امتیازها:\n" . self::playerList($s, true) . "\n" . divider() . "\n"
-            . '⏳ ' . fa(self::Q_SECONDS) . ' ثانیه وقت داری · ⏱ ~' . fa($left) . ' ثانیه تا پایان';
+        return '<b>' . L('🔢 دوئل ریاضی', '🔢 Math Duel') . '</b> · ' . L('سوال ', 'Question ') . fa($s['qid']) . "\n" . divider() . "\n"
+            . '❓ <b>' . fa($s['q']['text']) . L(" = ؟</b>\n\n", " = ?</b>\n\n")
+            . L("🏅 امتیازها:\n", "🏅 Scores:\n") . self::playerList($s, true) . "\n" . divider() . "\n"
+            . L('⏳ ' . fa(self::Q_SECONDS) . ' ثانیه وقت داری · ⏱ ~' . fa($left) . ' ثانیه تا پایان', '⏳ ' . self::Q_SECONDS . ' s to answer · ⏱ ~' . $left . ' s left');
     }
 
     private static function playKeyboard(array $s): array
@@ -117,9 +117,9 @@ final class MathDuel
         $medals = ['🥇', '🥈', '🥉'];
         $l      = [];
         foreach ($players as $i => $p) {
-            $l[] = ($medals[$i] ?? fa($i + 1) . '.') . ' ' . bidi(h($p['name'])) . ' — <b>' . fa(self::total($p)) . '</b> امتیاز';
+            $l[] = ($medals[$i] ?? fa($i + 1) . '.') . ' ' . bidi(h($p['name'])) . ' — <b>' . fa(self::total($p)) . '</b>' . L(' امتیاز', ' pts');
         }
-        return "<b>🔢 دوئل ریاضی</b> · پایان 🏁\n" . divider() . "\n" . implode("\n", $l);
+        return '<b>' . L('🔢 دوئل ریاضی', '🔢 Math Duel') . '</b> · ' . L('پایان 🏁', 'Finished 🏁') . "\n" . divider() . "\n" . implode("\n", $l);
     }
 
     private static function markActive(string $imid, bool $on): void
@@ -207,7 +207,7 @@ final class MathDuel
                 $s['mode']    = $mode === 'bot' ? 'bot' : 'pvp';
                 $s['players'] = [$uid => $me];
                 if ($s['mode'] === 'bot') {
-                    $s['players'][self::BOT_KEY] = ['name' => '🤖 نالین', 'scores' => []];
+                    $s['players'][self::BOT_KEY] = ['name' => L('🤖 نالین', '🤖 Nullin'), 'scores' => []];
                     $s['status']                 = 'playing';
                     $s['started']                = time();
                     $s                           = self::nextRound($s);
@@ -228,7 +228,7 @@ final class MathDuel
             function (string $by) use (&$s, $imid, $tg) {
                 GameKit::save($imid, $s);
                 self::markActive($imid, false);
-                Rich::editInline($imid, "<b>🔢 دوئل ریاضی</b>\n" . divider() . "\n✖️ بازی توسط {$by} لغو شد.", GameKit::replayKeyboard(self::P));
+                Rich::editInline($imid, '<b>' . L('🔢 دوئل ریاضی', '🔢 Math Duel') . "</b>\n" . divider() . "\n" . L("✖️ بازی توسط {$by} لغو شد.", "✖️ Game cancelled by {$by}."), GameKit::replayKeyboard(self::P));
             }
         );
         if ($handled) {
@@ -237,7 +237,7 @@ final class MathDuel
 
         if ($data === self::P . ':join') {
             if (($s['status'] ?? '') !== 'lobby') {
-                $tg->answer($cq, '⏳ بازی شروع شده');
+                $tg->answer($cq, L('⏳ بازی شروع شده', '⏳ The game has already started'));
                 return;
             }
             $joined = Store::update(GameKit::NS, $imid, static function ($st) use ($uid, $me) {
@@ -248,11 +248,11 @@ final class MathDuel
                 return $st;
             });
             if ($joined === null) {
-                $tg->answer($cq, '✅ قبلاً اومدی تو بازی');
+                $tg->answer($cq, L('✅ قبلاً اومدی تو بازی', '✅ You’re already in the game'));
                 return;
             }
             Rich::editInline($imid, self::lobbyText($joined), self::lobbyKeyboard());
-            $tg->answer($cq, '✅ اومدی تو بازی!');
+            $tg->answer($cq, L('✅ اومدی تو بازی!', '✅ You joined the game!'));
             return;
         }
 
@@ -262,11 +262,11 @@ final class MathDuel
                 return;
             }
             if (!GameKit::isCreator($s, (int) $uid)) {
-                $tg->alert($cq, '🔒 فقط سازنده می‌تونه بازی رو شروع کنه.');
+                $tg->alert($cq, L('🔒 فقط سازنده می‌تونه بازی رو شروع کنه.', '🔒 Only the creator can start the game.'));
                 return;
             }
             if (count($s['players']) < 2) {
-                $tg->alert($cq, '👥 حداقل ۲ نفر باید بیان تو بازی.');
+                $tg->alert($cq, L('👥 حداقل ۲ نفر باید بیان تو بازی.', '👥 At least 2 players need to join.'));
                 return;
             }
             $s['status']  = 'playing';
@@ -275,18 +275,18 @@ final class MathDuel
             GameKit::save($imid, $s);
             self::markActive($imid, true);
             Rich::editInline($imid, self::playText($s), self::playKeyboard($s));
-            $tg->answer($cq, '🚀 شروع!');
+            $tg->answer($cq, L('🚀 شروع!', '🚀 Go!'));
             return;
         }
 
         if (str_starts_with($data, self::P . ':a:')) {
             [, , $qid, $value] = array_pad(explode(':', $data), 4, '');
             if (($s['status'] ?? '') !== 'playing') {
-                $tg->answer($cq, '⌛️ بازی تموم شده');
+                $tg->answer($cq, L('⌛️ بازی تموم شده', '⌛️ The game is over'));
                 return;
             }
             if (!isset($s['players'][$uid])) {
-                $tg->alert($cq, '🚫 تو این بازی نیستی؛' . "\n" . 'منتظر بازی بعدی باش.');
+                $tg->alert($cq, L('🚫 تو این بازی نیستی؛' . "\n" . 'منتظر بازی بعدی باش.', '🚫 You’re not in this game;' . "\n" . 'wait for the next one.'));
                 return;
             }
             self::advance($imid);
@@ -318,19 +318,19 @@ final class MathDuel
             switch ($result) {
                 case 'ok':
                     Rich::editInline($imid, self::playText($upd), self::playKeyboard($upd));
-                    $tg->answer($cq, '✅ آفرین! +' . fa((int) $value));
+                    $tg->answer($cq, L('✅ آفرین! +' . fa((int) $value), '✅ Nice! +' . (int) $value));
                     return;
                 case 'wrong':
-                    $tg->answer($cq, '❌ اشتباه بود؛ شانست برای این سوال تموم شد');
+                    $tg->answer($cq, L('❌ اشتباه بود؛ شانست برای این سوال تموم شد', '❌ Wrong; your chance for this question is gone'));
                     return;
                 case 'used':
-                    $tg->answer($cq, '🚫 شانست رو برای این سوال استفاده کردی');
+                    $tg->answer($cq, L('🚫 شانست رو برای این سوال استفاده کردی', '🚫 You already used your chance on this question'));
                     return;
                 case 'old':
-                    $tg->answer($cq, '⌛️ این سوال عوض شده؛ سوال جدید رو جواب بده');
+                    $tg->answer($cq, L('⌛️ این سوال عوض شده؛ سوال جدید رو جواب بده', '⌛️ This question has changed; answer the new one'));
                     return;
                 default:
-                    $tg->answer($cq, '⌛️ بازی تموم شده');
+                    $tg->answer($cq, L('⌛️ بازی تموم شده', '⌛️ The game is over'));
                     return;
             }
         }

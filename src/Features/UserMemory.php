@@ -172,17 +172,17 @@ final class UserMemory
             return;
         }
         if ((int) $x[1] !== $uid) {
-            $tg->answer($cq, 'این دکمه مال تو نیست 🙂');
+            $tg->answer($cq, L('این دکمه مال تو نیست 🙂', 'This button isn\'t yours 🙂'));
             return;
         }
 
         if ($x[2] === 'y') {
             self::clear($uid);
-            $tg->answer($cq, '✅ پاک شد');
-            Rich::edit((int) $m['chat']['id'], (int) $m['message_id'], "✅ <b>پاک شد</b>\nحافظه‌م درباره‌ات خالی شد؛ از اول باهم آشنا می‌شیم 🙂");
+            $tg->answer($cq, L('✅ پاک شد', '✅ Cleared'));
+            Rich::edit((int) $m['chat']['id'], (int) $m['message_id'], L("✅ <b>پاک شد</b>\nحافظه‌م درباره‌ات خالی شد؛ از اول باهم آشنا می‌شیم 🙂", "✅ <b>Cleared</b>\nMy memory about you is empty; we'll get to know each other from scratch 🙂"));
             return;
         }
         $tg->answer($cq);
-        Rich::edit((int) $m['chat']['id'], (int) $m['message_id'], "👌 باشه، چیزی پاک نشد همه‌چی سر جاشه.");
+        Rich::edit((int) $m['chat']['id'], (int) $m['message_id'], L("👌 باشه، چیزی پاک نشد همه‌چی سر جاشه.", "👌 Okay, nothing was cleared, everything stays."));
     }
 }

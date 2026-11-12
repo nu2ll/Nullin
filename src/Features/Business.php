@@ -16,11 +16,11 @@ final class Business
 
     private static function modes(): array
     {
-        $m = ['instant' => ['⚡ فوری', 0]];
+        $m = ['instant' => [L('⚡ فوری', '⚡ Instant'), 0]];
         for ($i = 5; $i <= 60; $i += 5) {
-            $m[(string) $i] = [$i === 60 ? '⏱ ۱ ساعت' : '⏱ ' . fa((string) $i) . ' دقیقه', $i];
+            $m[(string) $i] = [$i === 60 ? L('⏱ ۱ ساعت', '⏱ 1 hour') : L('⏱ ' . fa((string) $i) . ' دقیقه', '⏱ ' . $i . ' min'), $i];
         }
-        $m['forever'] = ['♾ دائمی', null];
+        $m['forever'] = [L('♾ دائمی', '♾ Forever'), null];
         return $m;
     }
 
@@ -73,7 +73,8 @@ final class Business
             'user'  => array_intersect_key((array) $c['user'], array_flip(['id', 'first_name', 'last_name', 'username'])),
         ]);
         if ($on && $first && Switches::on('business')) {
-            Rich::sendHtml((int) ($c['user_chat_id'] ?? $uid), "🎉 به اکانتت وصل شدم!\nبرای شروع، کلید گروکت رو ثبت کن.", null, ikb([[btn('⚙️ پنل منشی', 'bz:menu', 'success')]]));
+            Lang::set(Lang::forUser((array) $c['user']));
+            Rich::sendHtml((int) ($c['user_chat_id'] ?? $uid), L("🎉 به اکانتت وصل شدم!\nبرای شروع، کلید گروکت رو ثبت کن.", "🎉 I’m connected to your account!\nTo get started, add your Groq key."), null, ikb([[btn(L('⚙️ پنل منشی', '⚙️ Assistant panel'), 'bz:menu', 'success')]]));
         }
     }
 
@@ -101,27 +102,27 @@ final class Business
     private static function kind(array $m): ?string
     {
         return match (true) {
-            isset($m['animation'])                 => '🎞 گیف',
-            isset($m['video_note'])                => '⭕ ویدیو مسیج',
-            isset($m['video'])                     => '🎬 ویدیو',
-            isset($m['voice'])                     => '🎤 پیام صوتی',
-            isset($m['audio'])                     => '🎵 آهنگ',
-            isset($m['photo'])                     => '🖼 عکس',
-            isset($m['sticker'])                   => '🏷 استیکر',
-            isset($m['document'])                  => '📎 فایل',
-            isset($m['paid_media'])                => '⭐ مدیای پولی',
-            isset($m['story'])                     => '📖 استوری',
-            isset($m['contact'])                   => '👤 مخاطب',
-            isset($m['venue'])                     => '📍 مکان',
-            isset($m['location'])                  => '🗺 موقعیت',
-            isset($m['poll'])                      => '📊 نظرسنجی',
-            isset($m['checklist'])                 => '☑️ چک‌لیست',
-            isset($m['dice'])                      => '🎲 تاس',
-            isset($m['game'])                      => '🎮 بازی',
-            isset($m['invoice'])                   => '🧾 فاکتور',
-            isset($m['giveaway']), isset($m['giveaway_winners']) => '🎁 قرعه‌کشی',
-            isset($m['gift']), isset($m['unique_gift']) => '🎁 هدیه',
-            isset($m['web_app_data'])              => '🧩 وب‌اپ',
+            isset($m['animation'])                 => L('🎞 گیف', '🎞 GIF'),
+            isset($m['video_note'])                => L('⭕ ویدیو مسیج', '⭕ Video message'),
+            isset($m['video'])                     => L('🎬 ویدیو', '🎬 Video'),
+            isset($m['voice'])                     => L('🎤 پیام صوتی', '🎤 Voice message'),
+            isset($m['audio'])                     => L('🎵 آهنگ', '🎵 Song'),
+            isset($m['photo'])                     => L('🖼 عکس', '🖼 Photo'),
+            isset($m['sticker'])                   => L('🏷 استیکر', '🏷 Sticker'),
+            isset($m['document'])                  => L('📎 فایل', '📎 File'),
+            isset($m['paid_media'])                => L('⭐ مدیای پولی', '⭐ Paid media'),
+            isset($m['story'])                     => L('📖 استوری', '📖 Story'),
+            isset($m['contact'])                   => L('👤 مخاطب', '👤 Contact'),
+            isset($m['venue'])                     => L('📍 مکان', '📍 Venue'),
+            isset($m['location'])                  => L('🗺 موقعیت', '🗺 Location'),
+            isset($m['poll'])                      => L('📊 نظرسنجی', '📊 Poll'),
+            isset($m['checklist'])                 => L('☑️ چک‌لیست', '☑️ Checklist'),
+            isset($m['dice'])                      => L('🎲 تاس', '🎲 Dice'),
+            isset($m['game'])                      => L('🎮 بازی', '🎮 Game'),
+            isset($m['invoice'])                   => L('🧾 فاکتور', '🧾 Invoice'),
+            isset($m['giveaway']), isset($m['giveaway_winners']) => L('🎁 قرعه‌کشی', '🎁 Giveaway'),
+            isset($m['gift']), isset($m['unique_gift']) => L('🎁 هدیه', '🎁 Gift'),
+            isset($m['web_app_data'])              => L('🧩 وب‌اپ', '🧩 Web app'),
             default                                => null,
         };
     }
@@ -219,14 +220,20 @@ final class Business
 
     private static function who(string $name, int $uid, string $un): string
     {
-        return "\u{200F}👤 نام: <a href=\"tg://user?id={$uid}\">" . bidi(h($name)) . "</a>\n"
-            . "\u{200F}🆔 آیدی: <code>{$uid}</code>\n"
-            . "\u{200F}🔗 یوزرنیم: " . ($un !== '' ? bidi('@' . h($un)) : 'ندارد');
+        $rlm = Lang::is('en') ? '' : "\u{200F}";
+        return $rlm . L('👤 نام: ', '👤 Name: ') . "<a href=\"tg://user?id={$uid}\">" . bidi(h($name)) . "</a>\n"
+            . $rlm . L('🆔 آیدی: ', '🆔 ID: ') . "<code>{$uid}</code>\n"
+            . $rlm . L('🔗 یوزرنیم: ', '🔗 Username: ') . ($un !== '' ? bidi('@' . h($un)) : L('ندارد', 'none'));
     }
 
     private static function note(string $cid, array $msg): void
     {
+        $prevLang = Lang::get();
+        if (($oc = self::owner($cid)) !== null) {
+            Lang::set(Lang::forUser(['id' => (int) $oc['owner']]));
+        }
         $d = self::digest($msg);
+        Lang::set($prevLang);
         if ($d === '') {
             return;
         }
@@ -281,10 +288,10 @@ final class Business
     {
         return implode(' | ', [
             "{$label}:",
-            'نام: ' . userName($u),
-            !empty($u['username']) ? 'یوزرنیم: @' . $u['username'] : 'یوزرنیم: ندارد',
-            'آیدی عددی: ' . (int) ($u['id'] ?? 0),
-            'بیو: ' . ($bio !== '' ? $bio : 'در دسترس نیست'),
+            'Name: ' . userName($u),
+            !empty($u['username']) ? 'Username: @' . $u['username'] : 'Username: none',
+            'Numeric ID: ' . (int) ($u['id'] ?? 0),
+            'Bio: ' . ($bio !== '' ? $bio : 'not available'),
         ]);
     }
 
@@ -344,9 +351,9 @@ final class Business
         $tg->call('sendChatAction', ['chat_id' => $chat, 'action' => 'typing', 'business_connection_id' => $cid], 5);
 
         $system = ($cfg['prompt'] !== '' ? $cfg['prompt'] . "\n\n" : '')
-            . "[اطلاعات پس‌زمینه — صرفاً برای context، مستقیم تکرارش نکن]\n"
-            . self::person('اطلاعات صاحب حساب کاربری', (array) ($conn['user'] ?? ['id' => $owner]), self::bio($owner)) . "\n"
-            . self::person('اطلاعات کاربر در حال گفتگو', (array) ($msg['from'] ?? []), self::bio($chat));
+            . "[Background info — for context only, don’t repeat it directly]\n"
+            . self::person('Account owner info', (array) ($conn['user'] ?? ['id' => $owner]), self::bio($owner)) . "\n"
+            . self::person('Info about the user chatting', (array) ($msg['from'] ?? []), self::bio($chat));
 
         $key      = "{$owner}_{$chat}";
         $reply    = null;
@@ -374,7 +381,7 @@ final class Business
             }
         }
 
-        $reply ??= 'الان مشکلی پیش اومد، بعداً دوباره پیام بدید.';
+        $reply ??= L('الان مشکلی پیش اومد، بعداً دوباره پیام بدید.', 'Something went wrong right now; please message again later.');
         self::typing($cid, $chat, $reply);
         $tg->call('sendMessage', [
             'chat_id'                => $chat,
@@ -402,21 +409,21 @@ final class Business
                 if ($tr === null) {
                     return null;
                 }
-                $notes[]  = '[مشتری ویس فرستاده؛ متن ویسش همین پایینه]';
+                $notes[]  = '[The customer sent a voice message; its transcript is below]';
                 $question = $tr;
             } elseif ($data !== null) {
-                $notes[] = "[مشتری یه {$data[0]} فرستاده؛ {$data[1]}]";
+                $notes[] = "[The customer sent a {$data[0]}; {$data[1]}]";
             } elseif ($info !== null) {
-                $notes[] = "[مشتری یه فایل فرستاده؛ {$info}]";
+                $notes[] = "[The customer sent a file; {$info}]";
             } else {
                 $media = Assistant::mediaPart($msg);
                 $emoji = (string) ($msg['sticker']['emoji'] ?? '');
                 if ($media) {
                     $parts[]  = ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $media['mime'] . ';base64,' . $media['data']]];
                     $vision   = true;
-                    $notes[]  = '[مشتری ' . $kind . ' فرستاده؛ ' . (Assistant::isFrame($msg) ? 'فقط عکسِ فریم اولش پیوسته' : 'عکسش پیوسته') . ($emoji !== '' ? "؛ ایموجی استیکر: {$emoji}" : '') . '، ببینش و جواب بده]';
+                    $notes[]  = ('[The customer sent a ' . $kind . '; ' . (Assistant::isFrame($msg) ? 'only its first-frame image is attached' : 'its image is attached') . ($emoji !== '' ? "; sticker emoji: {$emoji}" : '') . ', look at it and answer]');
                 } else {
-                    $notes[] = '[مشتری ' . $kind . ' فرستاده ولی محتواش قابل دیدن نیست' . ($emoji !== '' ? "؛ ایموجی استیکر: {$emoji}" : '') . ']';
+                    $notes[] = ('[The customer sent a ' . $kind . ' but its content can’t be seen' . ($emoji !== '' ? "; sticker emoji: {$emoji}" : '') . ']');
                 }
             }
             $notes[0] = Assistant::withAlbum($notes[0], $msg);
@@ -560,6 +567,7 @@ final class Business
         if ($conn === null || empty($conn['on']) || (int) ($msg['from']['id'] ?? 0) === (int) $conn['owner']) {
             return;
         }
+        Lang::set(Lang::forUser(['id' => (int) $conn['owner']]));
         $cfg = self::cfg((int) $conn['owner']);
         if (!$cfg['edit']) {
             $cfg['del'] && self::note($cid, $msg);
@@ -573,7 +581,8 @@ final class Business
             return;
         }
         $f = (array) ($msg['from'] ?? []);
-        App::tg()->send((int) $conn['chat'], "\u{200F}✏️ <b>پیام ویرایش‌شده</b>\n\n" . self::who(userName($f), (int) ($f['id'] ?? 0), (string) ($f['username'] ?? '')) . "\n\n\u{200F}قبل:\n<blockquote>" . h($old['text']) . "</blockquote>\n\u{200F}بعد:\n<blockquote>" . h(mb_substr($new, 0, 1500)) . '</blockquote>');
+        $rlm = Lang::is('en') ? '' : "\u{200F}";
+        App::tg()->send((int) $conn['chat'], $rlm . L('✏️ <b>پیام ویرایش‌شده</b>', '✏️ <b>Edited message</b>') . "\n\n" . self::who(userName($f), (int) ($f['id'] ?? 0), (string) ($f['username'] ?? '')) . "\n\n" . $rlm . L('قبل:', 'Before:') . "\n<blockquote>" . h($old['text']) . "</blockquote>\n" . $rlm . L('بعد:', 'After:') . "\n<blockquote>" . h(mb_substr($new, 0, 1500)) . '</blockquote>');
     }
 
     public static function onDeleted(array $d): void
@@ -586,6 +595,7 @@ final class Business
         if ($conn === null || empty($conn['on']) || !self::cfg((int) $conn['owner'])['del']) {
             return;
         }
+        Lang::set(Lang::forUser(['id' => (int) $conn['owner']]));
         $tg    = App::tg();
         $chat  = (int) $conn['chat'];
         $lines = [];
@@ -605,7 +615,7 @@ final class Business
                 if ($sent++ >= 10) {
                     continue;
                 }
-                $head = "🗑 <b>پیام پاک‌شده</b>\n\n" . self::who((string) $m['name'], (int) $m['uid'], (string) ($m['un'] ?? ''));
+                $head = L("🗑 <b>پیام پاک‌شده</b>", "🗑 <b>Deleted message</b>") . "\n\n" . self::who((string) $m['name'], (int) $m['uid'], (string) ($m['un'] ?? ''));
                 $tg->send($chat, $head);
                 $r = $tg->call($media['method'], ['chat_id' => $chat] + $media['params'], 20);
                 if (empty($r['ok'])) {
@@ -620,7 +630,7 @@ final class Business
             if ($sent++ >= 10) {
                 continue;
             }
-            $head    = "🗑 <b>پیام پاک‌شده</b>\n\n" . self::who((string) $m['name'], (int) $m['uid'], (string) ($m['un'] ?? ''));
+            $head    = L("🗑 <b>پیام پاک‌شده</b>", "🗑 <b>Deleted message</b>") . "\n\n" . self::who((string) $m['name'], (int) $m['uid'], (string) ($m['un'] ?? ''));
             $cap     = (string) ($m['cap'] ?? '');
             $capable = !in_array($media['method'], ['sendSticker', 'sendVideoNote'], true);
             $caption = $head . ($cap !== '' ? "\n<blockquote>" . h($cap) . '</blockquote>' : '');
@@ -637,7 +647,7 @@ final class Business
             }
         }
         if ($lines) {
-            $tg->send($chat, "🗑 <b>پیام پاک‌شده</b>\n\n" . implode("\n\n", array_slice($lines, 0, 10)));
+            $tg->send($chat, L("🗑 <b>پیام پاک‌شده</b>", "🗑 <b>Deleted message</b>") . "\n\n" . implode("\n\n", array_slice($lines, 0, 10)));
         }
     }
 
@@ -683,15 +693,15 @@ final class Business
     private static function hoursMenu(int $uid): array
     {
         $c    = self::cfg($uid);
-        $text = "<b>🕐 ساعت فعالیت</b>\nمنشی فقط تو این بازه جواب می‌ده؛\nبیرون از بازه ساکت می‌مونه.\n\n"
-            . '🔌 وضعیت: <b>' . ($c['hrs'] ? 'روشن' : 'خاموش (همیشه فعال)') . "</b>\n"
-            . '🌅 شروع: <b>' . self::hourLabel((int) $c['hf']) . "</b>\n"
-            . '🌙 پایان: <b>' . self::hourLabel((int) $c['ht']) . "</b>\n\n"
-            . "💡 ساعت‌ها به وقت تهرانه.\nمثلاً از ۲۲:۰۰ تا ۰۸:۰۰ یعنی شبانه.";
+        $text = L("<b>🕐 ساعت فعالیت</b>\nمنشی فقط تو این بازه جواب می‌ده؛\nبیرون از بازه ساکت می‌مونه.\n\n", "<b>🕐 Active hours</b>\nThe assistant only replies within this window;\noutside it, it stays silent.\n\n")
+            . L('🔌 وضعیت: <b>', '🔌 Status: <b>') . ($c['hrs'] ? L('روشن', 'On') : L('خاموش (همیشه فعال)', 'Off (always active)')) . "</b>\n"
+            . L('🌅 شروع: <b>', '🌅 Start: <b>') . self::hourLabel((int) $c['hf']) . "</b>\n"
+            . L('🌙 پایان: <b>', '🌙 End: <b>') . self::hourLabel((int) $c['ht']) . "</b>\n\n"
+            . L("💡 ساعت‌ها به وقت تهرانه.\nمثلاً از ۲۲:۰۰ تا ۰۸:۰۰ یعنی شبانه.", "💡 Hours are in Tehran time.\nFor example, 22:00 to 08:00 means overnight.");
         $kb = ikb([
-            [btn($c['hrs'] ? '🕐 ساعت فعالیت: روشن' : '🕐 ساعت فعالیت: خاموش', 'bz:hr:t', $c['hrs'] ? 'success' : 'danger')],
-            [btn('🌅 شروع: ' . self::hourLabel((int) $c['hf']), 'bz:hr:f', null), btn('🌙 پایان: ' . self::hourLabel((int) $c['ht']), 'bz:hr:e', null)],
-            [btn('🔙 برگشت', 'bz:menu', null)],
+            [btn($c['hrs'] ? L('🕐 ساعت فعالیت: روشن', '🕐 Active hours: on') : L('🕐 ساعت فعالیت: خاموش', '🕐 Active hours: off'), 'bz:hr:t', $c['hrs'] ? 'success' : 'danger')],
+            [btn(L('🌅 شروع: ', '🌅 Start: ') . self::hourLabel((int) $c['hf']), 'bz:hr:f', null), btn(L('🌙 پایان: ', '🌙 End: ') . self::hourLabel((int) $c['ht']), 'bz:hr:e', null)],
+            [btn(L('🔙 برگشت', '🔙 Back'), 'bz:menu', null)],
         ]);
         return [$text, $kb];
     }
@@ -700,29 +710,30 @@ final class Business
     {
         $c     = self::cfg($uid);
         $modes = self::modes();
-        $text  = "<b>🤝 منشی هوشمند</b>\n"
-            . "به پیام‌های پیوی اکانتت\n"
-            . "با هوش مصنوعی جواب می‌دم؛ به هر نوع پیامی.\n\n"
-            . '🔌 وضعیت: <b>' . ($c['on'] ? 'روشن' : 'خاموش') . "</b>\n"
-            . '🔑 کلید گروک: <b>' . ($c['keys'] ? fa((string) count($c['keys'])) . ' کلید' : 'ثبت نشده') . "</b>\n"
-            . '🤖 مدل: <b>' . bidi(h(self::model($c['model']))) . "</b>\n"
-            . '📝 پرامپت: <b>' . ($c['prompt'] !== '' ? 'سفارشی' : 'بدون پرامپت') . "</b>\n"
-            . '⏱ حالت پاسخ‌دهی: <b>' . h($modes[$c['pause']][0] ?? $c['pause']) . "</b>\n"
-            . '🧠 سطح فکر کردن: <b>' . h(AI::THINK_LEVELS[$c['think']] ?? 'پیش‌فرض') . "</b>\n"
-            . '🕐 ساعت فعالیت: <b>' . ($c['hrs'] ? 'از ' . self::hourLabel((int) $c['hf']) . ' تا ' . self::hourLabel((int) $c['ht']) : 'همیشه') . "</b>\n"
-            . '🗑 پیام‌های پاک‌شده: <b>' . ($c['del'] ? 'روشن' : 'خاموش') . "</b>\n"
-            . '✏️ پیام‌های ویرایش‌شده: <b>' . ($c['edit'] ? 'روشن' : 'خاموش') . '</b>';
+        $on    = L('روشن', 'On');
+        $off   = L('خاموش', 'Off');
+        $nKeys = count($c['keys']);
+        $text  = L("<b>🤝 منشی هوشمند</b>\nبه پیام‌های پیوی اکانتت\nبا هوش مصنوعی جواب می‌دم؛ به هر نوع پیامی.\n\n", "<b>🤝 Smart assistant</b>\nI reply to the private messages\nof your account with AI, whatever the message type.\n\n")
+            . L('🔌 وضعیت: <b>', '🔌 Status: <b>') . ($c['on'] ? $on : $off) . "</b>\n"
+            . L('🔑 کلید گروک: <b>', '🔑 Groq key: <b>') . ($c['keys'] ? L(fa((string) $nKeys) . ' کلید', $nKeys . ($nKeys === 1 ? ' key' : ' keys')) : L('ثبت نشده', 'not set')) . "</b>\n"
+            . L('🤖 مدل: <b>', '🤖 Model: <b>') . bidi(h(self::model($c['model']))) . "</b>\n"
+            . L('📝 پرامپت: <b>', '📝 Prompt: <b>') . ($c['prompt'] !== '' ? L('سفارشی', 'custom') : L('بدون پرامپت', 'none')) . "</b>\n"
+            . L('⏱ حالت پاسخ‌دهی: <b>', '⏱ Reply mode: <b>') . h($modes[$c['pause']][0] ?? $c['pause']) . "</b>\n"
+            . L('🧠 سطح فکر کردن: <b>', '🧠 Thinking level: <b>') . h(AI::thinkLabel((string) $c['think'])) . "</b>\n"
+            . L('🕐 ساعت فعالیت: <b>', '🕐 Active hours: <b>') . ($c['hrs'] ? L('از ' . self::hourLabel((int) $c['hf']) . ' تا ' . self::hourLabel((int) $c['ht']), 'from ' . self::hourLabel((int) $c['hf']) . ' to ' . self::hourLabel((int) $c['ht'])) : L('همیشه', 'always')) . "</b>\n"
+            . L('🗑 پیام‌های پاک‌شده: <b>', '🗑 Deleted messages: <b>') . ($c['del'] ? $on : $off) . "</b>\n"
+            . L('✏️ پیام‌های ویرایش‌شده: <b>', '✏️ Edited messages: <b>') . ($c['edit'] ? $on : $off) . '</b>';
         $kb = ikb([
-            [btn('🔑 کلید گروک', 'bz:key'), btn('🤖 انتخاب مدل', 'bz:md')],
-            [btn($c['on'] ? '🔌 منشی: روشن' : '🔌 منشی: خاموش', 'bz:on', $c['on'] ? 'success' : 'danger')],
-            [btn('📝 پرامپت', 'bz:prompt', null), btn('⏱ حالت پاسخ‌دهی', 'bz:pm', null)],
-            [btn('🧠 سطح فکر کردن', 'bz:th', null), btn('🕐 ساعت فعالیت', 'bz:hr', null)],
-            [btn('➕ اتصال به اکانت', 'bz:how', 'primary')],
+            [btn(L('🔑 کلید گروک', '🔑 Groq key'), 'bz:key'), btn(L('🤖 انتخاب مدل', '🤖 Choose model'), 'bz:md')],
+            [btn($c['on'] ? L('🔌 منشی: روشن', '🔌 Assistant: on') : L('🔌 منشی: خاموش', '🔌 Assistant: off'), 'bz:on', $c['on'] ? 'success' : 'danger')],
+            [btn(L('📝 پرامپت', '📝 Prompt'), 'bz:prompt', null), btn(L('⏱ حالت پاسخ‌دهی', '⏱ Reply mode'), 'bz:pm', null)],
+            [btn(L('🧠 سطح فکر کردن', '🧠 Thinking level'), 'bz:th', null), btn(L('🕐 ساعت فعالیت', '🕐 Active hours'), 'bz:hr', null)],
+            [btn(L('➕ اتصال به اکانت', '➕ Connect to account'), 'bz:how', 'primary')],
             [
-                btn($c['del'] ? '🗑 روشن' : '🗑 خاموش', 'bz:del', $c['del'] ? 'success' : 'danger'),
-                btn($c['edit'] ? '✏️ روشن' : '✏️ خاموش', 'bz:edit', $c['edit'] ? 'success' : 'danger'),
+                btn($c['del'] ? L('🗑 روشن', '🗑 On') : L('🗑 خاموش', '🗑 Off'), 'bz:del', $c['del'] ? 'success' : 'danger'),
+                btn($c['edit'] ? L('✏️ روشن', '✏️ On') : L('✏️ خاموش', '✏️ Off'), 'bz:edit', $c['edit'] ? 'success' : 'danger'),
             ],
-            ...(Store::get('biz_back', (string) $uid) === 1 ? [[btn('🔙 برگشت', 'home', null)]] : []),
+            ...(Store::get('biz_back', (string) $uid) === 1 ? [[btn(L('🔙 برگشت', '🔙 Back'), 'home', null)]] : []),
         ]);
         return [$text, $kb];
     }
@@ -737,7 +748,7 @@ final class Business
             $tg->answer($cq);
             return;
         }
-        $back = [btn('🔙 برگشت', 'bz:menu', null)];
+        $back = [btn(L('🔙 برگشت', '🔙 Back'), 'bz:menu', null)];
 
         if ($data === 'bz:menu:h') {
             Store::set('biz_back', (string) $uid, 1);
@@ -751,7 +762,10 @@ final class Business
             self::save($uid, ['prompt' => '']);
         } elseif ($data === 'bz:key') {
             Store::set('biz_wait', (string) $uid, ['step' => 'key']);
-            Ui::show($chatId, $msgId, "<b>🔑 کلید گروک</b>\nکلید API گروکت رو همین‌جا بفرست؛\nبا <code>gsk_</code> شروع می‌شه.\nرایگانه، از console.groq.com/keys بگیر.\n\n🔁 می‌تونی چند کلید بفرستی (هر کدوم تو یه خط)\nیا هر بار یکی اضافه کنی؛ منشی بینشون می‌چرخه\nو اگه یکی خطا داد، سراغ بعدی می‌ره.\n\n💡 بعد از ذخیره، پیامی که کلید توشه پاک می‌شه.", ikb([[btn('🗑 حذف همه کلیدها', 'bz:kc', 'danger')], $back]));
+            Ui::show($chatId, $msgId, L(
+                "<b>🔑 کلید گروک</b>\nکلید API گروکت رو همین‌جا بفرست؛\nبا <code>gsk_</code> شروع می‌شه.\nرایگانه، از console.groq.com/keys بگیر.\n\n🔁 می‌تونی چند کلید بفرستی (هر کدوم تو یه خط)\nیا هر بار یکی اضافه کنی؛ منشی بینشون می‌چرخه\nو اگه یکی خطا داد، سراغ بعدی می‌ره.\n\n💡 بعد از ذخیره، پیامی که کلید توشه پاک می‌شه.",
+                "<b>🔑 Groq key</b>\nSend your Groq API key right here;\nit starts with <code>gsk_</code>.\nIt’s free, get one at console.groq.com/keys.\n\n🔁 You can send several keys (one per line)\nor add them one at a time; the assistant rotates between them\nand moves on to the next if one fails.\n\n💡 After saving, the message containing the key is deleted."
+            ), ikb([[btn(L('🗑 حذف همه کلیدها', '🗑 Delete all keys'), 'bz:kc', 'danger')], $back]));
             $tg->answer($cq);
             return;
         } elseif ($data === 'bz:kc') {
@@ -762,14 +776,17 @@ final class Business
                 $rows[] = [btn(FreeAI::title('groq', $e['id']), 'bz:md:' . $i, null)];
             }
             $rows[] = $back;
-            Ui::show($chatId, $msgId, "<b>🤖 انتخاب مدل</b>\nمدل مورد نظرت رو انتخاب کن 😎\nمنشی با همون به پیام‌هات جواب می‌ده.", ikb($rows));
+            Ui::show($chatId, $msgId, L("<b>🤖 انتخاب مدل</b>\nمدل مورد نظرت رو انتخاب کن 😎\nمنشی با همون به پیام‌هات جواب می‌ده.", "<b>🤖 Choose model</b>\nPick the model you want 😎\nThe assistant will use it to reply to your messages."), ikb($rows));
             $tg->answer($cq);
             return;
         } elseif (preg_match('/^bz:md:(\d+)$/', $data, $m) && isset(FreeAI::models('groq')[(int) $m[1]])) {
             self::save($uid, ['model' => FreeAI::models('groq')[(int) $m[1]]['id']]);
         } elseif ($data === 'bz:prompt') {
             Store::set('biz_wait', (string) $uid, ['step' => 'prompt']);
-            Ui::show($chatId, $msgId, "<b>📝 پرامپت منشی</b>\nشخصیت و دستورالعمل منشی رو بفرست.\n\nمثال:\n<code>تو منشی شخصی من هستی؛\nوقتی نیستم مودب و کوتاه جواب بده\nو بگو وقتی خودم اومدم راهنماییت می‌کنم.</code>\n\n💡 اگه پرامپت نذاری، بدون پرامپت جواب می‌ده.", ikb([[btn('🗑 حذف پرامپت', 'bz:clr', 'danger')], $back]));
+            Ui::show($chatId, $msgId, L(
+                "<b>📝 پرامپت منشی</b>\nشخصیت و دستورالعمل منشی رو بفرست.\n\nمثال:\n<code>تو منشی شخصی من هستی؛\nوقتی نیستم مودب و کوتاه جواب بده\nو بگو وقتی خودم اومدم راهنماییت می‌کنم.</code>\n\n💡 اگه پرامپت نذاری، بدون پرامپت جواب می‌ده.",
+                "<b>📝 Assistant prompt</b>\nSend the assistant’s personality and instructions.\n\nExample:\n<code>You are my personal assistant;\nwhen I’m away, reply politely and briefly\nand say I’ll get back to them when I’m back.</code>\n\n💡 If you don’t set a prompt, it replies without one."
+            ), ikb([[btn(L('🗑 حذف پرامپت', '🗑 Delete prompt'), 'bz:clr', 'danger')], $back]));
             $tg->answer($cq);
             return;
         } elseif ($data === 'bz:pm') {
@@ -778,7 +795,10 @@ final class Business
                 $rows[] = array_map(static fn($k) => btn(self::modes()[$k][0], 'bz:pm:' . $k, null), $pair);
             }
             $rows[] = $back;
-            Ui::show($chatId, $msgId, "<b>⏱ حالت پاسخ‌دهی</b>\nبعد از هر جواب، یا وقتی خودت دستی\nتو یه چت پیام می‌دی، چقدر ساکت بمونم؟\n\n⚡ فوری: همیشه جواب می‌دم؛\nفقط بعد از پیام دستی خودت ۱ دقیقه صبر می‌کنم.\n♾ دائمی: بعد از اولین جواب یا پیام دستی‌ت،\nدیگه خودکار جواب نمی‌دم.", ikb($rows));
+            Ui::show($chatId, $msgId, L(
+                "<b>⏱ حالت پاسخ‌دهی</b>\nبعد از هر جواب، یا وقتی خودت دستی\nتو یه چت پیام می‌دی، چقدر ساکت بمونم؟\n\n⚡ فوری: همیشه جواب می‌دم؛\nفقط بعد از پیام دستی خودت ۱ دقیقه صبر می‌کنم.\n♾ دائمی: بعد از اولین جواب یا پیام دستی‌ت،\nدیگه خودکار جواب نمی‌دم.",
+                "<b>⏱ Reply mode</b>\nAfter each reply, or when you message\nin a chat manually, how long should I stay quiet?\n\n⚡ Instant: I always reply;\nI only wait 1 minute after your own manual message.\n♾ Forever: after the first reply or your manual message,\nI stop replying automatically."
+            ), ikb($rows));
             $tg->answer($cq);
             return;
         } elseif (preg_match('/^bz:pm:(\w+)$/', $data, $m) && isset(self::modes()[$m[1]])) {
@@ -787,10 +807,13 @@ final class Business
             $cur  = self::cfg($uid)['think'];
             $rows = [];
             foreach (array_keys(AI::THINK_LEVELS) as $k) {
-                $rows[] = [btn(($k === $cur ? '✅ ' : '') . AI::THINK_LEVELS[$k], 'bz:th:' . $k, $k === $cur ? 'success' : null)];
+                $rows[] = [btn(($k === $cur ? '✅ ' : '') . AI::thinkLabel($k), 'bz:th:' . $k, $k === $cur ? 'success' : null)];
             }
             $rows[] = $back;
-            Ui::show($chatId, $msgId, "<b>🧠 سطح فکر کردن</b>\nمنشی قبل از جواب چقدر فکر کنه؟\n\nفقط روی مدل‌هایی اثر داره که فکر کردن دارن.\nکمتر = سریع‌تر، بیشتر = دقیق‌تر.\n\nاین تنظیم مخصوص منشی توئه و به هوش مصنوعی اصلی ربات ربطی نداره.", ikb($rows));
+            Ui::show($chatId, $msgId, L(
+                "<b>🧠 سطح فکر کردن</b>\nمنشی قبل از جواب چقدر فکر کنه؟\n\nفقط روی مدل‌هایی اثر داره که فکر کردن دارن.\nکمتر = سریع‌تر، بیشتر = دقیق‌تر.\n\nاین تنظیم مخصوص منشی توئه و به هوش مصنوعی اصلی ربات ربطی نداره.",
+                "<b>🧠 Thinking level</b>\nHow much should the assistant think before replying?\n\nIt only affects models that support thinking.\nLower = faster, higher = more accurate.\n\nThis setting is for your assistant only and doesn’t affect the bot’s main AI."
+            ), ikb($rows));
             $tg->answer($cq);
             return;
         } elseif (preg_match('/^bz:th:(\w+)$/', $data, $m) && isset(AI::THINK_LEVELS[$m[1]])) {
@@ -809,8 +832,10 @@ final class Business
                 foreach (array_chunk(range(0, 23), 4) as $chunk) {
                     $rows[] = array_map(static fn($h) => btn(($h === $cur ? '✅ ' : '') . self::hourLabel($h), "bz:hr:{$act}:{$h}", $h === $cur ? 'success' : null), $chunk);
                 }
-                $rows[] = [btn('🔙 برگشت', 'bz:hr', null)];
-                Ui::show($chatId, $msgId, $act === 'f' ? "<b>🌅 ساعت شروع</b>\nمنشی از چه ساعتی فعال بشه؟" : "<b>🌙 ساعت پایان</b>\nمنشی تا چه ساعتی فعال باشه؟", ikb($rows));
+                $rows[] = [btn(L('🔙 برگشت', '🔙 Back'), 'bz:hr', null)];
+                Ui::show($chatId, $msgId, $act === 'f'
+                    ? L("<b>🌅 ساعت شروع</b>\nمنشی از چه ساعتی فعال بشه؟", "<b>🌅 Start time</b>\nFrom what hour should the assistant be active?")
+                    : L("<b>🌙 ساعت پایان</b>\nمنشی تا چه ساعتی فعال باشه؟", "<b>🌙 End time</b>\nUntil what hour should the assistant be active?"), ikb($rows));
                 $tg->answer($cq);
                 return;
             }
@@ -821,7 +846,10 @@ final class Business
             return;
         } elseif ($data === 'bz:how') {
             $bot = App::botUsername();
-            Ui::show($chatId, $msgId, "<b>➕ اتصال به اکانت</b>\n\n۱. تلگرام ← پروفایل\n۲. ویرایش پروفایل\n۳. خودکار سازی گفت و گو\n۴. یوزرنیم منو بزن: <code>@{$bot}</code>\n۵. چت‌هایی که می‌خوای جواب بدم رو انتخاب کن\n\n💡 دسترسی «پاسخ به پیام‌ها» رو هم بده،\nوگرنه نمی‌تونم جواب بدم.", ikb([$back]));
+            Ui::show($chatId, $msgId, L(
+                "<b>➕ اتصال به اکانت</b>\n\n۱. تلگرام ← پروفایل\n۲. ویرایش پروفایل\n۳. خودکار سازی گفت و گو\n۴. یوزرنیم منو بزن: <code>@{$bot}</code>\n۵. چت‌هایی که می‌خوای جواب بدم رو انتخاب کن\n\n💡 دسترسی «پاسخ به پیام‌ها» رو هم بده،\nوگرنه نمی‌تونم جواب بدم.",
+                "<b>➕ Connect to account</b>\n\n1. Telegram → Settings\n2. Telegram Business\n3. Chatbots\n4. Enter my username: <code>@{$bot}</code>\n5. Choose the chats you want me to reply in\n\n💡 Also grant the “Reply to messages” permission,\nor I won’t be able to reply."
+            ), ikb([$back]));
             $tg->answer($cq);
             return;
         }
@@ -842,14 +870,14 @@ final class Business
         $tg   = App::tg();
         $text = mbTrim((string) ($msg['text'] ?? ''));
         if ($text === '') {
-            $tg->reply($msg, 'فقط متن بفرست.');
+            $tg->reply($msg, L('فقط متن بفرست.', 'Please send text only.'));
             return true;
         }
         $found = [];
         if ($w['step'] === 'key') {
             $found = array_values(array_filter(preg_split('/\s+/u', $text) ?: [], static fn($t) => str_starts_with($t, 'gsk_')));
             if (!$found) {
-                $tg->reply($msg, "😕 این شبیه کلید گروک نیست؛\nباید با <code>gsk_</code> شروع بشه.\nدوباره بفرست.");
+                $tg->reply($msg, L("😕 این شبیه کلید گروک نیست؛\nباید با <code>gsk_</code> شروع بشه.\nدوباره بفرست.", "😕 That doesn’t look like a Groq key;\nit should start with <code>gsk_</code>.\nPlease send it again."));
                 return true;
             }
         }
@@ -857,10 +885,10 @@ final class Business
         if ($w['step'] === 'key') {
             self::save($uid, ['keys' => array_values(array_unique(array_merge(self::cfg($uid)['keys'], $found))), 'key' => '']);
             $tg->call('deleteMessage', ['chat_id' => $msg['chat']['id'], 'message_id' => $msg['message_id']], 8);
-            $done = 'کلید ذخیره شد ✅';
+            $done = L('کلید ذخیره شد ✅', 'Key saved ✅');
         } else {
             self::save($uid, ['prompt' => mb_substr($text, 0, 2000)]);
-            $done = 'پرامپت ذخیره شد ✅';
+            $done = L('پرامپت ذخیره شد ✅', 'Prompt saved ✅');
         }
         [$panel, $kb] = self::panel($uid);
         Rich::send($msg['chat']['id'], "{$done}\n\n" . $panel, $kb);

@@ -2,7 +2,14 @@
 
 final class Giveaway
 {
-    private const DURATIONS = [1800 => '۳۰ دقیقه', 3600 => '۱ ساعت', 21600 => '۶ ساعت', 86400 => '۱ روز', 259200 => '۳ روز', 604800 => '۷ روز'];
+    private const DURATIONS = [
+        1800   => ['۳۰ دقیقه', '30 min'],
+        3600   => ['۱ ساعت', '1 hour'],
+        21600  => ['۶ ساعت', '6 hours'],
+        86400  => ['۱ روز', '1 day'],
+        259200 => ['۳ روز', '3 days'],
+        604800 => ['۷ روز', '7 days'],
+    ];
     private const MEDALS    = ['🥇', '🥈', '🥉'];
     private const MAX_WIN   = 50;
 
@@ -28,8 +35,8 @@ final class Giveaway
         $post = self::rights(['can_post_messages', 'can_edit_messages']);
         return [
             'keyboard' => [
-                [['text' => '📢 انتخاب کانال', 'request_chat' => ['request_id' => 1, 'chat_is_channel' => true, 'user_administrator_rights' => $post, 'bot_administrator_rights' => $post, 'request_title' => true, 'request_username' => true]]],
-                [['text' => '👥 انتخاب گروه', 'request_chat' => ['request_id' => 2, 'chat_is_channel' => false, 'user_administrator_rights' => self::rights([]), 'bot_is_member' => true, 'request_title' => true, 'request_username' => true]]],
+                [['text' => L('📢 انتخاب کانال', '📢 Choose channel'), 'request_chat' => ['request_id' => 1, 'chat_is_channel' => true, 'user_administrator_rights' => $post, 'bot_administrator_rights' => $post, 'request_title' => true, 'request_username' => true]]],
+                [['text' => L('👥 انتخاب گروه', '👥 Choose group'), 'request_chat' => ['request_id' => 2, 'chat_is_channel' => false, 'user_administrator_rights' => self::rights([]), 'bot_is_member' => true, 'request_title' => true, 'request_username' => true]]],
             ],
             'resize_keyboard'   => true,
             'one_time_keyboard' => true,
@@ -65,15 +72,15 @@ final class Giveaway
 
     private static function targetText(int $uid): string
     {
-        $head = "🎁 <b>ساخت قرعه‌کشی</b>\n\n🎯 قرعه‌کشی کجا برگزار بشه؟\n";
+        $head = L("🎁 <b>ساخت قرعه‌کشی</b>\n\n🎯 قرعه‌کشی کجا برگزار بشه؟\n", "🎁 <b>Create giveaway</b>\n\n🎯 Where should the giveaway be held?\n");
         return Store::get('gw_known', (string) $uid)
-            ? $head . "از دکمه‌ها کانال یا گروهت رو انتخاب کن،\nیا آیدی جدیدی بفرست."
-            : $head . 'آیدی کانال یا گروهت رو بفرست.';
+            ? $head . L("از دکمه‌ها کانال یا گروهت رو انتخاب کن،\nیا آیدی جدیدی بفرست.", "Choose your channel or group with the buttons,\nor send a new ID.")
+            : $head . L('آیدی کانال یا گروهت رو بفرست.', 'Send the ID of your channel or group.');
     }
 
     private static function cancelKeyboard(): array
     {
-        return ikb([[btn('❌ لغو', 'gw:x', null)]]);
+        return ikb([[btn(L('❌ لغو', '❌ Cancel'), 'gw:x', null)]]);
     }
 
     private static function dropKeyboard(int|string $chat, mixed $w): void
@@ -140,8 +147,8 @@ final class Giveaway
         $uid = (int) $from['id'];
         $id  = substr(md5($uid . '|' . $q . '|' . intdiv(time(), 600)), 0, 10);
         Store::set('gw_draft', $id, ['q' => mb_substr($q, 0, 300), 'owner' => $uid]);
-        return Ui::article('gwi_' . $id, 'gift', '🎁 قرعه‌کشی: ' . mb_substr($q, 0, 60), 'بزن تا بسازمش',
-            "<b>🎁 قرعه‌کشی</b>\n\n⏳ دارم آماده‌اش می‌کنم...", ikb([[btn('⏳ صبر کن...', 'noop', null)]]));
+        return Ui::article('gwi_' . $id, 'gift', L('🎁 قرعه‌کشی: ', '🎁 Giveaway: ') . mb_substr($q, 0, 60), L('بزن تا بسازمش', 'Tap to create it'),
+            L("<b>🎁 قرعه‌کشی</b>\n\n⏳ دارم آماده‌اش می‌کنم...", "<b>🎁 Giveaway</b>\n\n⏳ Getting it ready..."), ikb([[btn(L('⏳ صبر کن...', '⏳ Hold on...'), 'noop', null)]]));
     }
 
     private static function inlineKeyboard(array $g, string $ask = ''): array
@@ -152,12 +159,12 @@ final class Giveaway
         }
         if ($g['status'] === 'live') {
             return ikb([
-                [btn('🎉 شرکت در قرعه‌کشی', 'gw:j:' . $id, 'success')],
-                [btn('🏁 قرعه بکش', "gw:d:{$id}", null), btn('❌ لغو', "gw:c:{$id}", null)],
+                [btn(L('🎉 شرکت در قرعه‌کشی', '🎉 Join the giveaway'), 'gw:j:' . $id, 'success')],
+                [btn(L('🏁 قرعه بکش', '🏁 Draw winners'), "gw:d:{$id}", null), btn(L('❌ لغو', '❌ Cancel'), "gw:c:{$id}", null)],
             ]);
         }
         if ($g['status'] === 'done' && (int) ($g['total'] ?? 0) > 0) {
-            return ikb([[btn('🔁 دوباره قرعه بکش', "gw:r:{$id}", null)]]);
+            return ikb([[btn(L('🔁 دوباره قرعه بکش', '🔁 Draw again'), "gw:r:{$id}", null)]]);
         }
         return ikb([]);
     }
@@ -181,7 +188,7 @@ final class Giveaway
                 Store::set('gw_due', $id, $ends);
             }
             return [
-                'id' => $id, 'owner' => (int) $d['owner'], 'chat' => 0, 'imid' => $imid, 'title' => 'چت', 'type' => 'inline', 'username' => '',
+                'id' => $id, 'owner' => (int) $d['owner'], 'chat' => 0, 'imid' => $imid, 'title' => L('چت', 'Chat'), 'type' => 'inline', 'username' => '',
                 'prize' => $d['prize'], 'winners' => (int) $d['winners'], 'ends' => $ends, 'status' => 'live', 'created' => time(),
                 'msg' => 0, 'mgr' => [0, 0], 'won' => [], 'total' => 0, 'bot' => App::botIndex(),
             ];
@@ -223,16 +230,16 @@ final class Giveaway
     {
         $tg = App::tg();
         if (!empty($msg['sender_chat'])) {
-            $tg->reply($msg, "🕶 ناشناس پیام دادی و نمی‌شناسمت!\nبیا پیوی ربات و /giveaway بزن،\nبعد این گروه رو انتخاب کن.");
+            $tg->reply($msg, L("🕶 ناشناس پیام دادی و نمی‌شناسمت!\nبیا پیوی ربات و /giveaway بزن،\nبعد این گروه رو انتخاب کن.", "🕶 You’re posting anonymously and I can’t tell who you are!\nCome to the bot’s private chat and send /giveaway,\nthen choose this group."));
             return;
         }
         $st = self::status($msg['chat']['id'], (int) $msg['from']['id']);
         if (!in_array($st, ['creator', 'administrator'], true)) {
-            $tg->reply($msg, '🙅 فقط ادمین‌های گروه می‌تونن قرعه‌کشی بسازن.');
+            $tg->reply($msg, L('🙅 فقط ادمین‌های گروه می‌تونن قرعه‌کشی بسازن.', '🙅 Only group admins can create giveaways.'));
             return;
         }
         $bot = App::botUsername();
-        Rich::replyTo($msg, "🎁 برای تنظیم قرعه‌کشی بیا پیوی 👇", ikb([[urlBtn('⚙️ تنظیم قرعه‌کشی', "https://t.me/{$bot}?start=gw_" . $msg['chat']['id'], 'success')]]));
+        Rich::replyTo($msg, L("🎁 برای تنظیم قرعه‌کشی بیا پیوی 👇", "🎁 Come to my private chat to set up the giveaway 👇"), ikb([[urlBtn(L('⚙️ تنظیم قرعه‌کشی', '⚙️ Set up giveaway'), "https://t.me/{$bot}?start=gw_" . $msg['chat']['id'], 'success')]]));
     }
 
     public static function clear(int $uid): void
@@ -287,16 +294,16 @@ final class Giveaway
 
         if ($w['step'] === 'prize') {
             if ($text === '' || $text[0] === '/') {
-                self::put($chat, (int) ($w['m'] ?? 0), '✍️ جایزه رو به صورت متن بنویس.');
+                self::put($chat, (int) ($w['m'] ?? 0), L('✍️ جایزه رو به صورت متن بنویس.', '✍️ Write the prize as text.'));
                 return true;
             }
             if (mb_strlen($text) > 200) {
-                self::put($chat, (int) ($w['m'] ?? 0), '✂️ یه‌کم کوتاه‌ترش کن (حداکثر ۲۰۰ کاراکتر).');
+                self::put($chat, (int) ($w['m'] ?? 0), L('✂️ یه‌کم کوتاه‌ترش کن (حداکثر ۲۰۰ کاراکتر).', '✂️ Make it a bit shorter (200 characters max).'));
                 return true;
             }
             $w['g']['prize'] = $text;
             $w['step']       = 'winners';
-            $r = Rich::send($chat, '🏆 جایزه: <b>' . h($text) . "</b>\n\n👑 <b>چند نفر برنده بشن؟</b>\nاز دکمه‌ها انتخاب کن یا یه عدد (تا " . fa(self::MAX_WIN) . ') بفرست.', self::winnersKeyboard());
+            $r = Rich::send($chat, L('🏆 جایزه: <b>', '🏆 Prize: <b>') . h($text) . L("</b>\n\n👑 <b>چند نفر برنده بشن؟</b>\nاز دکمه‌ها انتخاب کن یا یه عدد (تا ", "</b>\n\n👑 <b>How many winners?</b>\nChoose with the buttons or send a number (up to ") . fa(self::MAX_WIN) . L(') بفرست.', ').'), self::winnersKeyboard());
             $w['m'] = (int) ($r['result']['message_id'] ?? 0);
             Store::set('gw_wiz', (string) $uid, $w);
             return true;
@@ -305,7 +312,7 @@ final class Giveaway
         if ($w['step'] === 'winners') {
             $n = (int) en($text);
             if (!preg_match('/^\d{1,3}$/', en($text)) || $n < 1 || $n > self::MAX_WIN) {
-                self::put($chat, (int) ($w['m'] ?? 0), '🔢 یه عدد بین ۱ تا ' . fa(self::MAX_WIN) . ' بفرست یا از دکمه‌ها انتخاب کن.', self::winnersKeyboard());
+                self::put($chat, (int) ($w['m'] ?? 0), L('🔢 یه عدد بین ۱ تا ' . fa(self::MAX_WIN) . ' بفرست یا از دکمه‌ها انتخاب کن.', '🔢 Send a number between 1 and ' . self::MAX_WIN . ' or choose with the buttons.'), self::winnersKeyboard());
                 return true;
             }
             self::setWinners($uid, $chat, (int) ($w['m'] ?? 0), $n);
@@ -319,23 +326,23 @@ final class Giveaway
         $tg = App::tg();
         $c  = $tg->call('getChat', ['chat_id' => $target], 10);
         if (empty($c['ok'])) {
-            return ['error' => "🤷 پیداش نکردم.\nمطمئن شو منو اون‌جا اضافه کردی\n(تو کانال باید ادمین باشم)."];
+            return ['error' => L("🤷 پیداش نکردم.\nمطمئن شو منو اون‌جا اضافه کردی\n(تو کانال باید ادمین باشم).", "🤷 I couldn’t find it.\nMake sure you’ve added me there\n(in a channel I must be an admin).")];
         }
         $c    = $c['result'];
         $type = (string) ($c['type'] ?? '');
         if (!in_array($type, ['channel', 'group', 'supergroup'], true)) {
-            return ['error' => '📍 فقط کانال یا گروه رو می‌شه انتخاب کرد.'];
+            return ['error' => L('📍 فقط کانال یا گروه رو می‌شه انتخاب کرد.', '📍 You can only choose a channel or a group.')];
         }
         $b  = $tg->call('getChatMember', ['chat_id' => $c['id'], 'user_id' => self::botId()], 10);
         $bs = (string) ($b['result']['status'] ?? '');
         if ($type === 'channel' && ($bs !== 'administrator' || empty($b['result']['can_post_messages']))) {
-            return ['error' => "📢 اول منو تو کانال ادمین کن\n(با دسترسی ارسال و ویرایش پیام)،\nبعد دوباره انتخابش کن."];
+            return ['error' => L("📢 اول منو تو کانال ادمین کن\n(با دسترسی ارسال و ویرایش پیام)،\nبعد دوباره انتخابش کن.", "📢 First make me an admin in the channel\n(with permission to post and edit messages),\nthen choose it again.")];
         }
         if ($type !== 'channel' && !in_array($bs, ['member', 'administrator'], true)) {
-            return ['error' => "👥 اول منو به گروه اضافه کن،\nبعد دوباره انتخابش کن."];
+            return ['error' => L("👥 اول منو به گروه اضافه کن،\nبعد دوباره انتخابش کن.", "👥 First add me to the group,\nthen choose it again.")];
         }
         if (!in_array(self::status($c['id'], $uid), ['creator', 'administrator'], true)) {
-            return ['error' => '🙅 فقط ادمین‌های اون‌جا می‌تونن قرعه‌کشی بسازن.'];
+            return ['error' => L('🙅 فقط ادمین‌های اون‌جا می‌تونن قرعه‌کشی بسازن.', '🙅 Only admins there can create giveaways.')];
         }
         return ['id' => (int) $c['id'], 'title' => mb_substr((string) ($c['title'] ?? ''), 0, 100), 'type' => $type, 'username' => (string) ($c['username'] ?? '')];
     }
@@ -382,9 +389,9 @@ final class Giveaway
                 }
             }
         }
-        $r = App::tg()->send($chat, ($t['type'] === 'channel' ? '📢' : '👥') . ' مقصد: <b>' . h($t['title']) . "</b>\n\n"
-            . "🏆 <b>جایزه چیه؟</b>\n"
-            . "بنویسش؛\nمثلاً: <code>۳ ماه تلگرام پریمیوم</code>", ['reply_markup' => ['remove_keyboard' => true]]);
+        $r = App::tg()->send($chat, ($t['type'] === 'channel' ? '📢' : '👥') . L(' مقصد: <b>', ' Destination: <b>') . h($t['title']) . "</b>\n\n"
+            . L("🏆 <b>جایزه چیه؟</b>\n", "🏆 <b>What’s the prize?</b>\n")
+            . L("بنویسش؛\nمثلاً: <code>۳ ماه تلگرام پریمیوم</code>", "Write it down;\nfor example: <code>3 months of Telegram Premium</code>"), ['reply_markup' => ['remove_keyboard' => true]]);
         Store::set('gw_wiz', (string) $uid, ['step' => 'prize', 'g' => ['chat' => $t], 'c' => (int) ($old['c'] ?? 0), 'm' => (int) ($r['result']['message_id'] ?? 0)]);
     }
 
@@ -392,7 +399,7 @@ final class Giveaway
     {
         return ikb([
             array_map(static fn($n) => btn(fa($n), 'gw:w:' . $n, null), [1, 2, 3, 5, 10]),
-            [btn('❌ لغو', 'gw:x', null)],
+            [btn(L('❌ لغو', '❌ Cancel'), 'gw:x', null)],
         ]);
     }
 
@@ -401,14 +408,14 @@ final class Giveaway
         $rows = [];
         $row  = [];
         foreach (self::DURATIONS as $s => $label) {
-            $row[] = btn('⏱ ' . $label, 'gw:t:' . $s, null);
+            $row[] = btn('⏱ ' . L($label[0], $label[1]), 'gw:t:' . $s, null);
             if (count($row) === 3) {
                 $rows[] = $row;
                 $row    = [];
             }
         }
-        $rows[] = [btn('✋ خودم دستی قرعه می‌کشم', 'gw:t:0', null)];
-        $rows[] = [btn('❌ لغو', 'gw:x', null)];
+        $rows[] = [btn(L('✋ خودم دستی قرعه می‌کشم', '✋ I’ll draw manually'), 'gw:t:0', null)];
+        $rows[] = [btn(L('❌ لغو', '❌ Cancel'), 'gw:x', null)];
         return ikb($rows);
     }
 
@@ -420,35 +427,38 @@ final class Giveaway
         }
         $w['g']['winners'] = $n;
         $w['step']         = 'time';
-        $text = '🏆 جایزه: <b>' . h($w['g']['prize']) . "</b>\n👑 برنده: <b>" . fa($n) . " نفر</b>\n\n⏳ <b>قرعه کی کشیده بشه؟</b>";
+        $text = L('🏆 جایزه: <b>', '🏆 Prize: <b>') . h($w['g']['prize']) . L("</b>\n👑 برنده: <b>", "</b>\n👑 Winners: <b>") . fa($n) . L(" نفر</b>\n\n⏳ <b>قرعه کی کشیده بشه؟</b>", "</b>\n\n⏳ <b>When should the draw happen?</b>");
         $w['m'] = self::put($chat, $mid, $text, self::timeKeyboard());
         Store::set('gw_wiz', (string) $uid, $w);
     }
 
     private static function when(int $ends): string
     {
-        return $ends ? Jalali::numericDate($ends) . ' ساعت ' . Jalali::time($ends) : 'با اعلام برگزارکننده';
+        if (!$ends) {
+            return L('با اعلام برگزارکننده', 'announced by the organizer');
+        }
+        return Lang::is('en') ? date('Y-m-d', $ends) . ' at ' . Jalali::time($ends) : Jalali::numericDate($ends) . ' ساعت ' . Jalali::time($ends);
     }
 
     public static function publicText(array $g, int $count): string
     {
-        return "🎁 <b>قرعه‌کشی!</b>\n\n"
-            . '🏆 جایزه: <b>' . h($g['prize']) . "</b>\n"
-            . '👑 تعداد برنده: <b>' . fa($g['winners']) . "</b> نفر\n"
-            . '⏳ پایان: <b>' . self::when((int) $g['ends']) . "</b>\n"
-            . '👥 شرکت‌کننده‌ها: <b>' . fa(number_format($count)) . "</b> نفر\n\n"
-            . 'برای شرکت، دکمه‌ی زیر رو بزن 👇';
+        return L("🎁 <b>قرعه‌کشی!</b>\n\n", "🎁 <b>Giveaway!</b>\n\n")
+            . L('🏆 جایزه: <b>', '🏆 Prize: <b>') . h($g['prize']) . "</b>\n"
+            . L('👑 تعداد برنده: <b>', '👑 Winners: <b>') . fa($g['winners']) . L("</b> نفر\n", "</b>\n")
+            . L('⏳ پایان: <b>', '⏳ Ends: <b>') . self::when((int) $g['ends']) . "</b>\n"
+            . L('👥 شرکت‌کننده‌ها: <b>', '👥 Participants: <b>') . fa(number_format($count)) . L("</b> نفر\n\n", "</b>\n\n")
+            . L('برای شرکت، دکمه‌ی زیر رو بزن 👇', 'Tap the button below to join 👇');
     }
 
     private static function joinKeyboard(string $id): array
     {
-        return ikb([[btn('🎉 شرکت در قرعه‌کشی', 'gw:j:' . $id, 'success')]]);
+        return ikb([[btn(L('🎉 شرکت در قرعه‌کشی', '🎉 Join the giveaway'), 'gw:j:' . $id, 'success')]]);
     }
 
     private static function mention(array $p): string
     {
         $name = mbTrim((string) ($p['name'] ?? ''));
-        return '<a href="tg://user?id=' . (int) $p['uid'] . '">' . h($name !== '' ? mb_substr($name, 0, 40) : 'کاربر') . '</a>';
+        return '<a href="tg://user?id=' . (int) $p['uid'] . '">' . h($name !== '' ? mb_substr($name, 0, 40) : L('کاربر', 'User')) . '</a>';
     }
 
     private static function winnerList(array $won): string
@@ -462,13 +472,13 @@ final class Giveaway
 
     private static function resultText(array $g, bool $again): string
     {
-        $head = $again ? "🔁 <b>قرعه دوباره کشیده شد!</b>\n\n" : "🎉 <b>قرعه‌کشی تموم شد!</b>\n\n";
-        $body = '🏆 جایزه: <b>' . h($g['prize']) . "</b>\n"
-            . '👥 شرکت‌کننده‌ها: <b>' . fa(number_format((int) $g['total'])) . "</b> نفر\n\n";
+        $head = $again ? L("🔁 <b>قرعه دوباره کشیده شد!</b>\n\n", "🔁 <b>The draw was redone!</b>\n\n") : L("🎉 <b>قرعه‌کشی تموم شد!</b>\n\n", "🎉 <b>The giveaway is over!</b>\n\n");
+        $body = L('🏆 جایزه: <b>', '🏆 Prize: <b>') . h($g['prize']) . "</b>\n"
+            . L('👥 شرکت‌کننده‌ها: <b>', '👥 Participants: <b>') . fa(number_format((int) $g['total'])) . L("</b> نفر\n\n", "</b>\n\n");
         if (!$g['won']) {
-            return $head . $body . '😕 کسی شرکت نکرد، برنده‌ای نداریم.';
+            return $head . $body . L('😕 کسی شرکت نکرد، برنده‌ای نداریم.', '😕 Nobody joined, so there are no winners.');
         }
-        return $head . $body . "👑 <b>برنده‌ها:</b>\n" . self::winnerList($g['won']) . "\n\nمبارک باشه 🎊";
+        return $head . $body . L("👑 <b>برنده‌ها:</b>\n", "👑 <b>Winners:</b>\n") . self::winnerList($g['won']) . L("\n\nمبارک باشه 🎊", "\n\nCongratulations 🎊");
     }
 
     private static function link(array $g): ?string
@@ -487,16 +497,16 @@ final class Giveaway
     {
         $where = ($g['type'] === 'channel' ? '📢 ' : '👥 ') . h($g['title']);
         if ($g['status'] === 'cancel') {
-            return "❌ <b>قرعه‌کشی لغو شد</b>\n\n{$where}\n🏆 " . h($g['prize']);
+            return L("❌ <b>قرعه‌کشی لغو شد</b>", "❌ <b>Giveaway cancelled</b>") . "\n\n{$where}\n🏆 " . h($g['prize']);
         }
         if ($g['status'] === 'done') {
-            return "🏁 <b>قرعه‌کشی انجام شد</b>\n\n{$where}\n🏆 " . h($g['prize']) . "\n"
-                . '👥 شرکت‌کننده‌ها: ' . fa(number_format((int) $g['total'])) . "\n\n"
-                . ($g['won'] ? "👑 <b>برنده‌ها:</b>\n" . self::winnerList($g['won']) : '😕 کسی شرکت نکرد.');
+            return L("🏁 <b>قرعه‌کشی انجام شد</b>", "🏁 <b>Giveaway drawn</b>") . "\n\n{$where}\n🏆 " . h($g['prize']) . "\n"
+                . L('👥 شرکت‌کننده‌ها: ', '👥 Participants: ') . fa(number_format((int) $g['total'])) . "\n\n"
+                . ($g['won'] ? L("👑 <b>برنده‌ها:</b>\n", "👑 <b>Winners:</b>\n") . self::winnerList($g['won']) : L('😕 کسی شرکت نکرد.', '😕 Nobody joined.'));
         }
-        return "✅ <b>قرعه‌کشی فعاله</b>\n\n{$where}\n🏆 " . h($g['prize']) . "\n"
-            . '👑 ' . fa($g['winners']) . ' برنده · ⏳ ' . self::when((int) $g['ends']) . "\n"
-            . '👥 شرکت‌کننده‌ها: <b>' . fa(number_format(self::count($g['id']))) . '</b> نفر';
+        return L("✅ <b>قرعه‌کشی فعاله</b>", "✅ <b>Giveaway is active</b>") . "\n\n{$where}\n🏆 " . h($g['prize']) . "\n"
+            . '👑 ' . fa($g['winners']) . L(' برنده · ⏳ ', ' winners · ⏳ ') . self::when((int) $g['ends']) . "\n"
+            . L('👥 شرکت‌کننده‌ها: <b>', '👥 Participants: <b>') . fa(number_format(self::count($g['id']))) . L('</b> نفر', '</b>');
     }
 
     private static function managerKeyboard(array $g, string $ask = ''): array
@@ -504,18 +514,18 @@ final class Giveaway
         $id   = $g['id'];
         $rows = [];
         if ($ask !== '') {
-            $q = ['d' => '✅ آره، قرعه بکش', 'c' => '✅ آره، لغوش کن', 'r' => '✅ آره، دوباره بکش'][$ask];
-            $rows[] = [btn($q, "gw:{$ask}{$ask}:{$id}", 'danger'), btn('🔙 نه', "gw:s:{$id}", null)];
+            $q = ['d' => L('✅ آره، قرعه بکش', '✅ Yes, draw'), 'c' => L('✅ آره، لغوش کن', '✅ Yes, cancel it'), 'r' => L('✅ آره، دوباره بکش', '✅ Yes, redraw')][$ask];
+            $rows[] = [btn($q, "gw:{$ask}{$ask}:{$id}", 'danger'), btn(L('🔙 نه', '🔙 No'), "gw:s:{$id}", null)];
             return ikb($rows);
         }
         if ($g['status'] === 'live') {
-            $rows[] = [btn('🔄 آمار', "gw:s:{$id}", null), btn('🏁 الان قرعه بکش', "gw:d:{$id}", 'success')];
-            $rows[] = [btn('❌ لغو قرعه‌کشی', "gw:c:{$id}", null)];
+            $rows[] = [btn(L('🔄 آمار', '🔄 Stats'), "gw:s:{$id}", null), btn(L('🏁 الان قرعه بکش', '🏁 Draw now'), "gw:d:{$id}", 'success')];
+            $rows[] = [btn(L('❌ لغو قرعه‌کشی', '❌ Cancel giveaway'), "gw:c:{$id}", null)];
         } elseif ($g['status'] === 'done' && (int) $g['total'] > 0) {
-            $rows[] = [btn('🔁 دوباره قرعه بکش', "gw:r:{$id}", null)];
+            $rows[] = [btn(L('🔁 دوباره قرعه بکش', '🔁 Draw again'), "gw:r:{$id}", null)];
         }
         if (($l = self::link($g)) !== null && $g['status'] !== 'cancel') {
-            $rows[] = [urlBtn('🔗 دیدن پیام قرعه‌کشی', $l, null)];
+            $rows[] = [urlBtn(L('🔗 دیدن پیام قرعه‌کشی', '🔗 View giveaway post'), $l, null)];
         }
         return ikb($rows);
     }
@@ -546,10 +556,10 @@ final class Giveaway
                 self::dropKeyboard($chat, $w);
                 $r = $tg->call('deleteMessage', ['chat_id' => $chat, 'message_id' => $mid], 8);
                 if (empty($r['ok'])) {
-                    Rich::editMsg($chat, $mid, '👌 ساخت قرعه‌کشی لغو شد.');
+                    Rich::editMsg($chat, $mid, L('👌 ساخت قرعه‌کشی لغو شد.', '👌 Giveaway creation cancelled.'));
                 }
             }
-            $tg->answer($cq, '👌 ساخت قرعه‌کشی لغو شد');
+            $tg->answer($cq, L('👌 ساخت قرعه‌کشی لغو شد', '👌 Giveaway creation cancelled'));
             return;
         }
         if (preg_match('/^gw:w:(\d{1,2})$/', $data, $m)) {
@@ -560,7 +570,7 @@ final class Giveaway
         if (preg_match('/^gw:t:(\d+)$/', $data, $m)) {
             $w = Store::getToday('gw_wiz', (string) $uid);
             if (!is_array($w) || $w['step'] !== 'time') {
-                $tg->alert($cq, '⌛️ این مرحله منقضی شده؛' . "\n" . 'دوباره /giveaway بزن.');
+                $tg->alert($cq, L("⌛️ این مرحله منقضی شده؛\nدوباره /giveaway بزن.", "⌛️ This step has expired;\nsend /giveaway again."));
                 return;
             }
             $s = (int) $m[1];
@@ -568,9 +578,9 @@ final class Giveaway
             $w['step']     = 'confirm';
             Store::set('gw_wiz', (string) $uid, $w);
             $g = $w['g'] + ['ends' => $w['g']['dur'] ? time() + $w['g']['dur'] : 0];
-            Rich::editMsg($chat, $mid, "👀 <b>پیش‌نمایش:</b>\n\n" . self::publicText($g, 0) . "\n\n" . divider() . "\n"
-                . 'منتشرش کنم تو «<b>' . h($g['chat']['title']) . '</b>»؟', ikb([
-                    [btn('✅ انتشار', 'gw:go', 'success'), btn('❌ لغو', 'gw:x', null)],
+            Rich::editMsg($chat, $mid, L("👀 <b>پیش‌نمایش:</b>\n\n", "👀 <b>Preview:</b>\n\n") . self::publicText($g, 0) . "\n\n" . divider() . "\n"
+                . L('منتشرش کنم تو «<b>' . h($g['chat']['title']) . '</b>»؟', 'Publish it in “<b>' . h($g['chat']['title']) . '</b>”?'), ikb([
+                    [btn(L('✅ انتشار', '✅ Publish'), 'gw:go', 'success'), btn(L('❌ لغو', '❌ Cancel'), 'gw:x', null)],
                 ]));
             $tg->answer($cq);
             return;
@@ -591,7 +601,7 @@ final class Giveaway
             $g = is_array($d) ? self::fromDraft($id, $imid, ['id' => $d['owner']]) : null;
         }
         if (!is_array($g)) {
-            $tg->alert($cq, '🤷 این قرعه‌کشی دیگه وجود نداره.');
+            $tg->alert($cq, L('🤷 این قرعه‌کشی دیگه وجود نداره.', '🤷 This giveaway no longer exists.'));
             return;
         }
         if ($act === 'j') {
@@ -599,7 +609,7 @@ final class Giveaway
             return;
         }
         if ($uid !== (int) $g['owner'] && !App::isAdmin($uid)) {
-            $tg->alert($cq, "🔒 فقط سازنده‌ی قرعه‌کشی\nبه این دکمه دسترسی داره.");
+            $tg->alert($cq, L("🔒 فقط سازنده‌ی قرعه‌کشی\nبه این دکمه دسترسی داره.", "🔒 Only the giveaway’s creator\ncan use this button."));
             return;
         }
         if (in_array($act, ['d', 'c', 'r'], true)) {
@@ -613,12 +623,12 @@ final class Giveaway
             return;
         }
         if ($act === 'dd') {
-            $tg->answer($cq, '🎲 دارم قرعه می‌کشم...');
+            $tg->answer($cq, L('🎲 دارم قرعه می‌کشم...', '🎲 Drawing...'));
             self::draw($id, false);
             return;
         }
         if ($act === 'rr') {
-            $tg->answer($cq, '🎲 دارم دوباره قرعه می‌کشم...');
+            $tg->answer($cq, L('🎲 دارم دوباره قرعه می‌کشم...', '🎲 Redrawing...'));
             self::draw($id, true);
             return;
         }
@@ -627,8 +637,8 @@ final class Giveaway
             if ($g !== null) {
                 Store::delete('gw_due', $id);
                 Store::delete('gw_dirty', $id);
-                self::editPublic($g, "❌ <b>این قرعه‌کشی لغو شد.</b>\n\n🏆 " . h($g['prize']));
-                $tg->answer($cq, '👌 لغو شد');
+                self::editPublic($g, L("❌ <b>این قرعه‌کشی لغو شد.</b>", "❌ <b>This giveaway was cancelled.</b>") . "\n\n🏆 " . h($g['prize']));
+                $tg->answer($cq, L('👌 لغو شد', '👌 Cancelled'));
                 if ($imid) {
                     return;
                 }
@@ -637,7 +647,7 @@ final class Giveaway
                 $g = Store::get('gw', $id);
             }
         } else {
-            $tg->answer($cq, $imid ? null : '🔄 به‌روز شد');
+            $tg->answer($cq, $imid ? null : L('🔄 به‌روز شد', '🔄 Updated'));
         }
         if ($imid) {
             if ($g['status'] === 'live') {
@@ -655,7 +665,7 @@ final class Giveaway
         $tg = App::tg();
         $w  = Store::getToday('gw_wiz', (string) $uid);
         if (!is_array($w) || $w['step'] !== 'confirm') {
-            $tg->alert($cq, '⌛️ منقضی شده؛' . "\n" . 'دوباره /giveaway بزن.');
+            $tg->alert($cq, L("⌛️ منقضی شده؛\nدوباره /giveaway بزن.", "⌛️ Expired;\nsend /giveaway again."));
             return;
         }
         $t  = $w['g']['chat'];
@@ -680,7 +690,7 @@ final class Giveaway
         ];
         $r = Rich::send($t['id'], self::publicText($g, 0), self::joinKeyboard($id));
         if (empty($r['ok'])) {
-            $tg->alert($cq, '❌ نتونستم تو «' . $t['title'] . '» پیام بفرستم؛' . "\n" . 'دسترسی‌هام رو چک کن.');
+            $tg->alert($cq, L('❌ نتونستم تو «' . $t['title'] . "» پیام بفرستم؛\nدسترسی‌هام رو چک کن.", '❌ I couldn’t send a message in “' . $t['title'] . "”;\ncheck my permissions."));
             return;
         }
         $g['msg'] = (int) $r['result']['message_id'];
@@ -690,7 +700,7 @@ final class Giveaway
         }
         self::clear($uid);
         Users::hit('gw:create');
-        $tg->answer($cq, '🎉 منتشر شد!');
+        $tg->answer($cq, L('🎉 منتشر شد!', '🎉 Published!'));
         Rich::editMsg($chat, $mid, self::managerText($g), self::managerKeyboard($g));
     }
 
@@ -700,22 +710,22 @@ final class Giveaway
         $from = $cq['from'];
         $uid  = (int) $from['id'];
         if ($g['status'] !== 'live') {
-            $tg->alert($cq, '⌛️ این قرعه‌کشی تموم شده.');
+            $tg->alert($cq, L('⌛️ این قرعه‌کشی تموم شده.', '⌛️ This giveaway has ended.'));
             return;
         }
         if ($g['type'] !== 'inline' && !self::isMember($g['chat'], $uid)) {
-            $tg->alert($cq, $g['type'] === 'channel' ? '📢 اول عضو کانال شو، بعد دکمه رو بزن!' : '👥 اول عضو گروه شو، بعد دکمه رو بزن!');
+            $tg->alert($cq, $g['type'] === 'channel' ? L('📢 اول عضو کانال شو، بعد دکمه رو بزن!', '📢 Join the channel first, then tap the button!') : L('👥 اول عضو گروه شو، بعد دکمه رو بزن!', '👥 Join the group first, then tap the button!'));
             return;
         }
         $new = Db::run('INSERT INTO gw_entries (gid, uid, name, at) VALUES (?, ?, ?, ?) ON CONFLICT (gid, uid) DO NOTHING',
             [$g['id'], $uid, mb_substr(userName($from), 0, 64), time()])->rowCount() > 0;
         if (!$new) {
-            $tg->alert($cq, '👌 قبلاً ثبت‌نام کردی؛' . "\n" . 'منتظر نتیجه باش!');
+            $tg->alert($cq, L("👌 قبلاً ثبت‌نام کردی؛\nمنتظر نتیجه باش!", "👌 You’re already registered;\nwait for the result!"));
             return;
         }
         Store::set('gw_dirty', $g['id'], time());
         Users::hit('gw:join');
-        $tg->alert($cq, "✅ ثبت‌نام شدی!\nنفر " . fa(number_format(self::count($g['id']))) . "ام هستی، موفق باشی 🍀");
+        $tg->alert($cq, L("✅ ثبت‌نام شدی!\nنفر " . fa(number_format(self::count($g['id']))) . "ام هستی، موفق باشی 🍀", "✅ You’re in!\nYou’re participant #" . number_format(self::count($g['id'])) . ', good luck 🍀'));
     }
 
     private static function rows(string $ns): array
@@ -811,7 +821,7 @@ final class Giveaway
         $inline = !empty($g['imid']);
         self::editPublic($g, self::resultText($g, $again), $inline ? self::inlineKeyboard($g) : null);
         if ($won && !$inline) {
-            $tg->send($g['chat'], "🎊 <b>برنده‌های قرعه‌کشی «" . h($g['prize']) . "»</b>\n\n" . self::winnerList($won) . "\n\nتبریک! 🥳", [
+            $tg->send($g['chat'], L("🎊 <b>برنده‌های قرعه‌کشی «" . h($g['prize']) . "»</b>\n\n", "🎊 <b>Winners of the “" . h($g['prize']) . "” giveaway</b>\n\n") . self::winnerList($won) . L("\n\nتبریک! 🥳", "\n\nCongratulations! 🥳"), [
                 'reply_parameters' => ['message_id' => (int) $g['msg'], 'allow_sending_without_reply' => true],
             ]);
         }
@@ -819,7 +829,8 @@ final class Giveaway
             foreach ($won as $p) {
                 $tg->call('sendMessage', [
                     'chat_id'    => $p['uid'],
-                    'text'       => "🎉 <b>تبریک!</b>\n\nتو قرعه‌کشی «" . h($g['prize']) . '»' . ($inline ? '' : ' تو <b>' . h($g['title']) . '</b>') . " برنده شدی 🥳\nمنتظر پیام برگزارکننده باش.",
+                    'text'       => L("🎉 <b>تبریک!</b>\n\nتو قرعه‌کشی «" . h($g['prize']) . '»' . ($inline ? '' : ' تو <b>' . h($g['title']) . '</b>') . " برنده شدی 🥳\nمنتظر پیام برگزارکننده باش.",
+                        "🎉 <b>Congratulations!</b>\n\nYou won the “" . h($g['prize']) . '” giveaway' . ($inline ? '' : ' in <b>' . h($g['title']) . '</b>') . " 🥳\nWait for a message from the organizer."),
                     'parse_mode' => 'HTML',
                 ], 10);
             }

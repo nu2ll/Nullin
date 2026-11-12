@@ -39,7 +39,7 @@ final class GuestHandler
             return;
         }
         if ($link !== null) {
-            $imid = self::send($qid, '🔎 دارم لینک ' . $link['name'] . ' رو بررسی می‌کنم...');
+            $imid = self::send($qid, L('🔎 دارم لینک ', '🔎 Checking the link ') . $link['name'] . L(' رو بررسی می‌کنم...', ' ...'));
             if ($imid !== null) {
                 Users::hit('guest:dl');
                 Downloader::guest($from, $link, $imid);
@@ -48,27 +48,27 @@ final class GuestHandler
         }
 
         if (AI::busy((int) ($from['id'] ?? 0))) {
-            self::send($qid, AI::BUSY_TEXT);
+            self::send($qid, (Lang::is('en') ? AI::BUSY_TEXT_EN : AI::BUSY_TEXT));
             return;
         }
 
         $voiceIn = isset($msg['voice']);
-        $imid    = $voiceIn ? null : self::send($qid, LiveReply::THINKING);
+        $imid    = $voiceIn ? null : self::send($qid, (Lang::is('en') ? LiveReply::THINKING_EN : LiveReply::THINKING));
 
         $parts = [];
         $notes = [];
         if ($reply) {
             if ($m = Assistant::mediaPart($reply)) {
                 $parts[] = $m;
-                $notes[] = '[کاربر روی یه ' . Assistant::kind($reply) . ' ریپلای کرده که پیوست شده' . (Assistant::isFrame($reply) ? '؛ فقط عکسِ فریم اولش پیوسته' : '') . ($rt !== '' ? "؛ متنش: {$rt}" : '') . ']';
+                $notes[] = ('[The user replied to a ' . Assistant::kind($reply) . ' that is attached' . (Assistant::isFrame($reply) ? '; only its first-frame image is attached' : '') . ($rt !== '' ? "; its text: {$rt}" : '') . ']');
             } elseif ($info = Assistant::fileInfo($reply)) {
-                $notes[] = "[کاربر روی یه فایل ریپلای کرده؛ {$info}" . ($rt !== '' ? "؛ متنش: {$rt}" : '') . ']';
+                $notes[] = ("[The user replied to a file; {$info}" . ($rt !== '' ? "; its text: {$rt}" : '') . ']');
             } elseif ($data = Assistant::dataInfo($reply)) {
-                $notes[] = "[کاربر روی یه {$data[0]} ریپلای کرده؛ {$data[1]}]";
+                $notes[] = "[The user replied to a {$data[0]}; {$data[1]}]";
             } elseif ($rt !== '') {
-                $notes[] = "[پیامی که کاربر روش ریپلای کرده]: {$rt}";
+                $notes[] = "[The message the user replied to]: {$rt}";
             } elseif (!empty($reply['from'])) {
-                $notes[] = '[کاربر روی یه پیام ریپلای کرده که متن نداره]';
+                $notes[] = '[The user replied to a message that has no text]';
             }
         }
         if ($reply && $notes) {
@@ -78,18 +78,22 @@ final class GuestHandler
         if (Assistant::hasMedia($msg)) {
             if ($m = Assistant::mediaPart($msg)) {
                 $parts[] = $m;
-                $notes[] = isset($msg['voice']) ? '[کاربر ویس فرستاده؛ گوش بده و جواب بده]' : (isset($msg['photo']) ? '[کاربر عکس فرستاده؛ ببینش و جواب بده]' : '[کاربر ' . Assistant::kind($msg) . ' فرستاده؛ ' . (Assistant::isFrame($msg) ? 'فقط عکسِ فریم اولش پیوست شده' : 'عکسش پیوست شده') . '، ببینش و جواب بده]');
+                $notes[] = isset($msg['voice'])
+                    ? '[The user sent a voice message; listen to it and answer]'
+                    : (isset($msg['photo'])
+                        ? '[The user sent a photo; look at it and answer]'
+                        : ('[The user sent a ' . Assistant::kind($msg) . '; ' . (Assistant::isFrame($msg) ? 'only its first-frame image is attached' : 'its image is attached') . ', look at it and answer]'));
             } elseif ($info = Assistant::fileInfo($msg)) {
-                $notes[] = "[کاربر یه فایل فرستاده؛ {$info}]";
+                $notes[] = "[The user sent a file; {$info}]";
             } elseif ($data = Assistant::dataInfo($msg)) {
-                $notes[] = "[کاربر یه {$data[0]} فرستاده؛ {$data[1]}]";
+                $notes[] = "[The user sent a {$data[0]}; {$data[1]}]";
             }
             if (count($notes) > $n1) {
                 $notes[$n1] = Assistant::withAlbum($notes[$n1], $msg);
             }
         }
         $body    = trim(implode("\n", $notes) . ($q !== '' ? "\n\n{$q}" : ''));
-        $content = $parts ? array_merge($parts, [['type' => 'text', 'text' => $body ?: 'سلام']]) : ($body ?: 'سلام');
+        $content = $parts ? array_merge($parts, [['type' => 'text', 'text' => $body ?: 'Hello']]) : ($body ?: 'Hello');
 
         $ctx  = ['user_name' => userName($from), 'user_id' => (int) ($from['id'] ?? 0), 'chat_type' => 'guest'];
         $live = $imid !== null && App::cfg('ai_stream', true) ? new LiveReply($msg, $imid, '', false) : null;
@@ -115,12 +119,12 @@ final class GuestHandler
 
         if ($res['answer'] === null && empty($res['image']) && $parts) {
             logWarn('guest', 'reply with media failed, retrying text-only');
-            $note = '[کاربر به یه عکس یا ویس اشاره کرده ولی تو به محتواش دسترسی نداری؛ اگه سؤالش به اون بستگی داره، مؤدبانه بگو تو این چت فایل رو نمی‌بینی و بهتره تو پیوی برات بفرسته]';
-            $res  = AI::reply(trim($note . ($rt !== '' ? "\n[متن پیام ریپلای‌شده]: {$rt}" : '') . ($q !== '' ? "\n\n{$q}" : '')), $ctx, [], $opt);
+            $note = '[The user referred to a photo or voice message, but you have no access to its content; if their question depends on it, politely say you can\'t see files in this chat and that it\'s better to send it to you privately]';
+            $res  = AI::reply(trim($note . ($rt !== '' ? "\n[Text of the replied message]: {$rt}" : '') . ($q !== '' ? "\n\n{$q}" : '')), $ctx, [], $opt);
         }
 
         if (!empty($res['image'])) {
-            $imid ??= self::send($qid, LiveReply::THINKING);
+            $imid ??= self::send($qid, (Lang::is('en') ? LiveReply::THINKING_EN : LiveReply::THINKING));
             self::image($imid, $qid, (string) $res['image'], (int) ($from['id'] ?? 0));
             return;
         }
@@ -129,7 +133,7 @@ final class GuestHandler
             return;
         }
 
-        $answer = $res['answer'] ?? AI::FAIL_TEXT;
+        $answer = $res['answer'] ?? (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT);
         $html   = AI::toHtml(AI::fit($answer));
         $kb     = null;
         if ($res['answer'] !== null && $imid !== null && !$parts && !AI::$searched && trim($body) !== '' && ($kb = AnswerButtons::searchOnly()) !== null) {
@@ -167,7 +171,7 @@ final class GuestHandler
             'type'          => 'voice',
             'id'            => substr(md5($qid . microtime()), 0, 16),
             'voice_file_id' => $id,
-            'title'         => 'نالین',
+            'title'         => L('نالین', 'Nullin'),
             'caption'       => $html,
             'parse_mode'    => 'HTML',
         ]], 15);
@@ -186,7 +190,7 @@ final class GuestHandler
 
     public static function image(?string $imid, ?string $qid, string $prompt, int $uid = 0): void
     {
-        self::edit($imid, null, LiveReply::DRAWING);
+        self::edit($imid, null, (Lang::is('en') ? LiveReply::DRAWING_EN : LiveReply::DRAWING));
         $bytes = ImageGen::generate($prompt, static function () {});
         if ($bytes === null) {
             self::failImage($imid, $qid, ImageGen::failText(), $prompt, $uid);
@@ -197,16 +201,16 @@ final class GuestHandler
         }
         $media = ImageGen::fileId($bytes);
         if ($media === null) {
-            self::failImage($imid, $qid, "😕 سرویس ساخت عکس الان جواب نمی‌ده؛\nچند دقیقه دیگه امتحان کن.", $prompt, $uid);
+            self::failImage($imid, $qid, L("😕 سرویس ساخت عکس الان جواب نمی‌ده؛\nچند دقیقه دیگه امتحان کن.", "😕 The image service isn't responding right now;\ntry again in a few minutes."), $prompt, $uid);
             return;
         }
         $tg = App::tg();
         $r  = $tg->call('editMessageMedia', [
             'inline_message_id' => $imid,
-            'media'             => ['type' => 'photo', 'media' => $media, 'caption' => '🎨 بفرما، اینم عکست!', 'parse_mode' => 'HTML'],
+            'media'             => ['type' => 'photo', 'media' => $media, 'caption' => L('🎨 بفرما، اینم عکست!', '🎨 Here\'s your picture!'), 'parse_mode' => 'HTML'],
         ], 60);
         if (empty($r['ok'])) {
-            self::failImage($imid, $qid, '😕 عکس ساخته شد ولی ارسالش به مشکل خورد؛' . "\n" . 'دوباره امتحان کن.', $prompt, $uid);
+            self::failImage($imid, $qid, L('😕 عکس ساخته شد ولی ارسالش به مشکل خورد؛', '😕 The image was created but sending it failed;') . "\n" . L('دوباره امتحان کن.', 'try again.'), $prompt, $uid);
         }
     }
 
@@ -263,7 +267,7 @@ final class GuestHandler
         $result = [
             'type'                  => 'article',
             'id'                    => substr(md5($qid . microtime()), 0, 16),
-            'title'                 => 'نالین',
+            'title'                 => L('نالین', 'Nullin'),
             'input_message_content' => ['message_text' => $html, 'parse_mode' => 'HTML', 'link_preview_options' => ['is_disabled' => true]],
         ];
         if (Rich::usable($markup)) {

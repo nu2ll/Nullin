@@ -16,8 +16,8 @@ final class Love
             'token'    => $token,
             'a'        => $a,
             'b'        => $b,
-            'text'     => "<b>💘 تطابق عشقی</b>\n\n" . self::tag($ra, $a) . ' ❤️ ' . self::tag($rb, $b) . "\n\n⏳ دارم عشقشون رو می‌سنجم...",
-            'keyboard' => ikb([[btn('⏳ صبر کن...', 'love:noop', null)]]),
+            'text'     => L("<b>💘 تطابق عشقی</b>\n\n", "<b>💘 Love match</b>\n\n") . self::tag($ra, $a) . ' ❤️ ' . self::tag($rb, $b) . L("\n\n⏳ دارم عشقشون رو می‌سنجم...", "\n\n⏳ Measuring their love..."),
+            'keyboard' => ikb([[btn(L('⏳ صبر کن...', '⏳ Wait...'), 'love:noop', null)]]),
         ];
     }
 
@@ -41,16 +41,16 @@ final class Love
     {
         [$p, $line] = self::judge($a, $b);
         $bar  = str_repeat('❤️', (int) round($p / 20)) . str_repeat('🤍', 5 - (int) round($p / 20));
-        $text = "<b>💘 تطابق عشقی</b>\n\n"
+        $text = L("<b>💘 تطابق عشقی</b>\n\n", "<b>💘 Love match</b>\n\n")
             . self::tag($ra, $a) . ' ❤️ ' . self::tag($rb, $b) . "\n\n"
-            . "{$bar}  <b>" . fa($p) . "٪</b>"
+            . "{$bar}  <b>" . fa($p) . L('٪', '%') . "</b>"
             . ($line !== '' ? "\n" . h($line) : '');
         return [
             'text'     => $text,
             'percent'  => $p,
             'keyboard' => ikb([[
                 btn('👤 ' . $a, 'love:noop'),
-                btn('💗 ' . fa($p) . '٪', 'love:noop', 'danger'),
+                btn('💗 ' . fa($p) . L('٪', '%'), 'love:noop', 'danger'),
                 btn('👤 ' . $b, 'love:noop'),
             ]]),
         ];
@@ -68,12 +68,13 @@ final class Love
         }
         $p    = (int) (hexdec(substr(md5(implode('|', $pair) . $day), 0, 6)) % 101);
         $line = '';
+        $lang = Lang::aiName();
         $out  = AI::chat([
-            ['role' => 'system', 'content' => "تو عشق‌سنجِ بامزه و خودمونیِ ربات «نالین» هستی. دو اسم بهت می‌دن.\n"
-                . "یه درصد تطابق عشقی از ۰ تا ۱۰۰ انتخاب کن (کاملاً فان، هر عددی مجازه) و یه جمله‌ی کوتاه، بامزه و محاوره‌ای فارسی بنویس که دقیقاً به همون درصد بخوره؛ اگه شد با معنی یا حروف اسم‌ها بازی کن.\n"
-                . "حداکثر ۱۴ کلمه، فقط یه ایموجی، بدون توهین و محتوای جنسی، بدون مارک‌داون.\n"
-                . "دقیقاً دو خط جواب بده:\nPERCENT: <عدد>\nTEXT: <جمله>"],
-            ['role' => 'user', 'content' => "نفر اول: {$a}\nنفر دوم: {$b}"],
+            ['role' => 'system', 'content' => "You are the funny, casual love-meter of the bot “Nullin”. You are given two names.\n"
+                . "Pick a love match percentage from 0 to 100 (purely for fun, any number is allowed) and write one short, funny, casual sentence in {$lang} that matches exactly that percentage;\n"
+                . "At most 14 words, just one emoji, no insults or sexual content, no markdown.\n"
+                . "Reply with exactly two lines:\nPERCENT: <number>\nTEXT: <sentence>"],
+            ['role' => 'user', 'content' => "First person: {$a}\nSecond person: {$b}"],
         ], ['tier' => 'lite', 'temperature' => 1.0, 'deadline' => microtime(true) + 20, 'thinking' => null, 'section' => 'love']);
         if ($out !== null && preg_match('/PERCENT\s*:\s*(\d{1,3})/iu', en($out), $pm)) {
             $p    = max(0, min(100, (int) $pm[1]));

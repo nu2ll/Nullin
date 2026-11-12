@@ -15,8 +15,8 @@ final class Search
     public static function keyboard(string $q): array
     {
         return ikb([
-            [urlBtn('🌐 نتایج گوگل', self::link($q), 'success')],
-            [urlBtn('🖼 عکس‌ها', self::link($q, 'i'), null), urlBtn('📰 اخبار', self::link($q, 'n'), null), urlBtn('🎬 ویدیو', self::link($q, 'v'), null)],
+            [urlBtn(L('🌐 نتایج گوگل', '🌐 Google results'), self::link($q), 'success')],
+            [urlBtn(L('🖼 عکس‌ها', '🖼 Images'), self::link($q, 'i'), null), urlBtn(L('📰 اخبار', '📰 News'), self::link($q, 'n'), null), urlBtn(L('🎬 ویدیو', '🎬 Video'), self::link($q, 'v'), null)],
         ]);
     }
 

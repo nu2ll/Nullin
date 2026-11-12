@@ -35,8 +35,9 @@ final class GameKit
         return $s;
     }
 
-    public static function name(?array $p, string $fallback = 'حریف'): string
+    public static function name(?array $p, ?string $fallback = null): string
     {
+        $fallback ??= L('حریف', 'Opponent');
         return $p ? bidi(h($p['name'])) : $fallback;
     }
 
@@ -66,19 +67,20 @@ final class GameKit
         return 0;
     }
 
-    public static function modeKeyboard(string $prefix, string $pvpLabel = '👥 دو نفره'): array
+    public static function modeKeyboard(string $prefix, ?string $pvpLabel = null): array
     {
-        return ikb([[btn('🤖 با ربات', "{$prefix}:mode:bot"), btn($pvpLabel, "{$prefix}:mode:pvp")]]);
+        $pvpLabel ??= L('👥 دو نفره', '👥 Two players');
+        return ikb([[btn(L('🤖 با ربات', '🤖 Vs bot'), "{$prefix}:mode:bot"), btn($pvpLabel, "{$prefix}:mode:pvp")]]);
     }
 
     public static function replayKeyboard(string $prefix): array
     {
-        return ikb([[btn('🔁 بازی دوباره', "{$prefix}:replay", 'success')]]);
+        return ikb([[btn(L('🔁 بازی دوباره', '🔁 Play again'), "{$prefix}:replay", 'success')]]);
     }
 
     public static function cancelRow(string $prefix): array
     {
-        return [btn('✖️ لغو بازی', "{$prefix}:cancel", 'danger')];
+        return [btn(L('✖️ لغو بازی', '✖️ Cancel game'), "{$prefix}:cancel", 'danger')];
     }
 
     public static function controlRow(array $s, string $prefix): array
@@ -86,7 +88,7 @@ final class GameKit
         if (($s['mode'] ?? '') === 'pvp' && empty($s['p2'])) {
             return self::cancelRow($prefix);
         }
-        return [btn('🏳 تسلیم', "{$prefix}:resign", 'danger')];
+        return [btn(L('🏳 تسلیم', '🏳 Resign'), "{$prefix}:resign", 'danger')];
     }
 
     public static function resignNote(array $s): string
@@ -98,7 +100,7 @@ final class GameKit
     {
         $loser  = (int) ($s['resigned'] ?? 0) === 1 ? $s['p1'] : ($s['p2'] ?? null);
         $winner = (int) ($s['resigned'] ?? 0) === 1 ? ($s['p2'] ?? null) : $s['p1'];
-        return '🏳 ' . self::name($loser) . ' تسلیم شد؛ 🏆 <b>' . self::name($winner) . ' برد!</b>';
+        return '🏳 ' . self::name($loser) . L(' تسلیم شد؛ 🏆 <b>', ' resigned; 🏆 <b>') . self::name($winner) . L(' برد!</b>', ' wins!</b>');
     }
 
     public static function common(array &$s, array $cq, string $data, string $prefix, callable $onMode, callable $onReplay, callable $renderCancel, ?callable $onResign = null): bool
@@ -108,45 +110,45 @@ final class GameKit
 
         if ($data === "{$prefix}:resign" && $onResign !== null) {
             if (!self::isPlayer($s, $uid)) {
-                $tg->alert($cq, '🚫 تو این بازی نیستی.');
+                $tg->alert($cq, L('🚫 تو این بازی نیستی.', '🚫 You are not in this game.'));
                 return true;
             }
             if (($s['status'] ?? '') !== 'playing') {
-                $tg->answer($cq, '⌛️ این بازی تموم شده');
+                $tg->answer($cq, L('⌛️ این بازی تموم شده', '⌛️ This game is over'));
                 return true;
             }
             $asked = (int) ($s['resign_ask'][(string) $uid] ?? 0);
             if (time() - $asked > 15) {
                 $s['resign_ask'] = [(string) $uid => time()];
                 $onResign(false);
-                $tg->alert($cq, "🏳 مطمئنی؟\nبرای تسلیم تا ۱۵ ثانیه دیگه دوباره بزن.");
+                $tg->alert($cq, L("🏳 مطمئنی؟\nبرای تسلیم تا ۱۵ ثانیه دیگه دوباره بزن.", "🏳 Are you sure?\nTap again within 15 seconds to resign."));
                 return true;
             }
             unset($s['resign_ask']);
             $s['status']   = 'over';
             $s['resigned'] = self::isCreator($s, $uid) ? 1 : 2;
             $onResign(true);
-            $tg->answer($cq, '🏳 تسلیم شدی');
+            $tg->answer($cq, L('🏳 تسلیم شدی', '🏳 You resigned'));
             return true;
         }
 
         if ($data === "{$prefix}:replay") {
             if (!self::isPlayer($s, $uid)) {
-                $tg->alert($cq, "🔒 فقط بازیکن‌های همین بازی\nمی‌تونن دوباره شروعش کنن.");
+                $tg->alert($cq, L("🔒 فقط بازیکن‌های همین بازی\nمی‌تونن دوباره شروعش کنن.", "🔒 Only the players of this game\ncan start it again."));
                 return true;
             }
             $onReplay();
-            $tg->answer($cq, '🔁 بزن بریم!');
+            $tg->answer($cq, L('🔁 بزن بریم!', '🔁 Let’s go!'));
             return true;
         }
 
         if (str_starts_with($data, "{$prefix}:mode:")) {
             if (($s['status'] ?? '') !== 'mode') {
-                $tg->answer($cq, '⏳ بازی شروع شده');
+                $tg->answer($cq, L('⏳ بازی شروع شده', '⏳ The game has already started'));
                 return true;
             }
             if (!self::isCreator($s, $uid)) {
-                $tg->alert($cq, '🔒 حالت بازی رو فقط سازنده انتخاب می‌کنه.');
+                $tg->alert($cq, L('🔒 حالت بازی رو فقط سازنده انتخاب می‌کنه.', '🔒 Only the creator can pick the game mode.'));
                 return true;
             }
             $onMode(substr($data, strlen("{$prefix}:mode:")));
@@ -156,7 +158,7 @@ final class GameKit
 
         if ($data === "{$prefix}:cancel") {
             if (!self::isPlayer($s, $uid)) {
-                $tg->alert($cq, '🚫 فقط بازیکن‌ها می‌تونن بازی رو لغو کنن.');
+                $tg->alert($cq, L('🚫 فقط بازیکن‌ها می‌تونن بازی رو لغو کنن.', '🚫 Only the players can cancel the game.'));
                 return true;
             }
             if (($s['status'] ?? '') === 'over') {
@@ -165,7 +167,7 @@ final class GameKit
             }
             $s['status'] = 'over';
             $renderCancel(bidi(h(userName($cq['from']))));
-            $tg->answer($cq, 'بازی لغو شد');
+            $tg->answer($cq, L('بازی لغو شد', 'Game cancelled'));
             return true;
         }
         return false;

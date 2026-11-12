@@ -512,7 +512,7 @@ final class FreeAI
         if (!$sys) {
             return $messages;
         }
-        $note = "[دستورالعمل]\n" . implode("\n\n", $sys) . "\n[پایان دستورالعمل]\n\n";
+        $note = "[Instructions]\n" . implode("\n\n", $sys) . "\n[End of instructions]\n\n";
         foreach ($rest as $i => $m) {
             if ($m['role'] !== 'user') {
                 continue;

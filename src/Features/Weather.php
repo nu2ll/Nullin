@@ -8,34 +8,34 @@ final class Weather
     private const AIR      = 'https://air-quality-api.open-meteo.com/v1/air-quality';
 
     private const CODES = [
-        0  => ['صاف', '☀️', '🌙'],
-        1  => ['تقریباً صاف', '🌤', '🌙'],
-        2  => ['نیمه‌ابری', '⛅', '☁️'],
-        3  => ['ابری', '☁️', '☁️'],
-        45 => ['مه', '🌫', '🌫'],
-        48 => ['مه یخ‌زده', '🌫', '🌫'],
-        51 => ['نم‌نم باران', '🌦', '🌧'],
-        53 => ['نم‌نم باران', '🌦', '🌧'],
-        55 => ['نم‌نم باران شدید', '🌧', '🌧'],
-        56 => ['نم‌نم یخ‌زده', '🌧', '🌧'],
-        57 => ['نم‌نم یخ‌زده', '🌧', '🌧'],
-        61 => ['باران سبک', '🌦', '🌧'],
-        63 => ['باران', '🌧', '🌧'],
-        65 => ['باران شدید', '🌧', '🌧'],
-        66 => ['باران یخ‌زده', '🌧', '🌧'],
-        67 => ['باران یخ‌زده‌ی شدید', '🌧', '🌧'],
-        71 => ['برف سبک', '🌨', '🌨'],
-        73 => ['برف', '🌨', '🌨'],
-        75 => ['برف سنگین', '❄️', '❄️'],
-        77 => ['دونه‌های برف', '🌨', '🌨'],
-        80 => ['رگبار سبک', '🌦', '🌧'],
-        81 => ['رگبار', '🌧', '🌧'],
-        82 => ['رگبار شدید', '⛈', '⛈'],
-        85 => ['بارش برف', '🌨', '🌨'],
-        86 => ['بارش برف شدید', '❄️', '❄️'],
-        95 => ['رعدوبرق', '⛈', '⛈'],
-        96 => ['رعدوبرق و تگرگ', '⛈', '⛈'],
-        99 => ['رعدوبرق و تگرگ شدید', '⛈', '⛈'],
+        0  => ['صاف', '☀️', '🌙', 'Clear'],
+        1  => ['تقریباً صاف', '🌤', '🌙', 'Mostly clear'],
+        2  => ['نیمه‌ابری', '⛅', '☁️', 'Partly cloudy'],
+        3  => ['ابری', '☁️', '☁️', 'Overcast'],
+        45 => ['مه', '🌫', '🌫', 'Fog'],
+        48 => ['مه یخ‌زده', '🌫', '🌫', 'Freezing fog'],
+        51 => ['نم‌نم باران', '🌦', '🌧', 'Light drizzle'],
+        53 => ['نم‌نم باران', '🌦', '🌧', 'Drizzle'],
+        55 => ['نم‌نم باران شدید', '🌧', '🌧', 'Heavy drizzle'],
+        56 => ['نم‌نم یخ‌زده', '🌧', '🌧', 'Freezing drizzle'],
+        57 => ['نم‌نم یخ‌زده', '🌧', '🌧', 'Freezing drizzle'],
+        61 => ['باران سبک', '🌦', '🌧', 'Light rain'],
+        63 => ['باران', '🌧', '🌧', 'Rain'],
+        65 => ['باران شدید', '🌧', '🌧', 'Heavy rain'],
+        66 => ['باران یخ‌زده', '🌧', '🌧', 'Freezing rain'],
+        67 => ['باران یخ‌زده‌ی شدید', '🌧', '🌧', 'Heavy freezing rain'],
+        71 => ['برف سبک', '🌨', '🌨', 'Light snow'],
+        73 => ['برف', '🌨', '🌨', 'Snow'],
+        75 => ['برف سنگین', '❄️', '❄️', 'Heavy snow'],
+        77 => ['دونه‌های برف', '🌨', '🌨', 'Snow grains'],
+        80 => ['رگبار سبک', '🌦', '🌧', 'Light showers'],
+        81 => ['رگبار', '🌧', '🌧', 'Showers'],
+        82 => ['رگبار شدید', '⛈', '⛈', 'Heavy showers'],
+        85 => ['بارش برف', '🌨', '🌨', 'Snow showers'],
+        86 => ['بارش برف شدید', '❄️', '❄️', 'Heavy snow showers'],
+        95 => ['رعدوبرق', '⛈', '⛈', 'Thunderstorm'],
+        96 => ['رعدوبرق و تگرگ', '⛈', '⛈', 'Thunderstorm with hail'],
+        99 => ['رعدوبرق و تگرگ شدید', '⛈', '⛈', 'Thunderstorm with heavy hail'],
     ];
 
     private static function norm(string $city): string
@@ -48,8 +48,9 @@ final class Weather
     private static function locate(string $city): ?array
     {
         $city = self::norm($city);
-        return Store::remember('cache', 'geo_' . md5(mb_strtolower($city)), 86400 * 30, static function () use ($city) {
-            $g = Http::getJson(self::GEO . '?' . http_build_query(['name' => $city, 'count' => 1, 'language' => 'fa', 'format' => 'json']), [], 8);
+        $lang = Lang::get();
+        return Store::remember('cache', 'geo_' . $lang . '_' . md5(mb_strtolower($city)), 86400 * 30, static function () use ($city, $lang) {
+            $g = Http::getJson(self::GEO . '?' . http_build_query(['name' => $city, 'count' => 1, 'language' => $lang, 'format' => 'json']), [], 8);
             if (!empty($g['results'][0])) {
                 $r = $g['results'][0];
                 return ['name' => $r['name'] ?? $city, 'country' => $r['country'] ?? '', 'lat' => (float) $r['latitude'], 'lon' => (float) $r['longitude']];
@@ -57,7 +58,7 @@ final class Weather
             if (mb_strlen($city) < 3) {
                 return null;
             }
-            $o = Http::getJson(self::OSM . '?' . http_build_query(['q' => $city, 'format' => 'jsonv2', 'limit' => 1, 'addressdetails' => 1, 'accept-language' => 'fa']),
+            $o = Http::getJson(self::OSM . '?' . http_build_query(['q' => $city, 'format' => 'jsonv2', 'limit' => 1, 'addressdetails' => 1, 'accept-language' => $lang]),
                 ['User-Agent: NulliniBot/3.8 (Telegram bot)'], 8);
             if (!empty($o[0]['lat'])) {
                 $r = $o[0];
@@ -110,7 +111,8 @@ final class Weather
 
     private static function codeText(int $code): string
     {
-        return self::CODES[$code][0] ?? '—';
+        $c = self::CODES[$code] ?? null;
+        return $c === null ? '—' : L($c[0], $c[3]);
     }
 
     private static function codeEmoji(int $code, bool $day = true): string
@@ -123,21 +125,39 @@ final class Weather
         return fa((int) round((float) $v)) . '°';
     }
 
+    private static function pct($v): string
+    {
+        return fa((int) $v) . L('٪', '%');
+    }
+
+    private static function wind(array $cur): string
+    {
+        return fa((int) round((float) ($cur['wind_speed_10m'] ?? 0))) . L(' کیلومتر/ساعت', ' km/h')
+            . L(' (از ', ' (from ') . self::windDir((float) ($cur['wind_direction_10m'] ?? 0)) . ')';
+    }
+
+    private static function pressure(array $cur): string
+    {
+        return fa((int) round((float) ($cur['surface_pressure'] ?? 0))) . L(' میلی‌بار', ' hPa');
+    }
+
     private static function windDir(float $deg): string
     {
-        $dirs = ['شمال', 'شمال‌شرق', 'شرق', 'جنوب‌شرق', 'جنوب', 'جنوب‌غرب', 'غرب', 'شمال‌غرب'];
+        $dirs = Lang::is('en')
+            ? ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest']
+            : ['شمال', 'شمال‌شرق', 'شرق', 'جنوب‌شرق', 'جنوب', 'جنوب‌غرب', 'غرب', 'شمال‌غرب'];
         return $dirs[(int) round(fmod($deg + 360, 360) / 45) % 8];
     }
 
     private static function aqi(int $v): string
     {
         return match (true) {
-            $v <= 50  => '🟢 پاک',
-            $v <= 100 => '🟡 قابل قبول',
-            $v <= 150 => '🟠 ناسالم برای حساس‌ها',
-            $v <= 200 => '🔴 ناسالم',
-            $v <= 300 => '🟣 خیلی ناسالم',
-            default   => '🟤 خطرناک',
+            $v <= 50  => '🟢 ' . L('پاک', 'Good'),
+            $v <= 100 => '🟡 ' . L('قابل قبول', 'Moderate'),
+            $v <= 150 => '🟠 ' . L('ناسالم برای حساس‌ها', 'Unhealthy for sensitive groups'),
+            $v <= 200 => '🔴 ' . L('ناسالم', 'Unhealthy'),
+            $v <= 300 => '🟣 ' . L('خیلی ناسالم', 'Very unhealthy'),
+            default   => '🟤 ' . L('خطرناک', 'Hazardous'),
         };
     }
 
@@ -152,33 +172,33 @@ final class Weather
         $place = h($d['location']['name']) . ($d['location']['country'] !== '' ? ' · ' . h($d['location']['country']) : '');
 
         $l   = [];
-        $l[] = self::codeEmoji($code, $isDay) . " <b>آب‌وهوای {$place}</b>";
-        $l[] = '🕒 ' . Jalali::fullDate(time()) . " · ساعت محلی {$local}";
+        $l[] = self::codeEmoji($code, $isDay) . " <b>" . L('آب‌وهوای', 'Weather in') . " {$place}</b>";
+        $l[] = '🕒 ' . Jalali::fullDate(time()) . " · " . L('ساعت محلی', 'local time') . " {$local}";
         $l[] = '';
-        $l[] = '🌡 دما: <b>' . self::deg($cur['temperature_2m'] ?? 0) . '</b> (حس می‌شه ' . self::deg($cur['apparent_temperature'] ?? 0) . ')';
-        $l[] = '⬆️ بیشینه ' . self::deg($daily['temperature_2m_max'][0] ?? 0) . ' · ⬇️ کمینه ' . self::deg($daily['temperature_2m_min'][0] ?? 0);
-        $l[] = '☁️ وضعیت: ' . self::codeText($code);
-        $l[] = '💧 رطوبت: ' . fa((int) ($cur['relative_humidity_2m'] ?? 0)) . '٪ · ابر: ' . fa((int) ($cur['cloud_cover'] ?? 0)) . '٪';
-        $l[] = '💨 باد: ' . fa((int) round((float) ($cur['wind_speed_10m'] ?? 0))) . ' کیلومتر/ساعت (از ' . self::windDir((float) ($cur['wind_direction_10m'] ?? 0)) . ')';
-        $l[] = '🧭 فشار: ' . fa((int) round((float) ($cur['surface_pressure'] ?? 0))) . ' میلی‌بار';
+        $l[] = '🌡 ' . L('دما', 'Temperature') . ': <b>' . self::deg($cur['temperature_2m'] ?? 0) . '</b> (' . L('حس می‌شه', 'feels like') . ' ' . self::deg($cur['apparent_temperature'] ?? 0) . ')';
+        $l[] = '⬆️ ' . L('بیشینه', 'High') . ' ' . self::deg($daily['temperature_2m_max'][0] ?? 0) . ' · ⬇️ ' . L('کمینه', 'Low') . ' ' . self::deg($daily['temperature_2m_min'][0] ?? 0);
+        $l[] = '☁️ ' . L('وضعیت', 'Condition') . ': ' . self::codeText($code);
+        $l[] = '💧 ' . L('رطوبت', 'Humidity') . ': ' . self::pct($cur['relative_humidity_2m'] ?? 0) . ' · ' . L('ابر', 'Clouds') . ': ' . self::pct($cur['cloud_cover'] ?? 0);
+        $l[] = '💨 ' . L('باد', 'Wind') . ': ' . self::wind($cur);
+        $l[] = '🧭 ' . L('فشار', 'Pressure') . ': ' . self::pressure($cur);
         if (!empty($daily['precipitation_probability_max'][0])) {
-            $l[] = '☔ احتمال بارش امروز: ' . fa((int) $daily['precipitation_probability_max'][0]) . '٪';
+            $l[] = '☔ ' . L('احتمال بارش امروز', 'Chance of rain today') . ': ' . self::pct($daily['precipitation_probability_max'][0]);
         }
         if (!empty($daily['sunrise'][0]) && !empty($daily['sunset'][0])) {
-            $l[] = '🌅 طلوع ' . fa(substr((string) $daily['sunrise'][0], 11, 5)) . ' · 🌇 غروب ' . fa(substr((string) $daily['sunset'][0], 11, 5));
+            $l[] = '🌅 ' . L('طلوع', 'Sunrise') . ' ' . fa(substr((string) $daily['sunrise'][0], 11, 5)) . ' · 🌇 ' . L('غروب', 'Sunset') . ' ' . fa(substr((string) $daily['sunset'][0], 11, 5));
         }
         if (isset($d['air']['us_aqi'])) {
             $pm  = $d['air']['pm2_5'] ?? null;
-            $l[] = '🫁 کیفیت هوا: ' . self::aqi((int) $d['air']['us_aqi']) . ($pm !== null ? ' (PM2.5: ' . fa(round((float) $pm, 1)) . ')' : '');
+            $l[] = '🫁 ' . L('کیفیت هوا', 'Air quality') . ': ' . self::aqi((int) $d['air']['us_aqi']) . ($pm !== null ? ' (PM2.5: ' . fa(round((float) $pm, 1)) . ')' : '');
         }
 
         $future = [];
-        foreach ([1 => 'فردا', 2 => 'پس‌فردا'] as $i => $name) {
+        foreach ([1 => L('فردا', 'Tomorrow'), 2 => L('پس‌فردا', 'Day after tomorrow')] as $i => $name) {
             if (isset($daily['temperature_2m_max'][$i])) {
                 $c        = (int) ($daily['weather_code'][$i] ?? 0);
                 $rain     = (int) ($daily['precipitation_probability_max'][$i] ?? 0);
                 $future[] = "📆 {$name}: " . self::codeEmoji($c) . ' ' . self::deg($daily['temperature_2m_max'][$i]) . ' / ' . self::deg($daily['temperature_2m_min'][$i])
-                    . ' · ' . self::codeText($c) . ($rain > 0 ? ' · ☔ ' . fa($rain) . '٪' : '');
+                    . ' · ' . self::codeText($c) . ($rain > 0 ? ' · ☔ ' . self::pct($rain) : '');
             }
         }
         if ($future) {
@@ -197,11 +217,11 @@ final class Weather
         $isDay = !empty($cur['is_day']);
         $local = isset($w['utc_offset_seconds']) ? fa(gmdate('H:i', time() + (int) $w['utc_offset_seconds'])) : Jalali::time(time());
         $place = $d['location']['name'] . ($d['location']['country'] !== '' ? ' · ' . $d['location']['country'] : '');
-        $head  = self::codeEmoji($code, $isDay) . " **آب‌وهوای {$place}**\n🕒 " . Jalali::fullDate(time()) . " · ساعت محلی {$local}\n\n";
+        $head  = self::codeEmoji($code, $isDay) . " **" . L('آب‌وهوای', 'Weather in') . " {$place}**\n🕒 " . Jalali::fullDate(time()) . ' · ' . L('ساعت محلی', 'local time') . " {$local}\n\n";
 
         if ($view === 'days') {
             $rows = [];
-            foreach ([0 => 'امروز', 1 => 'فردا', 2 => 'پس‌فردا'] as $i => $name) {
+            foreach ([0 => L('امروز', 'Today'), 1 => L('فردا', 'Tomorrow'), 2 => L('پس‌فردا', 'Day after tomorrow')] as $i => $name) {
                 if (!isset($daily['temperature_2m_max'][$i])) {
                     continue;
                 }
@@ -211,42 +231,42 @@ final class Weather
                     $name,
                     self::codeEmoji($c) . ' ' . self::codeText($c),
                     self::deg($daily['temperature_2m_max'][$i]) . ' / ' . self::deg($daily['temperature_2m_min'][$i]),
-                    $rain > 0 ? fa($rain) . '٪' : '—',
+                    $rain > 0 ? self::pct($rain) : '—',
                 ];
             }
-            return $head . Rich::mdTable(['روز', 'وضعیت', 'بیشینه / کمینه', '☔ بارش'], $rows);
+            return $head . Rich::mdTable([L('روز', 'Day'), L('وضعیت', 'Condition'), L('بیشینه / کمینه', 'High / Low'), '☔ ' . L('بارش', 'Rain')], $rows);
         }
 
         $rows = [
-            ['🌡 دما', '**' . self::deg($cur['temperature_2m'] ?? 0) . '** (حس ' . self::deg($cur['apparent_temperature'] ?? 0) . ')'],
-            ['↕️ بیشینه / کمینه', self::deg($daily['temperature_2m_max'][0] ?? 0) . ' / ' . self::deg($daily['temperature_2m_min'][0] ?? 0)],
-            ['☁️ وضعیت', self::codeText($code)],
-            ['💧 رطوبت', fa((int) ($cur['relative_humidity_2m'] ?? 0)) . '٪'],
-            ['⛅ ابر', fa((int) ($cur['cloud_cover'] ?? 0)) . '٪'],
-            ['💨 باد', fa((int) round((float) ($cur['wind_speed_10m'] ?? 0))) . ' کیلومتر/ساعت (از ' . self::windDir((float) ($cur['wind_direction_10m'] ?? 0)) . ')'],
-            ['🧭 فشار', fa((int) round((float) ($cur['surface_pressure'] ?? 0))) . ' میلی‌بار'],
+            ['🌡 ' . L('دما', 'Temperature'), '**' . self::deg($cur['temperature_2m'] ?? 0) . '** (' . L('حس', 'feels') . ' ' . self::deg($cur['apparent_temperature'] ?? 0) . ')'],
+            ['↕️ ' . L('بیشینه / کمینه', 'High / Low'), self::deg($daily['temperature_2m_max'][0] ?? 0) . ' / ' . self::deg($daily['temperature_2m_min'][0] ?? 0)],
+            ['☁️ ' . L('وضعیت', 'Condition'), self::codeText($code)],
+            ['💧 ' . L('رطوبت', 'Humidity'), self::pct($cur['relative_humidity_2m'] ?? 0)],
+            ['⛅ ' . L('ابر', 'Clouds'), self::pct($cur['cloud_cover'] ?? 0)],
+            ['💨 ' . L('باد', 'Wind'), self::wind($cur)],
+            ['🧭 ' . L('فشار', 'Pressure'), self::pressure($cur)],
         ];
         if (!empty($daily['precipitation_probability_max'][0])) {
-            $rows[] = ['☔ احتمال بارش', fa((int) $daily['precipitation_probability_max'][0]) . '٪'];
+            $rows[] = ['☔ ' . L('احتمال بارش', 'Chance of rain'), self::pct($daily['precipitation_probability_max'][0])];
         }
         if (!empty($daily['sunrise'][0]) && !empty($daily['sunset'][0])) {
-            $rows[] = ['🌅 طلوع / 🌇 غروب', fa(substr((string) $daily['sunrise'][0], 11, 5)) . ' / ' . fa(substr((string) $daily['sunset'][0], 11, 5))];
+            $rows[] = ['🌅 ' . L('طلوع', 'Sunrise') . ' / 🌇 ' . L('غروب', 'Sunset'), fa(substr((string) $daily['sunrise'][0], 11, 5)) . ' / ' . fa(substr((string) $daily['sunset'][0], 11, 5))];
         }
         if (isset($d['air']['us_aqi'])) {
             $pm     = $d['air']['pm2_5'] ?? null;
-            $rows[] = ['🫁 کیفیت هوا', self::aqi((int) $d['air']['us_aqi']) . ($pm !== null ? ' (PM2.5: ' . fa(round((float) $pm, 1)) . ')' : '')];
+            $rows[] = ['🫁 ' . L('کیفیت هوا', 'Air quality'), self::aqi((int) $d['air']['us_aqi']) . ($pm !== null ? ' (PM2.5: ' . fa(round((float) $pm, 1)) . ')' : '')];
         }
-        return $head . Rich::mdTable(['مورد', 'مقدار'], $rows);
+        return $head . Rich::mdTable([L('مورد', 'Item'), L('مقدار', 'Value')], $rows);
     }
 
     public static function keyboard(string $hash = '', string $view = 'now'): array
     {
         $sfx  = $hash === '' ? '' : ':' . $hash;
         $tabs = [
-            $view === 'now' ? btn('🌡 اکنون ✓', 'weather:now' . $sfx, 'success') : btn('🌡 اکنون', 'weather:now' . $sfx, 'primary'),
-            $view === 'days' ? btn('📆 ۳ روز آینده ✓', 'weather:days' . $sfx, 'success') : btn('📆 ۳ روز آینده', 'weather:days' . $sfx, 'primary'),
+            $view === 'now' ? btn('🌡 ' . L('اکنون', 'Now') . ' ✓', 'weather:now' . $sfx, 'success') : btn('🌡 ' . L('اکنون', 'Now'), 'weather:now' . $sfx, 'primary'),
+            $view === 'days' ? btn('📆 ' . L('۳ روز آینده', 'Next 3 days') . ' ✓', 'weather:days' . $sfx, 'success') : btn('📆 ' . L('۳ روز آینده', 'Next 3 days'), 'weather:days' . $sfx, 'primary'),
         ];
-        return ikb([$tabs, [btn('🔄 بروزرسانی', 'weather:refresh:' . $view . $sfx, 'danger')]]);
+        return ikb([$tabs, [btn('🔄 ' . L('بروزرسانی', 'Refresh'), 'weather:refresh:' . $view . $sfx, 'danger')]]);
     }
 
     public static function onCallback(array $cq, ?string $imid, string $data = ''): void
@@ -265,16 +285,16 @@ final class Weather
             }
         }
         if (!is_string($city) || $city === '') {
-            $tg->alert($cq, '⚠️ اطلاعات این پیام پیدا نشد؛' . "\n" . 'دوباره از منو بگیرش.');
+            $tg->alert($cq, L('⚠️ اطلاعات این پیام پیدا نشد؛', '⚠️ Couldn’t find the data for this message;') . "\n" . L('دوباره از منو بگیرش.', 'please request it again from the menu.'));
             return;
         }
         $data = self::fetch($city);
         if ($data === null) {
-            $tg->alert($cq, '⚠️ الان نتونستم آب‌وهوا رو بگیرم؛' . "\n" . 'یه‌کم دیگه امتحان کن.');
+            $tg->alert($cq, L('⚠️ الان نتونستم آب‌وهوا رو بگیرم؛', '⚠️ Couldn’t fetch the weather right now;') . "\n" . L('یه‌کم دیگه امتحان کن.', 'please try again in a bit.'));
             return;
         }
         $kb = self::keyboard($hash !== '' ? $hash : substr(md5(mb_strtolower($city)), 0, 16), $view);
         Rich::editCbMd($cq, $imid, self::richFormat($data, $view), $kb);
-        $tg->answer($cq, $refresh ? '🔄 به‌روز شد' : null);
+        $tg->answer($cq, $refresh ? L('🔄 به‌روز شد', '🔄 Updated') : null);
     }
 }

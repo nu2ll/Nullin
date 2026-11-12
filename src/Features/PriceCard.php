@@ -2,35 +2,33 @@
 
 final class PriceCard
 {
-    // [کلید فید، نام‌های قابل‌قبول، اسم، واحد، نماد، نوع]
-    // نوع: irr = ریال در فید (تقسیم بر ۱۰ می‌شه تومان)، usd = قیمت دلاری، mesh = مثقال (از گرم ۱۸ عیار)
     private const ASSETS = [
-        'usd'  => ['price_dollar_rl', ['دلار', 'دلار آمریکا', 'دلار امریکا', 'usd', 'dollar', '$'], 'دلار آمریکا', 'واحد', '$', 'irr'],
-        'eur'  => ['price_eur', ['یورو', 'eur', 'euro'], 'یورو', 'واحد', '€', 'irr'],
-        'gbp'  => ['price_gbp', ['پوند', 'پوند انگلیس', 'gbp'], 'پوند انگلیس', 'واحد', '£', 'irr'],
-        'aed'  => ['price_aed', ['درهم', 'درهم امارات', 'aed'], 'درهم امارات', 'واحد', 'AED', 'irr'],
-        'try'  => ['price_try', ['لیر', 'لیر ترکیه', 'try'], 'لیر ترکیه', 'واحد', '₺', 'irr'],
-        'chf'  => ['price_chf', ['فرانک', 'فرانک سوئیس', 'فرانک سویس', 'chf'], 'فرانک سوئیس', 'واحد', 'CHF', 'irr'],
-        'cad'  => ['price_cad', ['دلار کانادا', 'cad'], 'دلار کانادا', 'واحد', 'C$', 'irr'],
-        'cny'  => ['price_cny', ['یوان', 'یوان چین', 'cny'], 'یوان چین', 'واحد', '¥', 'irr'],
-        'rub'  => ['price_rub', ['روبل', 'روبل روسیه', 'rub'], 'روبل روسیه', 'واحد', '₽', 'irr'],
-        'inr'  => ['price_inr', ['روپیه', 'روپیه هند', 'inr'], 'روپیه هند', 'واحد', '₹', 'irr'],
-        'iqd'  => ['price_iqd', ['دینار', 'دینار عراق', 'iqd'], 'دینار عراق', 'واحد', 'IQD', 'irr'],
-        'afn'  => ['price_afn', ['افغانی', 'afn'], 'افغانی', 'واحد', 'AFN', 'irr'],
-        'usdt' => ['crypto-tether-irr', ['تتر', 'usdt', 'tether'], 'تتر', 'واحد', '₮', 'irr'],
-        'coin' => ['sekee', ['سکه', 'سکه امامی'], 'سکه امامی', 'عدد', '◎', 'irr'],
-        'gold' => ['geram18', ['طلا', 'گرم طلا', 'طلا ۱۸', 'طلای ۱۸', 'طلا 18', 'طلای 18', 'طلای18', 'طلا18', 'گرم 18', 'گرم ۱۸'], 'طلای ۱۸ عیار', 'گرم', 'Au', 'irr'],
-        'mesh' => ['geram18', ['مثقال', 'مثقال طلا', 'مثقال ۱۸', 'مثقال 18'], 'مثقال طلا', 'عدد', 'Au', 'mesh'],
-        'ons'  => ['ons', ['انس', 'انس طلا', 'انس جهانی', 'اونس', 'اونس طلا', 'ons', 'ounce'], 'انس جهانی طلا', 'واحد', 'Au', 'usd'],
-        'btc'  => ['crypto-bitcoin', ['بیت', 'بیت کوین', 'بیتکوین', 'btc', 'bitcoin'], 'بیت‌کوین', 'واحد', '₿', 'usd'],
-        'eth'  => ['crypto-ethereum', ['اتر', 'اتریوم', 'eth', 'ethereum'], 'اتریوم', 'واحد', 'Ξ', 'usd'],
-        'bnb'  => ['crypto-binance-coin', ['بایننس', 'بایننس کوین', 'bnb', 'binance'], 'بایننس کوین', 'واحد', 'BNB', 'usd'],
-        'sol'  => ['crypto-solana', ['سول', 'سولانا', 'sol', 'solana'], 'سولانا', 'واحد', 'SOL', 'usd'],
-        'ton'  => ['crypto-toncoin', ['گرام', 'gram', 'تون', 'تون کوین', 'تونکوین', 'ton', 'toncoin'], 'گرام', 'واحد', 'GRAM', 'usd'],
-        'xrp'  => ['crypto-ripple', ['ریپل', 'xrp', 'ripple'], 'ریپل', 'واحد', 'XRP', 'usd'],
-        'trx'  => ['crypto-tron', ['ترون', 'trx', 'tron'], 'ترون', 'واحد', 'TRX', 'usd'],
-        'doge' => ['crypto-dogecoin', ['دوج', 'دوج کوین', 'دوجکوین', 'doge', 'dogecoin'], 'دوج‌کوین', 'واحد', 'Ð', 'usd'],
-        'ltc'  => ['crypto-litecoin', ['لایت', 'لایت کوین', 'لایتکوین', 'ltc', 'litecoin'], 'لایت‌کوین', 'واحد', 'Ł', 'usd'],
+        'usd'  => ['price_dollar_rl', ['دلار', 'دلار آمریکا', 'دلار امریکا', 'usd', 'dollar', '$'], 'دلار آمریکا', 'واحد', '$', 'irr', 'US Dollar', ''],
+        'eur'  => ['price_eur', ['یورو', 'eur', 'euro'], 'یورو', 'واحد', '€', 'irr', 'Euro', ''],
+        'gbp'  => ['price_gbp', ['پوند', 'پوند انگلیس', 'gbp'], 'پوند انگلیس', 'واحد', '£', 'irr', 'British Pound', ''],
+        'aed'  => ['price_aed', ['درهم', 'درهم امارات', 'aed'], 'درهم امارات', 'واحد', 'AED', 'irr', 'UAE Dirham', ''],
+        'try'  => ['price_try', ['لیر', 'لیر ترکیه', 'try'], 'لیر ترکیه', 'واحد', '₺', 'irr', 'Turkish Lira', ''],
+        'chf'  => ['price_chf', ['فرانک', 'فرانک سوئیس', 'فرانک سویس', 'chf'], 'فرانک سوئیس', 'واحد', 'CHF', 'irr', 'Swiss Franc', ''],
+        'cad'  => ['price_cad', ['دلار کانادا', 'cad'], 'دلار کانادا', 'واحد', 'C$', 'irr', 'Canadian Dollar', ''],
+        'cny'  => ['price_cny', ['یوان', 'یوان چین', 'cny'], 'یوان چین', 'واحد', '¥', 'irr', 'Chinese Yuan', ''],
+        'rub'  => ['price_rub', ['روبل', 'روبل روسیه', 'rub'], 'روبل روسیه', 'واحد', '₽', 'irr', 'Russian Ruble', ''],
+        'inr'  => ['price_inr', ['روپیه', 'روپیه هند', 'inr'], 'روپیه هند', 'واحد', '₹', 'irr', 'Indian Rupee', ''],
+        'iqd'  => ['price_iqd', ['دینار', 'دینار عراق', 'iqd'], 'دینار عراق', 'واحد', 'IQD', 'irr', 'Iraqi Dinar', ''],
+        'afn'  => ['price_afn', ['افغانی', 'afn'], 'افغانی', 'واحد', 'AFN', 'irr', 'Afghan Afghani', ''],
+        'usdt' => ['crypto-tether-irr', ['تتر', 'usdt', 'tether'], 'تتر', 'واحد', '₮', 'irr', 'Tether', ''],
+        'coin' => ['sekee', ['سکه', 'سکه امامی'], 'سکه امامی', 'عدد', '◎', 'irr', 'Imami coin', ''],
+        'gold' => ['geram18', ['طلا', 'گرم طلا', 'طلا ۱۸', 'طلای ۱۸', 'طلا 18', 'طلای 18', 'طلای18', 'طلا18', 'گرم 18', 'گرم ۱۸'], 'طلای ۱۸ عیار', 'گرم', 'Au', 'irr', '18k gold', 'gram'],
+        'mesh' => ['geram18', ['مثقال', 'مثقال طلا', 'مثقال ۱۸', 'مثقال 18'], 'مثقال طلا', 'عدد', 'Au', 'mesh', 'Gold mithqal', ''],
+        'ons'  => ['ons', ['انس', 'انس طلا', 'انس جهانی', 'اونس', 'اونس طلا', 'ons', 'ounce'], 'انس جهانی طلا', 'واحد', 'Au', 'usd', 'Global gold ounce', ''],
+        'btc'  => ['crypto-bitcoin', ['بیت', 'بیت کوین', 'بیتکوین', 'btc', 'bitcoin'], 'بیت‌کوین', 'واحد', '₿', 'usd', 'Bitcoin', ''],
+        'eth'  => ['crypto-ethereum', ['اتر', 'اتریوم', 'eth', 'ethereum'], 'اتریوم', 'واحد', 'Ξ', 'usd', 'Ethereum', ''],
+        'bnb'  => ['crypto-binance-coin', ['بایننس', 'بایننس کوین', 'bnb', 'binance'], 'بایننس کوین', 'واحد', 'BNB', 'usd', 'Binance Coin', ''],
+        'sol'  => ['crypto-solana', ['سول', 'سولانا', 'sol', 'solana'], 'سولانا', 'واحد', 'SOL', 'usd', 'Solana', ''],
+        'ton'  => ['crypto-toncoin', ['گرام', 'gram', 'تون', 'تون کوین', 'تونکوین', 'ton', 'toncoin'], 'گرام', 'واحد', 'GRAM', 'usd', 'Gram', ''],
+        'xrp'  => ['crypto-ripple', ['ریپل', 'xrp', 'ripple'], 'ریپل', 'واحد', 'XRP', 'usd', 'Ripple', ''],
+        'trx'  => ['crypto-tron', ['ترون', 'trx', 'tron'], 'ترون', 'واحد', 'TRX', 'usd', 'Tron', ''],
+        'doge' => ['crypto-dogecoin', ['دوج', 'دوج کوین', 'دوجکوین', 'doge', 'dogecoin'], 'دوج‌کوین', 'واحد', 'Ð', 'usd', 'Dogecoin', ''],
+        'ltc'  => ['crypto-litecoin', ['لایت', 'لایت کوین', 'لایتکوین', 'ltc', 'litecoin'], 'لایت‌کوین', 'واحد', 'Ł', 'usd', 'Litecoin', ''],
     ];
 
     private static function norm(string $s): string
@@ -58,29 +56,29 @@ final class PriceCard
     {
         $t = en(mbTrim($text));
         $t = strtr($t, ['٬' => ',', '،' => ',', '٫' => '.']);
-        $t = preg_replace('/^قیمت\s+/u', '', $t) ?? $t;
-        $t = preg_replace('/\s*(?:چنده|چقدره|چقدر|چند)?[؟?!.\s]*$/u', '', $t) ?? $t;
+        $t = mb_strtolower($t);
+        $t = preg_replace('/^(?:قیمت|price(?:\s+of)?)\s+/u', '', $t) ?? $t;
+        $t = preg_replace('/\s*(?:چنده|چقدره|چقدر|چند|how much)?[؟?!.\s]*$/u', '', $t) ?? $t;
         if ($t === '' || mb_strlen($t) > 40) {
             return null;
         }
         $amount = null;
         $name   = $t;
-        if (preg_match('/^(\d[\d,]*(?:\.\d+)?)\s*(هزار|میلیون|میلیارد)?\s*(.+)$/u', $t, $m)) {
+        if (preg_match('/^(\d[\d,]*(?:\.\d+)?)\s*(هزار|میلیون|میلیارد|(?:thousand|million|billion|k)(?![a-z]))?\s*(.+)$/u', $t, $m)) {
             $amount = (float) str_replace(',', '', $m[1]);
             $amount *= match ($m[2]) {
-                'هزار'   => 1e3,
-                'میلیون' => 1e6,
-                'میلیارد' => 1e9,
+                'هزار', 'thousand', 'k' => 1e3,
+                'میلیون', 'million' => 1e6,
+                'میلیارد', 'billion' => 1e9,
                 default  => 1,
             };
             $name = $m[3];
-        } elseif ($trailing && self::find($t) === null && preg_match('/^(.+?)\s*(\d[\d,]*(?:\.\d+)?)\s*(هزار|میلیون|میلیارد)?$/u', $t, $m)) {
-            // «دلار ۱۰۰» یا «دلار ۲ میلیون» (مقدار بعد از اسم؛ فقط تو اینلاین)
+        } elseif ($trailing && self::find($t) === null && preg_match('/^(.+?)\s*(\d[\d,]*(?:\.\d+)?)\s*(هزار|میلیون|میلیارد|thousand|million|billion|k)?$/u', $t, $m)) {
             $amount = (float) str_replace(',', '', $m[2]);
             $amount *= match ($m[3] ?? '') {
-                'هزار'   => 1e3,
-                'میلیون' => 1e6,
-                'میلیارد' => 1e9,
+                'هزار', 'thousand', 'k' => 1e3,
+                'میلیون', 'million' => 1e6,
+                'میلیارد', 'billion' => 1e9,
                 default  => 1,
             };
             $name = mbTrim($m[1]);
@@ -233,7 +231,7 @@ final class PriceCard
             foreach ($keys as $key) {
                 $kid = substr(hash('sha256', $key), 0, 16);
                 if (isset($blocked[$kid])) {
-                    continue;   // سهمیه‌ی این کلید تا ساعت ریست تموم شده؛ ردش کن
+                    continue;
                 }
                 $j = Http::getJson($url, ['X-API-Key: ' . $key], 8);
                 if (is_array($j) && isset($j['error'])) {
@@ -242,11 +240,11 @@ final class PriceCard
                     if ($code === 'rate_limited') {
                         $blocked[$kid] = $ts !== false && $ts > $now ? $ts : $now + 900;
                     } else {
-                        $blocked[$kid] = $now + 600;   // کلید نامعتبر/خطای دیگه: ۱۰ دقیقه کنار
+                        $blocked[$kid] = $now + 600;
                     }
                     @file_put_contents($bf, json_encode($blocked), LOCK_EX);
                     $j = null;
-                    continue;   // کلید بعدی
+                    continue;
                 }
                 break;
             }
@@ -302,7 +300,6 @@ final class PriceCard
             if (!is_array($rows)) {
                 return [];
             }
-            // هر ردیف: [باز، کمترین، بیشترین، پایانی، تغییر، درصد، تاریخ میلادی، تاریخ شمسی] و جدیدترین اول
             $vals  = [];
             $newest = '';
             foreach (array_slice($rows, 0, 40) as $r) {
@@ -318,11 +315,11 @@ final class PriceCard
             if (count($vals) < 3 || $cur <= 0) {
                 return [];
             }
-            $vals = array_reverse($vals);            // قدیمی ← جدید
+            $vals = array_reverse($vals);
             if ($newest === date('Y/m/d')) {
-                $vals[count($vals) - 1] = $cur;      // ردیف امروز هست؛ با قیمت زنده جایگزین
+                $vals[count($vals) - 1] = $cur;
             } else {
-                $vals[] = $cur;                      // ردیف امروز نیست؛ قیمت زنده رو آخر اضافه کن
+                $vals[] = $cur;
             }
             foreach ($vals as $v) {
                 if ($v < $cur * 0.2 || $v > $cur * 5) {
@@ -388,18 +385,21 @@ final class PriceCard
         return $bytes;
     }
 
-    // همه‌ی متن‌ها و داده‌ی کارت؛ $chart=false یعنی نمودار (درخواست‌های شبکه‌ی اضافه) نگیر
     private static function parts(array $m, ?array $feed, bool $chart): ?array
     {
         $q = self::quote($m['asset'], $feed);
         if ($q === null) {
             return null;
         }
-        [, , $noun, $unit, $sym, $mode] = self::ASSETS[$m['asset']];
+        $asset  = self::ASSETS[$m['asset']];
+        $noun   = L($asset[2], $asset[6]);
+        $unit   = L($asset[3], $asset[7]);
+        $sym    = $asset[4];
+        $mode   = $asset[5];
         $isU    = $mode === 'usd';
         $money  = static fn(float $v): string => $isU ? self::fmtU($v) : self::fmt($v);
-        $cur    = $isU ? 'دلار' : 'تومان';
-        $where  = $isU ? 'بازار جهانی' : 'تهران';
+        $cur    = $isU ? L('دلار', 'USD') : L('تومان', 'Toman');
+        $where  = $isU ? L('بازار جهانی', 'global market') : L('تهران', 'Tehran');
         $amount = (float) $m['amount'];
         $amt    = self::amountText($amount);
         if ($q['h'] !== null && $q['l'] !== null) {
@@ -408,7 +408,7 @@ final class PriceCard
         }
         $total  = $q['p'] * $amount;
         $time   = preg_match('/^\d{1,2}:\d{2}(?::\d{2})?$/', $q['t']) === 1 ? $q['t'] : date('H:i:s');
-        $title  = "ارزش {$amt} {$unit} {$noun}";
+        $title  = L("ارزش {$amt} {$unit} {$noun}", "Value of {$amt} " . ($unit !== '' ? "{$unit} of " : '') . $noun);
         $pct    = $q['dp'] ?? (($q['p'] - $q['d']) > 0 ? $q['d'] / ($q['p'] - $q['d']) * 100 : 0.0);
         $usdQ   = $isU ? (self::quote('usd', $feed)['p'] ?? null) : null;
 
@@ -416,21 +416,21 @@ final class PriceCard
         $g1   = [];
         $g1[] = '💰 ' . fa($money($total)) . " {$cur}";
         if ($usdQ !== null) {
-            $g1[] = '🇮🇷 معادل: ' . fa(self::fmt($total * $usdQ)) . ' تومان';
+            $g1[] = '🇮🇷 ' . L('معادل', 'Equivalent') . ': ' . fa(self::fmt($total * $usdQ)) . ' ' . L('تومان', 'Toman');
         }
         $g2   = [];
         if ($q['h'] !== null && $q['l'] !== null) {
-            $g2[] = '🟢 سقف: ' . fa($money($q['h'])) . '   🔴 کف: ' . fa($money($q['l']));
+            $g2[] = '🟢 ' . L('سقف', 'High') . ': ' . fa($money($q['h'])) . '   🔴 ' . L('کف', 'Low') . ': ' . fa($money($q['l']));
         }
 
-        $rows = [[copyBtn('⌚ ساعت: ' . fa($time), $time, null)]];
+        $rows = [[copyBtn('⌚ ' . L('ساعت', 'Time') . ': ' . fa($time), $time, null)]];
         if ($q['h'] !== null && $q['l'] !== null) {
             $rows[] = [
-                copyBtn('🟢 سقف: ' . fa($money($q['h'])), $money($q['h']), 'success'),
-                copyBtn('🔴 کف: ' . fa($money($q['l'])), $money($q['l']), 'danger'),
+                copyBtn('🟢 ' . L('سقف', 'High') . ': ' . fa($money($q['h'])), $money($q['h']), 'success'),
+                copyBtn('🔴 ' . L('کف', 'Low') . ': ' . fa($money($q['l'])), $money($q['l']), 'danger'),
             ];
         }
-        $rows[] = [copyBtn('💰 کپی کل: ' . fa($money($total)) . " {$cur}", $money($total), 'primary')];
+        $rows[] = [copyBtn('💰 ' . L('کپی کل', 'Copy total') . ': ' . fa($money($total)) . " {$cur}", $money($total), 'primary')];
 
         return [
             'title'  => fa($title),
@@ -461,7 +461,7 @@ final class PriceCard
 
         $p = self::parts($m, Currency::feed(), true);
         if ($p === null) {
-            $tg->reply($msg, "⚠️ الان به منبع قیمت‌ها دسترسی ندارم؛\nچند لحظه دیگه دوباره بزن.");
+            $tg->reply($msg, Currency::unavailable());
             return;
         }
         $rich = '<img src="tg://photo?id=card"/>'
@@ -482,7 +482,6 @@ final class PriceCard
         return $p['head'] . "\n" . implode("\n", $p['g1']) . ($p['g2'] ? "\n" . implode("\n", $p['g2']) : '');
     }
 
-    // نتیجه‌ی اینلاین: اول متن می‌ره، بعد از انتخاب onChosen کارت (عکس) رو جایگزین می‌کنه
     public static function inlineArticle(array $m): ?array
     {
         $p = self::parts($m, Currency::feed(), false);

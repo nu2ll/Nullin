@@ -15,9 +15,9 @@ final class ImageGen
             return '😕 ' . h(mb_substr(self::$notice, 0, 400));
         }
         if (self::$quotaOut) {
-            return "😕 سهمیه‌ی ساخت عکس برای امروز تموم شده؛\nفردا دوباره امتحان کن.";
+            return L("😕 سهمیه‌ی ساخت عکس برای امروز تموم شده؛\nفردا دوباره امتحان کن.", "😕 The image quota for today is used up;\ntry again tomorrow.");
         }
-        return "😕 سرویس ساخت عکس الان جواب نمی‌ده؛\nچند دقیقه دیگه امتحان کن.";
+        return L("😕 سرویس ساخت عکس الان جواب نمی‌ده؛\nچند دقیقه دیگه امتحان کن.", "😕 The image service isn't responding right now;\ntry again in a few minutes.");
     }
 
     public static function fileId(string $bytes): ?string
@@ -57,7 +57,7 @@ final class ImageGen
             self::$quotaOut = true;
         } elseif ($ecode === 3030) {
             self::$notice  = $err;
-            self::$failMsg = "😕 سرویس عکس به این درخواست گیر داد؛\nیه‌کم جمله‌ت رو عوض کن و دوباره بنویس.";
+            self::$failMsg = L("😕 سرویس عکس به این درخواست گیر داد؛\nیه‌کم جمله‌ت رو عوض کن و دوباره بنویس.", "😕 The image service got stuck on this request;\nchange your wording a bit and try again.");
         }
         return null;
     }
@@ -106,7 +106,7 @@ final class ImageGen
                 $bytes = self::generate($prompt, static fn() => $tg->action($chatId, 'upload_photo'));
             }
             if ($bytes !== null) {
-                $captions = ['🎨 بفرما، اینم عکست!', '🖼 اینم از این، امیدوارم خوشت بیاد!', '✨ تازه از زیر قلمم دراومده!'];
+                $captions = [L('🎨 بفرما، اینم عکست!', '🎨 Here\'s your picture!'), L('🖼 اینم از این، امیدوارم خوشت بیاد!', '🖼 Here it is, hope you like it!'), L('✨ تازه از زیر قلمم دراومده!', '✨ Fresh off my brush!')];
                 $sent     = $tg->sendPhotoBytes($chatId, $bytes, h($caption ?? $captions[array_rand($captions)]), $origId, true);
             }
         } finally {
@@ -115,7 +115,7 @@ final class ImageGen
                 $live->discard();
                 Store::delete('aibtn', $chatId . ':' . $mid);
             } else {
-                $text = $bytes !== null ? '😕 عکس ساخته شد ولی ارسالش به مشکل خورد؛' . "\n" . 'دوباره امتحان کن.' : self::failText();
+                $text = $bytes !== null ? L('😕 عکس ساخته شد ولی ارسالش به مشکل خورد؛', '😕 The image was created but sending it failed;') . "\n" . L('دوباره امتحان کن.', 'try again.') : self::failText();
                 AnswerButtons::failEdit($chatId, $mid, $text);
             }
         }
@@ -123,7 +123,7 @@ final class ImageGen
 
     private static function status(array $msg): ?int
     {
-        $r = App::tg()->reply($msg, LiveReply::DRAWING);
+        $r = App::tg()->reply($msg, (Lang::is('en') ? LiveReply::DRAWING_EN : LiveReply::DRAWING));
         return isset($r['result']['message_id']) ? (int) $r['result']['message_id'] : null;
     }
 
@@ -153,7 +153,7 @@ final class ImageGen
         $plan = AI::imagePrompt($request);
         if ($plan === null) {
             self::clear($chatId, null, $statusId);
-            self::fail($msg, '😕 الان نتونستم درخواستت رو بفهمم؛' . "\n" . 'یه‌کم دیگه دوباره بگو.', ['q' => $request]);
+            self::fail($msg, L('😕 الان نتونستم درخواستت رو بفهمم؛', '😕 I couldn\'t understand your request just now;') . "\n" . L('یه‌کم دیگه دوباره بگو.', 'say it again in a bit.'), ['q' => $request]);
             return;
         }
         self::draw($msg, $plan['prompt'], $plan['caption'] ?? null, null, $statusId);
@@ -173,12 +173,12 @@ final class ImageGen
             self::fail($msg, self::failText(), ['p' => $prompt, 'c' => $caption, 'q' => $prompt]);
             return false;
         }
-        $captions = ['🎨 بفرما، اینم عکست!', '🖼 اینم از این، امیدوارم خوشت بیاد!', '✨ تازه از زیر قلمم دراومده!'];
+        $captions = [L('🎨 بفرما، اینم عکست!', '🎨 Here\'s your picture!'), L('🖼 اینم از این، امیدوارم خوشت بیاد!', '🖼 Here it is, hope you like it!'), L('✨ تازه از زیر قلمم دراومده!', '✨ Fresh off my brush!')];
         $cap      = h($caption ?? $captions[array_rand($captions)]);
         $sent = $tg->sendPhotoBytes($chatId, $bytes, $cap, $msg['message_id'] ?? null, true);
         self::clear($chatId, $live, $statusId);
         if (!$sent) {
-            self::fail($msg, '😕 عکس ساخته شد ولی ارسالش به مشکل خورد؛' . "\n" . 'دوباره امتحان کن.', ['p' => $prompt, 'c' => $caption, 'q' => $prompt]);
+            self::fail($msg, L('😕 عکس ساخته شد ولی ارسالش به مشکل خورد؛', '😕 The image was created but sending it failed;') . "\n" . L('دوباره امتحان کن.', 'try again.'), ['p' => $prompt, 'c' => $caption, 'q' => $prompt]);
             return false;
         }
         return true;

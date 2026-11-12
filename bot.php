@@ -284,12 +284,12 @@ function bootExtraBots(array $pcfg): array
         Store::set('meta', 'me' . $bi, $me['result']);
         $tg->call('deleteWebhook', ['drop_pending_updates' => !empty($pcfg['drop_pending'])]);
         try {
-            $tg->call('setMyCommands', ['commands' => Ui::commands('private'), 'scope' => ['type' => 'all_private_chats']], 10);
-            $tg->call('setMyCommands', ['commands' => Ui::commands('group'), 'scope' => ['type' => 'all_group_chats']], 10);
+            Ui::pushCommands($tg, 'private', ['type' => 'all_private_chats']);
+            Ui::pushCommands($tg, 'group', ['type' => 'all_group_chats']);
             $tg->call('deleteMyCommands', ['scope' => ['type' => 'default']], 10);
             foreach ((array) App::cfg('admins', []) as $adminId) {
                 if ((int) $adminId > 0) {
-                    $tg->call('setMyCommands', ['commands' => Ui::commands('admin'), 'scope' => ['type' => 'chat', 'chat_id' => (int) $adminId]], 10);
+                    Ui::pushCommands($tg, 'admin', ['type' => 'chat', 'chat_id' => (int) $adminId]);
                 }
             }
         } catch (\Throwable $e) {
@@ -415,12 +415,12 @@ App::tg()->call('deleteWebhook', ['drop_pending_updates' => !empty($pcfg['drop_p
 
 try {
     $tg = App::tg();
-    $tg->call('setMyCommands', ['commands' => Ui::commands('private'), 'scope' => ['type' => 'all_private_chats']], 10);
-    $tg->call('setMyCommands', ['commands' => Ui::commands('group'), 'scope' => ['type' => 'all_group_chats']], 10);
+    Ui::pushCommands($tg, 'private', ['type' => 'all_private_chats']);
+    Ui::pushCommands($tg, 'group', ['type' => 'all_group_chats']);
     $tg->call('deleteMyCommands', ['scope' => ['type' => 'default']], 10);
     foreach ((array) App::cfg('admins', []) as $adminId) {
         if ((int) $adminId > 0) {
-            $tg->call('setMyCommands', ['commands' => Ui::commands('admin'), 'scope' => ['type' => 'chat', 'chat_id' => (int) $adminId]], 10);
+            Ui::pushCommands($tg, 'admin', ['type' => 'chat', 'chat_id' => (int) $adminId]);
         }
     }
 } catch (\Throwable $e) {

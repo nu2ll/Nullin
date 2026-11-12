@@ -15,7 +15,7 @@ final class Spotify
         $t = self::embed($id) ?? self::page($id);
         if ($t === null || $t['title'] === '') {
             logWarn('spotify', "meta failed {$id}");
-            return ['error' => "❌ نتونستم مشخصات این آهنگ رو از اسپاتیفای بگیرم 😕\nیه‌کم دیگه امتحان کن."];
+            return ['error' => L("❌ نتونستم مشخصات این آهنگ رو از اسپاتیفای بگیرم 😕\nیه‌کم دیگه امتحان کن.", "❌ I couldn't get this track's details from Spotify 😕\nTry again in a bit.")];
         }
         $t['id'] = $id;
         Store::set('cache', 'sp:' . $id, $t);
@@ -48,11 +48,11 @@ final class Spotify
         $r = Http::request('GET', "https://open.spotify.com/embed/{$type}/{$id}", ['timeout' => 15]);
         if ($r['body'] === null || !preg_match('#<script id="__NEXT_DATA__"[^>]*>(.+?)</script>#s', $r['body'], $m)) {
             logWarn('spotify', "set meta failed {$type} {$id}");
-            return ['error' => "❌ نتونستم لیست آهنگ‌ها رو از اسپاتیفای بگیرم 😕\nیه‌کم دیگه امتحان کن."];
+            return ['error' => L("❌ نتونستم لیست آهنگ‌ها رو از اسپاتیفای بگیرم 😕\nیه‌کم دیگه امتحان کن.", "❌ I couldn't get the track list from Spotify 😕\nTry again in a bit.")];
         }
         $e = json_decode($m[1], true)['props']['pageProps']['state']['data']['entity'] ?? null;
         if (!is_array($e)) {
-            return ['error' => "❌ نتونستم لیست آهنگ‌ها رو از اسپاتیفای بگیرم 😕\nشاید پلی‌لیست خصوصیه."];
+            return ['error' => L("❌ نتونستم لیست آهنگ‌ها رو از اسپاتیفای بگیرم 😕\nشاید پلی‌لیست خصوصیه.", "❌ I couldn't get the track list from Spotify 😕\nMaybe the playlist is private.")];
         }
         $tracks = [];
         foreach ((array) ($e['trackList'] ?? $e['tracks'] ?? []) as $x) {
@@ -71,7 +71,7 @@ final class Spotify
             $tracks[] = ['id' => $tid, 'title' => $title, 'artist' => $artist, 'duration' => (int) round(((int) ($x['duration'] ?? 0)) / 1000)];
         }
         if (!$tracks) {
-            return ['error' => "🤷 آهنگی توی این لیست پیدا نکردم 😕"];
+            return ['error' => L("🤷 آهنگی توی این لیست پیدا نکردم 😕", "🤷 I didn't find any tracks in this list 😕")];
         }
         $imgs = (array) ($e['coverArt']['sources'] ?? $e['visualIdentity']['image'] ?? $e['images'] ?? []);
         usort($imgs, static fn($a, $b) => ((int) ($b['maxWidth'] ?? $b['width'] ?? 0)) <=> ((int) ($a['maxWidth'] ?? $a['width'] ?? 0)));

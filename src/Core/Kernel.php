@@ -38,6 +38,7 @@ final class Kernel
     public static function handle(array $update): void
     {
         App::useBot((int) ($update['_bot'] ?? 0));
+        Lang::useUpdate($update);
         try {
             $svc = $update['message'] ?? $update['channel_post'] ?? null;
             if (is_array($svc) && isset($svc['new_chat_title'], $svc['chat'])) {
@@ -75,7 +76,7 @@ final class Kernel
         } catch (\Throwable $e) {
             logError('update', '#' . ($update['update_id'] ?? '?') . ' ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
             if (isset($update['callback_query']['id'])) {
-                App::tg()->answer($update['callback_query'], '😕 یه مشکلی پیش اومد، دوباره امتحان کن.');
+                App::tg()->answer($update['callback_query'], L('😕 یه مشکلی پیش اومد، دوباره امتحان کن.', '😕 Something went wrong, please try again.'));
             }
         }
     }

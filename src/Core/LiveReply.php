@@ -3,10 +3,13 @@
 final class LiveReply
 {
     public const DRAWING = '🎨 دارم می‌کشمش، چند لحظه صبر کن...';
+    const DRAWING_EN = '🎨 Drawing it, wait a moment...';
 
     public const THINKING = '🧠 نالین داره فکر می‌کنه';
+    const THINKING_EN = '🧠 Nullin is thinking';
 
     private const WAIT_TEXT = 'نالین داره فکر می‌کنه';
+    const WAIT_TEXT_EN = 'Nullin is thinking';
 
     private array $ids    = [];
     private array $sent   = [];
@@ -265,7 +268,7 @@ final class LiveReply
         $r = App::tg()->call('sendRichMessageDraft', [
             'chat_id'      => $this->msg['chat']['id'],
             'draft_id'     => $this->draftId,
-            'rich_message' => ['html' => '<tg-thinking>🧠 نالین داره فکر می‌کنه… ' . $n . 's</tg-thinking>'],
+            'rich_message' => ['html' => L('<tg-thinking>🧠 نالین داره فکر می‌کنه… ', '<tg-thinking>🧠 Nullin is thinking… ') . $n . 's</tg-thinking>'],
         ] + $this->stopOpts($stoppable), 8);
         return !empty($r['ok']);
     }
@@ -287,7 +290,7 @@ final class LiveReply
 
     private function frame(int $n): string
     {
-        return $this->head !== '' ? $this->head . self::WAIT_TEXT : self::THINKING;
+        return $this->head !== '' ? $this->head . (Lang::is('en') ? self::WAIT_TEXT_EN : self::WAIT_TEXT) : (Lang::is('en') ? self::THINKING_EN : self::THINKING);
     }
 
     private function typing(): void
@@ -312,7 +315,7 @@ final class LiveReply
         if ($body === null) {
             return;
         }
-        if ($this->hold && $body !== self::DRAWING) {
+        if ($this->hold && $body !== (Lang::is('en') ? self::DRAWING_EN : self::DRAWING)) {
             return;
         }
         $this->mode = 'live';
@@ -419,7 +422,7 @@ final class LiveReply
         }
 
         if (preg_match('/^\s*\[\[\s*image(?![A-Za-z])/iu', $t)) {
-            return self::DRAWING;
+            return (Lang::is('en') ? self::DRAWING_EN : self::DRAWING);
         }
         if (preg_match('/^\s*\[\[\s*(' . implode('|', Intent::NAMES) . ')(?![A-Za-z])/iu', $t)) {
             return false;

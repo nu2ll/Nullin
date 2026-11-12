@@ -15,7 +15,7 @@ final class AiPanel
         [$prov, $model] = explode(':', $route, 2) + [1 => ''];
         $name = $prov === 'gemini' ? 'Gemini' : (FreeAI::PROVIDERS[$prov]['name'] ?? $prov);
         if ($model === '') {
-            return $name . ' · خودکار';
+            return $name . ' · ' . L('خودکار', 'Auto');
         }
         return $name . ' · ' . ($prov === 'gemini' ? AI::shortModel($model) : FreeAI::title($prov, $model));
     }
@@ -41,9 +41,9 @@ final class AiPanel
     public static function text(): string
     {
         $cur = AI::route();
-        return "<b>🤖 پنل هوش مصنوعی</b>\n\n"
-            . "مدل فعال روی همه‌ی بخش‌ها:\n<b>" . bidi(h(self::label($cur))) . "</b>"
-            . "\n\n🔎 سرچ وب: <b>" . (AI::searchOn() ? 'روشن' : 'خاموش') . '</b>';
+        return L("<b>🤖 پنل هوش مصنوعی</b>\n\nمدل فعال روی همه‌ی بخش‌ها:\n<b>", "<b>🤖 AI panel</b>\n\nActive model for all features:\n<b>")
+            . bidi(h(self::label($cur))) . "</b>"
+            . L("\n\n🔎 سرچ وب: <b>", "\n\n🔎 Web search: <b>") . (AI::searchOn() ? L('روشن', 'On') : L('خاموش', 'Off')) . '</b>';
     }
 
     public static function keyboard(): array
@@ -55,9 +55,9 @@ final class AiPanel
             $rows[] = [btn(($on ? '✅ ' : '') . $name . ' ▸', "ai:p:{$id}:0", $on ? 'success' : 'primary')];
         }
         if (self::thinkProviders()) {
-            $rows[] = [btn('🧠 سطح فکر کردن ▸', 'ai:th', 'primary')];
+            $rows[] = [btn(L('🧠 سطح فکر کردن ▸', '🧠 Thinking level ▸'), 'ai:th', 'primary')];
         }
-        $rows[] = [btn(AI::searchOn() ? '🔎 سرچ: روشن ✅' : '🔎 سرچ: خاموش ⛔', 'ai:search', AI::searchOn() ? 'success' : null)];
+        $rows[] = [btn(AI::searchOn() ? L('🔎 سرچ: روشن ✅', '🔎 Search: on ✅') : L('🔎 سرچ: خاموش ⛔', '🔎 Search: off ⛔'), 'ai:search', AI::searchOn() ? 'success' : null)];
         return ikb($rows);
     }
 
@@ -83,21 +83,27 @@ final class AiPanel
 
     public static function thinkText(?string $prov = null, bool $list = false, ?array $model = null): string
     {
-        $l = ['<b>🧠 سطح فکر کردن مدل</b>'];
+        $l = [L('<b>🧠 سطح فکر کردن مدل</b>', '<b>🧠 Model thinking level</b>')];
         if ($prov === null) {
             foreach (self::thinkProviders() as $id => $name) {
-                $l[] = $name . ': <b>' . AI::THINK_LEVELS[AI::thinkLevel($id)] . '</b>';
+                $l[] = $name . ': <b>' . AI::thinkLabel(AI::thinkLevel($id)) . '</b>';
             }
-            $l[] = 'فقط روی جواب‌های چت اعمال می‌شه.';
+            $l[] = L('فقط روی جواب‌های چت اعمال می‌شه.', 'Applies to chat replies only.');
         } elseif ($model !== null) {
             $raw = AI::modelThinkLevel($prov, $model['id']);
-            $l[] = bidi(h($model['name'])) . ': <b>' . ($raw === 'auto' ? 'همون تنظیم کلی' : AI::THINK_LEVELS[$raw]) . '</b>';
-            $l[] = 'این سطح فقط وقتی اعمال می‌شه که همین مدل رو ثابت انتخاب کرده باشی.';
+            $l[] = bidi(h($model['name'])) . ': <b>' . ($raw === 'auto' ? L('همون تنظیم کلی', 'Same as the global setting') : AI::thinkLabel($raw)) . '</b>';
+            $l[] = L('این سطح فقط وقتی اعمال می‌شه که همین مدل رو ثابت انتخاب کرده باشی.', 'This level only applies when you pin this exact model.');
         } elseif ($list) {
-            $l[] = '📌 سطح هر مدل جدا' . "\n" . 'وقتی یه مدل رو ثابت انتخاب کنی (نه خودکار)،' . "\n" . 'سطح خودش اعمال می‌شه؛ برای بقیه‌ی حالت‌ها تنظیم کلی.';
+            $l[] = L(
+                "📌 سطح هر مدل جدا\nوقتی یه مدل رو ثابت انتخاب کنی (نه خودکار)،\nسطح خودش اعمال می‌شه؛ برای بقیه‌ی حالت‌ها تنظیم کلی.",
+                "📌 Per-model level\nWhen you pin a model (not Auto),\nits own level is used; in every other mode the global setting applies."
+            );
         } else {
-            $l[] = (self::providers()[$prov] ?? $prov) . ': <b>' . AI::THINK_LEVELS[AI::thinkLevel($prov)] . '</b>';
-            $l[] = '⚡ روی حالت خودکار،' . "\n" . 'این سطح روی همه‌ی مدل‌ها اعمال می‌شه.' . "\n" . 'هرچی بالاتر، دقیق‌تر ولی کندتر.' . "\n" . 'پیش‌فرض: همون تنظیم قبلیِ ربات.';
+            $l[] = (self::providers()[$prov] ?? $prov) . ': <b>' . AI::thinkLabel(AI::thinkLevel($prov)) . '</b>';
+            $l[] = L(
+                "⚡ روی حالت خودکار،\nاین سطح روی همه‌ی مدل‌ها اعمال می‌شه.\nهرچی بالاتر، دقیق‌تر ولی کندتر.\nپیش‌فرض: همون تنظیم قبلیِ ربات.",
+                "⚡ In Auto mode,\nthis level applies to every model.\nHigher is more accurate but slower.\nDefault: the bot’s previous setting."
+            );
         }
         return implode("\n\n", $l);
     }
@@ -107,30 +113,30 @@ final class AiPanel
         $rows = [];
         if ($prov === null) {
             foreach (self::thinkProviders() as $id => $name) {
-                $rows[] = [btn($name . ' · ' . AI::THINK_LEVELS[AI::thinkLevel($id)] . ' ▸', "ai:thp:{$id}", 'primary')];
+                $rows[] = [btn($name . ' · ' . AI::thinkLabel(AI::thinkLevel($id)) . ' ▸', "ai:thp:{$id}", 'primary')];
             }
-            $rows[] = [btn('🔙 برگشت', 'ai:home', null)];
+            $rows[] = [btn(L('🔙 برگشت', '🔙 Back'), 'ai:home', null)];
             return ikb($rows);
         }
         if ($list) {
             foreach (self::thinkCatalog($prov) as $m) {
                 $raw    = AI::modelThinkLevel($prov, substr($m['route'], strlen($prov) + 1));
-                $rows[] = [btn(mb_strimwidth($m['name'], 0, 28, '…') . ' · ' . ($raw === 'auto' ? 'کلی' : AI::THINK_LEVELS[$raw]), "ai:thl:{$prov}:" . substr(md5($m['route']), 0, 8), $raw === 'auto' ? 'primary' : 'success')];
+                $rows[] = [btn(mb_strimwidth($m['name'], 0, 28, '…') . ' · ' . ($raw === 'auto' ? L('کلی', 'Global') : AI::thinkLabel($raw)), "ai:thl:{$prov}:" . substr(md5($m['route']), 0, 8), $raw === 'auto' ? 'primary' : 'success')];
             }
-            $rows[] = [btn('🔙 برگشت', "ai:thp:{$prov}", null)];
+            $rows[] = [btn(L('🔙 برگشت', '🔙 Back'), "ai:thp:{$prov}", null)];
             return ikb($rows);
         }
         $cur = $model !== null ? AI::modelThinkLevel($prov, $model['id']) : AI::thinkLevel($prov);
         if ($model === null) {
-            $rows[] = [btn('📌 هر مدل جدا ▸', "ai:thm:{$prov}", 'primary')];
+            $rows[] = [btn(L('📌 هر مدل جدا ▸', '📌 Per model ▸'), "ai:thm:{$prov}", 'primary')];
         }
-        foreach (AI::THINK_LEVELS as $k => $label) {
+        foreach (array_keys(AI::THINK_LEVELS) as $k) {
             $on    = $k === $cur;
-            $label = ($model !== null && $k === 'auto') ? 'تنظیم کلی' : $label;
+            $label = ($model !== null && $k === 'auto') ? L('تنظیم کلی', 'Global setting') : AI::thinkLabel($k);
             $data  = $model !== null ? "ai:thv:{$prov}:" . substr(md5($model['route']), 0, 8) . ":{$k}" : "ai:ths:{$prov}:{$k}";
             $rows[] = [btn(($on ? '✅ ' : '') . $label, $data, $on ? 'success' : 'primary')];
         }
-        $rows[] = [btn('🔙 برگشت', $model !== null ? "ai:thm:{$prov}" : 'ai:th', null)];
+        $rows[] = [btn(L('🔙 برگشت', '🔙 Back'), $model !== null ? "ai:thm:{$prov}" : 'ai:th', null)];
         return ikb($rows);
     }
 
@@ -142,12 +148,18 @@ final class AiPanel
         $page  = max(0, min($page, $pages - 1));
 
         $l   = [];
-        $l[] = '<b>' . h(self::providers()[$prov] ?? $prov) . '</b>' . ($pages > 1 ? ' · <i>صفحه‌ی ' . fa($page + 1) . ' از ' . fa($pages) . '</i>' : '');
-        $l[] = 'مدل فعال روی همه‌ی بخش‌ها: <b>' . bidi(h(self::label(AI::route()))) . '</b>';
-        $l[] = '⚡ <b>خودکار</b>: مدل‌ها به ترتیب امتحان می‌شن' . "\n" . 'و اگه سهمیه‌ی یکی تموم شد، خودش می‌ره سراغ بعدی.';
-        $l[] = '📌 <b>انتخاب یه مدل</b>: فقط همون مدل،' . "\n" . 'روی همه‌ی بخش‌ها، ثابت می‌مونه (تا خودت عوضش کنی).';
+        $l[] = '<b>' . h(self::providers()[$prov] ?? $prov) . '</b>' . ($pages > 1 ? ' · <i>' . L('صفحه‌ی ' . fa($page + 1) . ' از ' . fa($pages), 'Page ' . ($page + 1) . ' of ' . $pages) . '</i>' : '');
+        $l[] = L('مدل فعال روی همه‌ی بخش‌ها: <b>', 'Active model for all features: <b>') . bidi(h(self::label(AI::route()))) . '</b>';
+        $l[] = L(
+            "⚡ <b>خودکار</b>: مدل‌ها به ترتیب امتحان می‌شن\nو اگه سهمیه‌ی یکی تموم شد، خودش می‌ره سراغ بعدی.",
+            "⚡ <b>Auto</b>: models are tried in order,\nand when one runs out of quota it moves on to the next."
+        );
+        $l[] = L(
+            "📌 <b>انتخاب یه مدل</b>: فقط همون مدل،\nروی همه‌ی بخش‌ها، ثابت می‌مونه (تا خودت عوضش کنی).",
+            "📌 <b>Pick a model</b>: only that model is used,\nfor every feature, until you change it."
+        );
         if (!$all) {
-            $l[] = 'الان لیست مدل‌ها در دسترس نیست؛ چند دقیقه دیگه دوباره امتحان کن.';
+            $l[] = L('الان لیست مدل‌ها در دسترس نیست؛ چند دقیقه دیگه دوباره امتحان کن.', 'The model list isn’t available right now; try again in a few minutes.');
         }
         return implode("\n\n", $l);
     }
@@ -162,7 +174,7 @@ final class AiPanel
         $cur   = AI::route();
 
         $auto = $cur === $prov;
-        $rows = [[btn(($auto ? '✅ ' : '') . '⚡ خودکار', "ai:set:{$prov}:a:{$page}", $auto ? 'success' : 'primary')]];
+        $rows = [[btn(($auto ? '✅ ' : '') . L('⚡ خودکار', '⚡ Auto'), "ai:set:{$prov}:a:{$page}", $auto ? 'success' : 'primary')]];
 
         $row = [];
         foreach (array_slice($all, $page * $per, $per) as $m) {
@@ -187,7 +199,7 @@ final class AiPanel
             }
             $rows[] = $nav;
         }
-        $rows[] = [btn('🔙 برگشت', 'ai:home', null)];
+        $rows[] = [btn(L('🔙 برگشت', '🔙 Back'), 'ai:home', null)];
         return ikb($rows);
     }
 
@@ -195,7 +207,7 @@ final class AiPanel
     {
         $tg = App::tg();
         if (!App::isAdmin((int) ($cq['from']['id'] ?? 0))) {
-            $tg->alert($cq, '🙅 این پنل مخصوص ادمینه.');
+            $tg->alert($cq, L('🙅 این پنل مخصوص ادمینه.', '🙅 This panel is admin-only.'));
             return;
         }
         $chatId = $cq['message']['chat']['id'] ?? null;
@@ -224,7 +236,7 @@ final class AiPanel
             }
             $tp = $act === 'th' ? null : $prov;
             Rich::edit($chatId, $msgId, self::thinkText($tp, $act === 'thm', $model), self::thinkKeyboard($tp, $act === 'thm', $model));
-            $tg->answer($cq, $saved ? '✅ ذخیره شد' : null);
+            $tg->answer($cq, $saved ? L('✅ ذخیره شد', '✅ Saved') : null);
             return;
         }
 
@@ -258,6 +270,6 @@ final class AiPanel
         } else {
             Rich::edit($chatId, $msgId, self::text(), self::keyboard());
         }
-        $tg->answer($cq, $saved ? '✅ ذخیره شد' : null);
+        $tg->answer($cq, $saved ? L('✅ ذخیره شد', '✅ Saved') : null);
     }
 }

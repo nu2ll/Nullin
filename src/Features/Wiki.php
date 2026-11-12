@@ -57,12 +57,12 @@ final class Wiki
     public static function text(array $p): string
     {
         return '📖 <b>' . h($p['title']) . '</b>' . ($p['desc'] !== '' ? "\n<i>" . h($p['desc']) . '</i>' : '') . "\n\n"
-            . h($p['text']) . "\n\n🔗 <a href=\"" . h($p['url']) . '">ادامه در ویکی‌پدیا</a>';
+            . h($p['text']) . "\n\n🔗 <a href=\"" . h($p['url']) . L('">ادامه در ویکی‌پدیا</a>', '">Continue on Wikipedia</a>');
     }
 
     public static function keyboard(array $p): array
     {
-        return ikb([[urlBtn('📖 ادامه در ویکی‌پدیا', $p['url'], null)]]);
+        return ikb([[urlBtn(L('📖 ادامه در ویکی‌پدیا', '📖 Continue on Wikipedia'), $p['url'], null)]]);
     }
 
     public static function inline(string $id, array $p): array
@@ -144,7 +144,7 @@ final class Wiki
         $tg->action($msg['chat']['id'], 'typing');
         $p = self::first($q);
         if ($p === null) {
-            $tg->reply($msg, '📖 تو ویکی‌پدیا چیزی درباره‌ی «' . h(mb_substr($q, 0, 80)) . '» پیدا نکردم.');
+            $tg->reply($msg, L('📖 تو ویکی‌پدیا چیزی درباره‌ی «', '📖 I found nothing on Wikipedia about “') . h(mb_substr($q, 0, 80)) . L('» پیدا نکردم.', '”.'));
             return;
         }
         Users::hit('wiki');

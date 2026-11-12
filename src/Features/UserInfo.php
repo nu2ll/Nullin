@@ -38,12 +38,12 @@ final class UserInfo
         $y = intdiv($months, 12);
         $m = $months % 12;
         if ($y && $m) {
-            return fa("{$y} سال و {$m} ماه");
+            return L(fa("{$y} سال و {$m} ماه"), "{$y} years and {$m} months");
         }
         if ($y) {
-            return fa("{$y} سال");
+            return L(fa("{$y} سال"), "{$y} years");
         }
-        return $m ? fa("{$m} ماه") : 'کمتر از یک ماه';
+        return $m ? L(fa("{$m} ماه"), "{$m} months") : L('کمتر از یک ماه', 'Less than a month');
     }
 
     public static function dcFromFileId(string $fileId): ?int
@@ -102,37 +102,37 @@ final class UserInfo
     public static function card(array $from, ?string $chatType): array
     {
         $id    = (int) $from['id'];
-        $items = [['🆔 آیدی عددی', (string) $id]];
+        $items = [[L('🆔 آیدی عددی', '🆔 Numeric ID'), (string) $id]];
 
         if ($created = self::createdAt($id)) {
-            $items[] = ['⏳ عمر اکانت', '≈ ' . self::ageText($created)];
-            $items[] = ['🗓 ساخت حدودی', Jalali::numericDate($created)];
+            $items[] = [L('⏳ عمر اکانت', '⏳ Account age'), '≈ ' . self::ageText($created)];
+            $items[] = [L('🗓 ساخت حدودی', '🗓 Approx. created'), Jalali::numericDate($created)];
         }
-        $items[] = ['👤 نام', userName($from)];
+        $items[] = [L('👤 نام', '👤 Name'), userName($from)];
         if (!empty($from['username'])) {
-            $items[] = ['🔗 یوزرنیم', '@' . $from['username']];
+            $items[] = [L('🔗 یوزرنیم', '🔗 Username'), '@' . $from['username']];
         }
         if (!empty($from['language_code'])) {
-            $items[] = ['🗣 زبان', (string) $from['language_code']];
+            $items[] = [L('🗣 زبان', '🗣 Language'), (string) $from['language_code']];
         }
-        $items[] = ['💎 پریمیوم', !empty($from['is_premium']) ? 'بله ✨' : 'خیر'];
+        $items[] = [L('💎 پریمیوم', '💎 Premium'), !empty($from['is_premium']) ? L('بله ✨', 'Yes ✨') : L('خیر', 'No')];
 
         $p = self::probe($id);
         if ($p['dc'] !== null) {
-            $items[] = ['🌐 دیتاسنتر', 'DC' . $p['dc']];
+            $items[] = [L('🌐 دیتاسنتر', '🌐 Data center'), 'DC' . $p['dc']];
         }
         if ($p['photos'] !== null) {
-            $items[] = ['🖼 عکس پروفایل', $p['photos'] > 0 ? fa($p['photos']) . ' عکس' : 'نداره یا مخفیه'];
+            $items[] = [L('🖼 عکس پروفایل', '🖼 Profile photos'), $p['photos'] > 0 ? fa($p['photos']) . L(' عکس', ' photos') : L('نداره یا مخفیه', 'None or hidden')];
         }
         if ($p['stars']) {
-            $items[] = ['💸 پیام پولی', fa($p['stars']) . ' ⭐'];
+            $items[] = [L('💸 پیام پولی', '💸 Paid messages'), fa($p['stars']) . ' ⭐'];
         }
         if ($p['level'] !== null) {
-            $items[] = ['🏆 سطح اکانت', fa($p['level'])];
+            $items[] = [L('🏆 سطح اکانت', '🏆 Account level'), fa($p['level'])];
         }
         if ($chatType) {
-            $types   = ['sender' => 'چت با خودت', 'private' => 'پیوی', 'group' => 'گروه', 'supergroup' => 'سوپرگروه', 'channel' => 'کانال'];
-            $items[] = ['💬 این چت', $types[$chatType] ?? $chatType];
+            $types   = ['sender' => L('چت با خودت', 'Chat with yourself'), 'private' => L('پیوی', 'Private chat'), 'group' => L('گروه', 'Group'), 'supergroup' => L('سوپرگروه', 'Supergroup'), 'channel' => L('کانال', 'Channel')];
+            $items[] = [L('💬 این چت', '💬 This chat'), $types[$chatType] ?? $chatType];
         }
 
         $rows = [];
@@ -143,7 +143,7 @@ final class UserInfo
                 ['text' => $short, 'copy_text' => ['text' => mb_substr($value, 0, 256)], 'style' => 'primary'],
             ];
         }
-        $text = "<b>👤 کارت اطلاعات " . safeName($from) . "</b>\n\nروی هر مقدار بزنی کپی می‌شه 👇";
+        $text = L('<b>👤 کارت اطلاعات ', '<b>👤 Info card for ') . safeName($from) . L("</b>\n\nروی هر مقدار بزنی کپی می‌شه 👇", "</b>\n\nTap any value to copy it 👇");
         return [$text, ikb($rows)];
     }
 
@@ -220,7 +220,7 @@ final class UserInfo
     private static function isoToJalali(?string $iso): string
     {
         $ts = $iso ? strtotime($iso) : false;
-        return $ts ? Jalali::numericDate($ts) : 'نامشخص';
+        return $ts ? Jalali::numericDate($ts) : L('نامشخص', 'Unknown');
     }
 
     public static function funstatText(array $d): string
@@ -230,20 +230,21 @@ final class UserInfo
         $name = trim(($p['first_name'] ?? '') . ' ' . ($p['last_name'] ?? ''));
         $n    = static fn($v) => fa(number_format((int) ($v ?? 0)));
 
-        return "<b>🔍 استعلام کاربر</b>\n\n"
-            . '🆔 آیدی: <code>' . (int) $d['id'] . "</code>\n"
-            . '👤 نام: ' . ($name !== '' ? userTag((int) $d['id'], $name) : 'نامشخص') . "\n"
-            . '📶 وضعیت: ' . (!empty($p['is_active']) ? '✅ فعال' : '💤 غیرفعال') . (!empty($p['is_bot']) ? ' · 🤖 ربات' : '') . "\n\n"
-            . "<b>📊 آمار فعالیت</b>\n"
-            . '📅 از ' . self::isoToJalali($p['first_msg_date'] ?? null) . ' تا ' . self::isoToJalali($p['last_msg_date'] ?? null) . "\n"
-            . '💬 پیام‌ها: ' . $n($s['total_msg_count'] ?? 0) . ' (تو گروه‌ها: ' . $n($s['msg_in_groups_count'] ?? 0) . ")\n"
-            . '👥 گروه‌ها: ' . $n($s['total_groups'] ?? 0) . ' · ادمین در ' . $n($s['adm_in_groups'] ?? 0) . "\n"
-            . '🔁 تغییر یوزرنیم: ' . $n($s['usernames_count'] ?? 0) . ' · تغییر اسم: ' . $n($s['names_count'] ?? 0);
+        $unknown = L('نامشخص', 'Unknown');
+        return L("<b>🔍 استعلام کاربر</b>\n\n", "<b>🔍 User lookup</b>\n\n")
+            . L('🆔 آیدی: ', '🆔 ID: ') . '<code>' . (int) $d['id'] . "</code>\n"
+            . L('👤 نام: ', '👤 Name: ') . ($name !== '' ? userTag((int) $d['id'], $name) : $unknown) . "\n"
+            . L('📶 وضعیت: ', '📶 Status: ') . (!empty($p['is_active']) ? L('✅ فعال', '✅ Active') : L('💤 غیرفعال', '💤 Inactive')) . (!empty($p['is_bot']) ? L(' · 🤖 ربات', ' · 🤖 Bot') : '') . "\n\n"
+            . L("<b>📊 آمار فعالیت</b>\n", "<b>📊 Activity stats</b>\n")
+            . L('📅 از ', '📅 From ') . self::isoToJalali($p['first_msg_date'] ?? null) . L(' تا ', ' to ') . self::isoToJalali($p['last_msg_date'] ?? null) . "\n"
+            . L('💬 پیام‌ها: ', '💬 Messages: ') . $n($s['total_msg_count'] ?? 0) . L(' (تو گروه‌ها: ', ' (in groups: ') . $n($s['msg_in_groups_count'] ?? 0) . ")\n"
+            . L('👥 گروه‌ها: ', '👥 Groups: ') . $n($s['total_groups'] ?? 0) . L(' · ادمین در ', ' · admin in ') . $n($s['adm_in_groups'] ?? 0) . "\n"
+            . L('🔁 تغییر یوزرنیم: ', '🔁 Username changes: ') . $n($s['usernames_count'] ?? 0) . L(' · تغییر اسم: ', ' · name changes: ') . $n($s['names_count'] ?? 0);
     }
 
     public static function funstatShort(array $d): string
     {
-        $name = $d['profile']['first_name'] ?? 'نامشخص';
-        return $name . ' · ' . fa(number_format((int) ($d['stats']['total_msg_count'] ?? 0))) . ' پیام';
+        $name = $d['profile']['first_name'] ?? L('نامشخص', 'Unknown');
+        return $name . ' · ' . fa(number_format((int) ($d['stats']['total_msg_count'] ?? 0))) . L(' پیام', ' messages');
     }
 }

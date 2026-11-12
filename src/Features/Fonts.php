@@ -149,17 +149,17 @@ final class Fonts
     private static function faStyles(string $t): array
     {
         return [
-            ['کشیده', self::stretch($t, 'ـــ')],
-            ['کشیده‌ی فتحه‌دار', self::stretch($t, 'ـَـ')],
-            ['کشیده‌ی کسره‌دار', self::stretch($t, 'ـِـ')],
-            ['تشدیددار', self::stretch($t, 'ـّـ')],
-            ['فتحه و کسره', self::stretch($t, 'ـَِـ')],
-            ['ستاره‌ای', self::stretch($t, 'ـ۪ٜـ')],
-            ['موجی', self::stretch($t, 'ـٰٖـ')],
-            ['نقطه‌چین', self::stretch($t, 'ـ۟ـ')],
-            ['هلالی', self::stretch($t, 'ـۘـ')],
-            ['سکون‌دار', self::stretch($t, 'ـْـ')],
-            ['خیلی کشیده', self::stretch($t, 'ـــــ')],
+            [L('کشیده', 'Stretched'), self::stretch($t, 'ـــ')],
+            [L('کشیده‌ی فتحه‌دار', 'Stretched with fatha'), self::stretch($t, 'ـَـ')],
+            [L('کشیده‌ی کسره‌دار', 'Stretched with kasra'), self::stretch($t, 'ـِـ')],
+            [L('تشدیددار', 'With shadda'), self::stretch($t, 'ـّـ')],
+            [L('فتحه و کسره', 'Fatha and kasra'), self::stretch($t, 'ـَِـ')],
+            [L('ستاره‌ای', 'Starry'), self::stretch($t, 'ـ۪ٜـ')],
+            [L('موجی', 'Wavy'), self::stretch($t, 'ـٰٖـ')],
+            [L('نقطه‌چین', 'Dotted'), self::stretch($t, 'ـ۟ـ')],
+            [L('هلالی', 'Crescent'), self::stretch($t, 'ـۘـ')],
+            [L('سکون‌دار', 'With sukun'), self::stretch($t, 'ـْـ')],
+            [L('خیلی کشیده', 'Extra stretched'), self::stretch($t, 'ـــــ')],
         ];
     }
 
@@ -180,7 +180,7 @@ final class Fonts
         }
         $fancy = $hasFa ? self::stretch($t, 'ـِـ') : self::math($t, self::MATH['boldscript']);
         foreach (self::FRAMES as $i => [$l, $r]) {
-            $styles[] = ['قاب ' . trim($l), $l . ($i % 2 ? $fancy : $t) . $r];
+            $styles[] = [L('قاب ', 'Frame ') . trim($l), $l . ($i % 2 ? $fancy : $t) . $r];
         }
         $seen = [];
         return array_values(array_filter($styles, static function ($s) use (&$seen, $t) {
@@ -201,6 +201,6 @@ final class Fonts
         foreach ($all as $i => [, $styled]) {
             $lines[] = fa($i + 1) . '. <code>' . h($styled) . '</code>';
         }
-        return "<b>✨ فونت‌های «" . h(mb_substr($text, 0, self::MAX_LEN)) . "»</b>\n<i>روی هر کدوم بزنی کپی می‌شه 👇</i>\n\n" . implode("\n", $lines);
+        return L('<b>✨ فونت‌های «', '<b>✨ Fonts for “') . h(mb_substr($text, 0, self::MAX_LEN)) . L("»</b>\n<i>روی هر کدوم بزنی کپی می‌شه 👇</i>\n\n", "”</b>\n<i>Tap any one to copy it 👇</i>\n\n") . implode("\n", $lines);
     }
 }

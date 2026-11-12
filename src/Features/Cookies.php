@@ -16,7 +16,7 @@ final class Cookies
 
     private static function keyboard(): array
     {
-        return ikb([[btn('❌ انصراف', 'ck:x', null)]]);
+        return ikb([[btn(L('❌ انصراف', '❌ Cancel'), 'ck:x', null)]]);
     }
 
     public static function waiting(int $uid): ?array
