@@ -29,6 +29,11 @@ final class MessageHandler
             Users::touch($from, str_starts_with($text, '/start'));
         } else {
             Roast::see($from);
+            try {
+                Ui::syncMemberCommands(App::tg(), (int) ($msg['chat']['id'] ?? 0), $userId);
+            } catch (\Throwable $e) {
+                logError('lang', 'syncMemberCommands: ' . $e->getMessage());
+            }
         }
         if (isset($msg['reply_to_message']['from'])) {
             Roast::see($msg['reply_to_message']['from']);
@@ -297,6 +302,13 @@ final class MessageHandler
                     $r = Rich::send($chatId, Ui::groupText(), Ui::groupKeyboard());
                     AI::markMsg($chatId, $r['result']['message_id'] ?? 0);
                     return true;
+                }
+                if (Lang::stored((int) $from['id']) !== null) {
+                    try {
+                        Ui::pushUserCommands($tg, (int) $from['id']);
+                    } catch (\Throwable $e) {
+                        logError('lang', 'pushUserCommands: ' . $e->getMessage());
+                    }
                 }
                 Ui::sendMain($chatId, $from);
                 return true;

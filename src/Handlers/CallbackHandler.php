@@ -27,6 +27,14 @@ final class CallbackHandler
             $lm = (int) ($cq['message']['message_id'] ?? 0);
             if ($data !== 'lang:menu') {
                 Lang::save($uid, substr($data, 5));
+                try {
+                    Ui::pushUserCommands($tg, $uid);
+                    if (in_array($cq['message']['chat']['type'] ?? '', ['group', 'supergroup'], true)) {
+                        Ui::syncMemberCommands($tg, (int) ($cq['message']['chat']['id'] ?? 0), $uid, true);
+                    }
+                } catch (\Throwable $e) {
+                    logError('lang', 'pushUserCommands: ' . $e->getMessage());
+                }
             }
             if ($lc !== null && $lm > 0) {
                 if ($data === 'lang:menu') {

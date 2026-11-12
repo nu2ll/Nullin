@@ -288,6 +288,12 @@ final class Lang
         self::$aiPick = $code;
     }
 
+    /** True when the user explicitly picked an AI language with /ailang (it must then override the language they write in). */
+    public static function aiForced(): bool
+    {
+        return self::$aiPick !== null && isset(self::AI_LANGS[self::$aiPick]);
+    }
+
     public static function aiPages(): int
     {
         return (int) ceil(count(self::AI_LANGS) / (self::AI_ROWS * self::AI_COLS));
