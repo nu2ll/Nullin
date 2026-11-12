@@ -898,7 +898,7 @@ final class Downloader
             return ['error' => L('⌛️ منقضی شده؛', '⌛️ Expired;') . "\n" . L('لینک رو دوباره بفرست.', 'send the link again.')];
         }
         if ($uid !== (int) $job['owner'] && !App::isAdmin($uid)) {
-            return ['error' => L('🙅 این دکمه مال کسیه که لینک رو فرستاده؛', '🙅 This button belongs to whoever sent the link;') . "\n" . L('لینک خودت رو بفرست 🙂', 'send your own link 🙂')];
+            return ['error' => L("🙅 این دکمه مال کسیه که\nلینک رو فرستاده؛", "🙅 This button belongs to whoever\nsent the link;") . "\n" . L('لینک خودت رو بفرست 🙂', 'send your own link 🙂')];
         }
         Store::set('dl_claim', $token, time());
         $cached = Store::get('dl_files', self::cacheKey($job['url'], $fmt));
@@ -1218,7 +1218,7 @@ final class Downloader
             return;
         }
         if ($uid !== (int) $job['owner'] && !App::isAdmin($uid)) {
-            $tg->alert($cq, L('🙅 این دکمه مال کسیه که لینک رو فرستاده؛', '🙅 This button belongs to whoever sent the link;') . "\n" . L('لینک خودت رو بفرست 🙂', 'send your own link 🙂'));
+            $tg->alert($cq, L("🙅 این دکمه مال کسیه که\nلینک رو فرستاده؛", "🙅 This button belongs to whoever\nsent the link;") . "\n" . L('لینک خودت رو بفرست 🙂', 'send your own link 🙂'));
             return;
         }
         if ($fmt === 'x') {

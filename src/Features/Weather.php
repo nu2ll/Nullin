@@ -45,6 +45,23 @@ final class Weather
         return mbTrim(preg_replace('/\s+/u', ' ', $c) ?? $c);
     }
 
+    public static function zoneOf(string $city): ?array
+    {
+        $city = self::norm($city);
+        if ($city === '') {
+            return null;
+        }
+        $lang = Lang::get();
+        return Store::remember('cache', 'tz_' . $lang . '_' . md5(mb_strtolower($city)), 86400 * 30, static function () use ($city, $lang) {
+            $g = Http::getJson(self::GEO . '?' . http_build_query(['name' => $city, 'count' => 1, 'language' => $lang, 'format' => 'json']), [], 8);
+            $r = $g['results'][0] ?? null;
+            if (!is_array($r) || empty($r['timezone'])) {
+                return null;
+            }
+            return ['zone' => (string) $r['timezone'], 'name' => (string) ($r['name'] ?? $city), 'country' => (string) ($r['country'] ?? '')];
+        });
+    }
+
     private static function locate(string $city): ?array
     {
         $city = self::norm($city);
@@ -173,7 +190,7 @@ final class Weather
 
         $l   = [];
         $l[] = self::codeEmoji($code, $isDay) . " <b>" . L('آب‌وهوای', 'Weather in') . " {$place}</b>";
-        $l[] = '🕒 ' . Jalali::fullDate(time()) . " · " . L('ساعت محلی', 'local time') . " {$local}";
+        $l[] = '🕒 ' . Clock::dateLine(time()) . " · " . L('ساعت محلی', 'local time') . " {$local}";
         $l[] = '';
         $l[] = '🌡 ' . L('دما', 'Temperature') . ': <b>' . self::deg($cur['temperature_2m'] ?? 0) . '</b> (' . L('حس می‌شه', 'feels like') . ' ' . self::deg($cur['apparent_temperature'] ?? 0) . ')';
         $l[] = '⬆️ ' . L('بیشینه', 'High') . ' ' . self::deg($daily['temperature_2m_max'][0] ?? 0) . ' · ⬇️ ' . L('کمینه', 'Low') . ' ' . self::deg($daily['temperature_2m_min'][0] ?? 0);
@@ -217,7 +234,7 @@ final class Weather
         $isDay = !empty($cur['is_day']);
         $local = isset($w['utc_offset_seconds']) ? fa(gmdate('H:i', time() + (int) $w['utc_offset_seconds'])) : Jalali::time(time());
         $place = $d['location']['name'] . ($d['location']['country'] !== '' ? ' · ' . $d['location']['country'] : '');
-        $head  = self::codeEmoji($code, $isDay) . " **" . L('آب‌وهوای', 'Weather in') . " {$place}**\n🕒 " . Jalali::fullDate(time()) . ' · ' . L('ساعت محلی', 'local time') . " {$local}\n\n";
+        $head  = self::codeEmoji($code, $isDay) . " **" . L('آب‌وهوای', 'Weather in') . " {$place}**\n🕒 " . Clock::dateLine(time()) . ' · ' . L('ساعت محلی', 'local time') . " {$local}\n\n";
 
         if ($view === 'days') {
             $rows = [];

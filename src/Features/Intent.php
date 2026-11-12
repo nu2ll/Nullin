@@ -16,7 +16,7 @@ final class Intent
             . "\n- short | <link>: shorten a link."
             . "\n- fal: a Hafez fortune (fal)."
             . "\n- password: generate a strong password."
-            . "\n- date: the current date or time."
+            . "\n- date | <optional city or country>: the current date or time (leave empty for the user's own time; give the place only if they asked about another city or country)."
             . "\n- coin: heads or tails."
             . "\n- giveaway: create a giveaway."
             . "\n- download | <full link; leave empty if the link is in the message they replied to>: download the video, photo or audio of a link."
@@ -183,7 +183,7 @@ final class Intent
                 return ['text' => Tools::passwordText(16)];
 
             case 'date':
-                return ['text' => Tools::dateText()];
+                return ['text' => Tools::dateText($arg)];
 
             case 'coin':
                 return ['text' => Tools::coinResult()];

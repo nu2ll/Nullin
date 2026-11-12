@@ -31,28 +31,36 @@ final class Jalali
         return [$jy, $jm, $jd];
     }
 
-    public static function parts(int $ts): array
+    private static function at(int $ts, ?string $zone): DateTimeImmutable
     {
-        return self::fromGregorian((int) date('Y', $ts), (int) date('n', $ts), (int) date('j', $ts));
+        $dt = new DateTimeImmutable('@' . $ts);
+        return $dt->setTimezone($zone !== null ? new DateTimeZone($zone) : new DateTimeZone(date_default_timezone_get()));
     }
 
-    public static function fullDate(int $ts, bool $english = false): string
+    public static function parts(int $ts, ?string $zone = null): array
     {
-        [$y, $m, $d] = self::parts($ts);
+        $dt = self::at($ts, $zone);
+        return self::fromGregorian((int) $dt->format('Y'), (int) $dt->format('n'), (int) $dt->format('j'));
+    }
+
+    public static function fullDate(int $ts, bool $english = false, ?string $zone = null): string
+    {
+        [$y, $m, $d] = self::parts($ts, $zone);
+        $w = (int) self::at($ts, $zone)->format('w');
         if ($english || Lang::is('en')) {
-            return self::WEEKDAYS_EN[(int) date('w', $ts)] . ", {$d} " . self::MONTHS_EN[$m - 1] . " {$y}";
+            return self::WEEKDAYS_EN[$w] . ", {$d} " . self::MONTHS_EN[$m - 1] . " {$y}";
         }
-        return fa(self::WEEKDAYS[(int) date('w', $ts)] . " {$d} " . self::MONTHS[$m - 1] . " {$y}");
+        return fa(self::WEEKDAYS[$w] . " {$d} " . self::MONTHS[$m - 1] . " {$y}");
     }
 
-    public static function numericDate(int $ts): string
+    public static function numericDate(int $ts, ?string $zone = null): string
     {
-        [$y, $m, $d] = self::parts($ts);
+        [$y, $m, $d] = self::parts($ts, $zone);
         return fa(sprintf('%04d/%02d/%02d', $y, $m, $d));
     }
 
-    public static function time(int $ts, bool $seconds = false): string
+    public static function time(int $ts, bool $seconds = false, ?string $zone = null): string
     {
-        return fa(date($seconds ? 'H:i:s' : 'H:i', $ts));
+        return fa(self::at($ts, $zone)->format($seconds ? 'H:i:s' : 'H:i'));
     }
 }

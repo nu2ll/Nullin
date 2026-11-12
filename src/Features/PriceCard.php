@@ -464,6 +464,10 @@ final class PriceCard
             $tg->reply($msg, Currency::unavailable());
             return;
         }
+        // positive reaction (thumbs up) on the user's price request
+        if (!empty($msg['message_id'])) {
+            $tg->react($chatId, (int) $msg['message_id'], '👍');
+        }
         $rich = '<img src="tg://photo?id=card"/>'
               . '<blockquote><p>' . $p['head'] . '</p>'
               . '<blockquote><p>' . implode('<br>', $p['g1']) . '</p>'

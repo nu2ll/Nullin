@@ -155,7 +155,7 @@ final class Currency
     {
         $now  = time();
         $r    = self::rates();
-        $head = '<b>💱 ' . self::headText() . "</b>\n🕒 " . Jalali::fullDate($now) . ' · ' . Jalali::time($now);
+        $head = '<b>💱 ' . self::headText() . "</b>\n🕒 " . Clock::stamp($now);
 
         if ($r === null) {
             return $head . "\n\n" . self::unavailable();
@@ -223,7 +223,7 @@ final class Currency
     {
         $now  = time();
         $r    = self::rates();
-        $head = '**💱 ' . self::headText() . '**' . "\n🕒 " . Jalali::fullDate($now) . ' · ' . Jalali::time($now);
+        $head = '**💱 ' . self::headText() . '**' . "\n🕒 " . Clock::stamp($now);
 
         if ($r === null) {
             return $head . "\n\n" . self::unavailable();

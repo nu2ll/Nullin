@@ -872,6 +872,15 @@ final class Ui
                 . L("💡 فارسی یا انگلیسی فرقی نداره؛\n", "💡 Persian or English doesn't matter;\n")
                 . L("مستقیم بنویس.", "just type it directly."),
 
+            'date' => L("<b>📅 تاریخ و ساعت</b>\n", "<b>📅 Date & time</b>\n")
+                . L("اول «date» رو بنویس،\n", "First type \"date\",\n")
+                . L("بعدش اسم شهر یا کشور.\n\n", "then the name of a city or country.\n\n")
+                . "• " . $c('date tehran') . "\n"
+                . "• " . $c(L('date لندن', 'date London')) . "\n"
+                . "• " . $c(L('ساعت توکیو', 'time Tokyo')) . "\n\n"
+                . L("💡 فارسی یا انگلیسی فرقی نداره؛\n", "💡 Persian or English doesn't matter;\n")
+                . L("تاریخ و ساعت اون شهر رو می‌گیری.", "you get the date and time of that city."),
+
             'calc' => L("<b>🧮 محاسبه سریع</b>\n", "<b>🧮 Quick calc</b>\n")
                 . L("یه عبارت ریاضی بنویس،\n", "Type a math expression,\n")
                 . L("جوابش رو همون لحظه می‌بینی.\n\n", "and see the answer instantly.\n\n")
@@ -991,9 +1000,9 @@ final class Ui
         return ikb($rows);
     }
 
-    private const TRY_PREFIX = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'love ', 'like' => 'like ', 'roast' => 'roast ',
+    private const TRY_PREFIX = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'love ', 'like' => 'like ', 'roast' => 'roast ', 'date' => 'date ',
         'nid' => 'meli ', 'unit' => 'تبدیل', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'calc' => '2+2', 'linkcheck' => 'st '];
-    const TRY_PREFIX_EN = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'love ', 'like' => 'like ', 'roast' => 'roast ',
+    const TRY_PREFIX_EN = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'love ', 'like' => 'like ', 'roast' => 'roast ', 'date' => 'date ',
         'nid' => 'meli ', 'unit' => 'convert', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'calc' => '2+2', 'linkcheck' => 'st '];
 
     private static function tryButton(string $key): array

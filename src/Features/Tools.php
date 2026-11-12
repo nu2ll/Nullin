@@ -145,13 +145,8 @@ final class Tools
         ]);
     }
 
-    public static function dateText(): string
+    public static function dateText(string $place = ''): string
     {
-        $now = time();
-        return L("<b>📅 تاریخ و ساعت</b> (به وقت ایران)\n\n", "<b>📅 Date & time</b> (Iran time)\n\n")
-            . L('🗓 شمسی: ', '🗓 Jalali: ') . Jalali::fullDate($now) . "\n"
-            . L('🔢 عددی: ', '🔢 Numeric: ') . Jalali::numericDate($now) . "\n"
-            . L('🌍 میلادی: ', '🌍 Gregorian: ') . date('l, j F Y', $now) . "\n"
-            . L('🕒 ساعت: <b>', '🕒 Time: <b>') . Jalali::time($now, true) . '</b>';
+        return Clock::text($place);
     }
 }

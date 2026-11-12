@@ -27,7 +27,7 @@ final class CallbackHandler
         if ($inGroup && $uid > 0) {
             $own = (int) Store::get('menuowner', ($cq['message']['chat']['id'] ?? 0) . ':' . ($cq['message']['message_id'] ?? 0), 0);
             if ($own > 0 && $own !== $uid) {
-                $tg->alert($cq, L('این منو مال تو نیست؛ خودت دستورش رو بزن 🙂', 'This menu isn\'t yours; send the command yourself 🙂'));
+                $tg->alert($cq, L("این منو مال تو نیست؛\nخودت دستورش رو بزن 🙂", "This menu isn't yours;\nsend the command yourself 🙂"));
                 return;
             }
         }
@@ -68,7 +68,7 @@ final class CallbackHandler
         if ($data !== 'joincheck' && $uid > 0) {
             $missing = Membership::missing($uid);
             if ($missing) {
-                $tg->alert($cq, L('⏳ هنوز عضو نشدی! اول عضو شو بعد دکمه رو بزن.', '⏳ You haven\'t joined yet! Join first, then tap the button.'));
+                $tg->alert($cq, L("⏳ هنوز عضو نشدی!\nاول عضو شو بعد دکمه رو بزن.", "⏳ You haven't joined yet!\nJoin first, then tap the button."));
                 if (($cq['message']['chat']['type'] ?? '') === 'private') {
                     Membership::prompt($cq['message']['chat']['id'], $uid, $missing);
                 }
@@ -128,7 +128,7 @@ final class CallbackHandler
 
         if ($imid && $data === 'joincheck') {
             if (Membership::missing($uid)) {
-                $tg->alert($cq, L('⏳ هنوز عضو نشدی! اول عضو شو بعد دکمه رو بزن.', '⏳ You haven\'t joined yet! Join first, then tap the button.'));
+                $tg->alert($cq, L("⏳ هنوز عضو نشدی!\nاول عضو شو بعد دکمه رو بزن.", "⏳ You haven't joined yet!\nJoin first, then tap the button."));
                 return;
             }
             Rich::editInline($imid, L("✅ <b>عضو شدی!</b>\n\nحالا دوباره نالین رو صدا بزن 😉", "✅ <b>You're in!</b>\n\nNow call Nullin again 😉"), null);
@@ -174,7 +174,7 @@ final class CallbackHandler
             $owner = $uid;
         }
         if ((int) $owner !== $uid) {
-            $tg->alert($cq, L('🔒 این دکمه مال کسیه که این پیام رو فرستاده؛', '🔒 This button belongs to whoever sent this message;') . "\n" . L('خودت از منوی نالین یکی بساز!', 'make your own from the Nullin menu!'));
+            $tg->alert($cq, L("🔒 این دکمه مال کسیه که\nاین پیام رو فرستاده؛", "🔒 This button belongs to whoever\nsent this message;") . "\n" . L('خودت از منوی نالین یکی بساز!', 'make your own from the Nullin menu!'));
             return;
         }
 
@@ -230,7 +230,7 @@ final class CallbackHandler
             Store::delete('join', (string) $cq['from']['id']);
             $missing = Membership::missing((int) $cq['from']['id']);
             if ($missing) {
-                $tg->alert($cq, L('⏳ هنوز عضو نشدی! اول عضو شو بعد دکمه رو بزن.', '⏳ You haven\'t joined yet! Join first, then tap the button.'));
+                $tg->alert($cq, L("⏳ هنوز عضو نشدی!\nاول عضو شو بعد دکمه رو بزن.", "⏳ You haven't joined yet!\nJoin first, then tap the button."));
                 return;
             }
             Membership::clearPrompt($chatId, (int) $cq['from']['id']);

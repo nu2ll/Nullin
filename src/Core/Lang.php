@@ -4,7 +4,7 @@ final class Lang
 {
     private static string $cur = 'fa';
     private static array $memo = [];
-    private static ?string $code = null;      // Telegram language_code of the current user (base code, e.g. "ru")
+    private static ?string $code = null;
 
     private const NAMES = [
         'fa' => 'Persian', 'en' => 'English', 'ru' => 'Russian', 'ar' => 'Arabic', 'tr' => 'Turkish', 'de' => 'German',
@@ -29,22 +29,13 @@ final class Lang
 
     public static function set(string $lang): void
     {
-        self::$cur      = $lang === 'en' ? 'en' : 'fa';
-        self::$code     = null;
+        self::$cur  = $lang === 'en' ? 'en' : 'fa';
+        self::$code = null;
     }
 
     public static function default(): string
     {
-        return strtolower((string) env('DEFAULT_LANG', 'fa')) === 'en' ? 'en' : 'fa';
-    }
-
-    public static function fromCode(?string $code): ?string
-    {
-        $code = strtolower(trim((string) $code));
-        if ($code === '') {
-            return null;
-        }
-        return str_starts_with($code, 'fa') ? 'fa' : 'en';
+        return 'fa';
     }
 
     public static function stored(int $userId): ?string
@@ -74,13 +65,13 @@ final class Lang
     public static function forUser(array $from): string
     {
         $id = (int) ($from['id'] ?? 0);
-        return self::stored($id) ?? self::fromCode($from['language_code'] ?? null) ?? self::default();
+        return self::stored($id) ?? self::default();
     }
 
     public static function useFrom(?array $from): void
     {
-        self::$cur      = is_array($from) ? self::forUser($from) : self::default();
-        self::$code     = is_array($from) ? self::baseCode($from['language_code'] ?? null) : null;
+        self::$cur  = is_array($from) ? self::forUser($from) : self::default();
+        self::$code = is_array($from) ? self::baseCode($from['language_code'] ?? null) : null;
     }
 
     private static function baseCode(?string $code): ?string
@@ -90,7 +81,16 @@ final class Lang
         return preg_match('/^[a-z]{2,3}$/', $code) === 1 ? $code : null;
     }
 
-    /** English name of the language the AI should answer in: the user's Telegram language only (ignores /lang). */
+    public static function code(): ?string
+    {
+        return self::$code;
+    }
+
+    public static function telegramIsFa(): bool
+    {
+        return self::$code === null || self::$code === 'fa';
+    }
+
     public static function aiName(): string
     {
         if (self::$code !== null) {
