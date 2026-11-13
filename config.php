@@ -31,10 +31,18 @@ return [
             'groq' => envList('GROQ_STT_MODELS', ['whisper-large-v3-turbo', 'whisper-large-v3']),
         ],
         'free_order'  => [
-            'groq' => envList('GROQ_MODELS'),
+            'groq'  => envList('GROQ_MODELS'),
+            'numes' => envList('NUMES_ORDER', ['z-ai/glm-5.3', 'z-ai/glm-5.3-flash']),
+        ],
+        'free_models' => [
+            'numes' => envList('NUMES_MODELS'),
+        ],
+        'free_discover' => [
+            'numes' => env('NUMES_DISCOVER', '1') !== '0',
         ],
         'free_keys'   => [
             'groq'       => envList('GROQ_KEYS'),
+            'numes'      => envList('NUMES_KEYS'),
         ],
     ],
     'storage_chat' => env('STORAGE_CHAT_ID', ''),
