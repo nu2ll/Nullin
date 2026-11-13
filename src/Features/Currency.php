@@ -2,12 +2,6 @@
 
 final class Currency
 {
-    private const FEEDS = [
-        'https://call4.tgju.org/ajax.json',
-        'https://call1.tgju.org/ajax.json',
-        'https://call5.tgju.org/ajax.json',
-    ];
-
     private const FIAT = [
         'price_dollar_rl' => ['🇺🇸', 'دلار', 'US Dollar'],
         'price_eur'       => ['🇪🇺', 'یورو', 'Euro'],
@@ -35,8 +29,6 @@ final class Currency
         'crypto-litecoin'     => ['🥈', 'لایت‌کوین', 'Litecoin'],
     ];
 
-    private const MESGHAL_GRAMS = 4.3318;
-
     private static function label(array $e): string
     {
         return $e[0] . ' ' . L($e[1], $e[2]);
@@ -57,84 +49,37 @@ final class Currency
         return L('ت = تومان · منبع: بازار آزاد', 'T = Toman · Source: open market');
     }
 
-    private static function fetchFeed(): ?array
-    {
-        foreach (self::FEEDS as $url) {
-            $data = Http::getJson($url, [], 8);
-            if (isset($data['current']) && is_array($data['current'])) {
-                return $data['current'];
-            }
-        }
-        return null;
-    }
-
     public static function feed(): ?array
     {
-        return self::fetchFeed();
-    }
-
-    private static function num(array $feed, string $key): ?float
-    {
-        $raw = $feed[$key]['p'] ?? null;
-        if (!is_scalar($raw)) {
-            return null;
-        }
-        $clean = str_replace([',', ' '], '', (string) $raw);
-        return is_numeric($clean) ? (float) $clean : null;
-    }
-
-    private static function chg(array $feed, string $key): ?float
-    {
-        $row = $feed[$key] ?? null;
-        $v   = null;
-        if (is_array($row)) {
-            $raw = (string) ($row['dp'] ?? '');
-            if (preg_match('/\d+(?:\.\d+)?/', str_replace(['٫', ','], ['.', ''], $raw), $m) === 1) {
-                $v = (float) $m[0];
-                $v = (($row['dt'] ?? '') === 'low' || str_contains($raw, '-')) ? -$v : $v;
-            }
-        }
-        if ($v === null || abs($v) < 0.005) {
-            return PriceCard::changeByFeedKey($key, $feed) ?? $v;
-        }
-        return $v;
+        return null; // prices now come from ezrate only (see PriceCard::ezByFeedKey)
     }
 
     public static function rates(): ?array
     {
-        return Store::remember('cache', 'rates2', 120, static function () {
-            $feed = self::fetchFeed();
-            if ($feed === null) {
-                return null;
-            }
+        return Store::remember('cache', 'rates3', 60, static function () {
             $out = ['fiat' => [], 'crypto' => [], 'gold' => [], 'chg' => ['fiat' => [], 'crypto' => [], 'gold' => [], 'tether' => null]];
+            $any = false;
+            $get = static function (string $key, bool $mesh = false) use (&$any): array {
+                $q = PriceCard::ezByFeedKey($key, $mesh);
+                if ($q !== null) {
+                    $any = true;
+                }
+                return [$q['p'] ?? null, $q['dp'] ?? null];
+            };
             foreach (self::FIAT as $key => $e) {
-                $rial                     = self::num($feed, $key);
-                $out['fiat'][$key]        = $rial !== null ? $rial / 10 : null;
-                $out['chg']['fiat'][$key] = self::chg($feed, $key);
+                [$out['fiat'][$key], $out['chg']['fiat'][$key]] = $get($key);
             }
             foreach (self::CRYPTO as $key => $e) {
-                $out['crypto'][$key]        = self::num($feed, $key);
-                $out['chg']['crypto'][$key] = self::chg($feed, $key);
+                [$out['crypto'][$key], $out['chg']['crypto'][$key]] = $get($key);
             }
-            $tether          = self::num($feed, 'crypto-tether-irr');
-            $gram            = self::num($feed, 'geram18');
-            $coin            = self::num($feed, 'sekee');
-            $out['tether']   = $tether !== null ? $tether / 10 : null;
-            $out['gold']     = [
-                'coin'    => $coin !== null ? $coin / 10 : null,
-                'gram'    => $gram !== null ? $gram / 10 : null,
-                'mesghal' => $gram !== null ? $gram / 10 * self::MESGHAL_GRAMS : null,
-                'ounce'   => self::num($feed, 'ons'),
-            ];
-            $out['chg']['tether'] = self::chg($feed, 'crypto-tether-irr');
-            $out['chg']['gold']   = [
-                'coin'    => self::chg($feed, 'sekee'),
-                'gram'    => self::chg($feed, 'geram18'),
-                'mesghal' => self::chg($feed, 'geram18'),
-                'ounce'   => self::chg($feed, 'ons'),
-            ];
-            return $out;
+            [$out['tether'], $out['chg']['tether']] = $get('crypto-tether-irr');
+            [$coin, $coinC]   = $get('sekee');
+            [$gram, $gramC]   = $get('geram18');
+            [$mesh, $meshC]   = $get('geram18', true);
+            [$ons, $onsC]     = $get('ons');
+            $out['gold'] = ['coin' => $coin, 'gram' => $gram, 'mesghal' => $mesh, 'ounce' => $ons];
+            $out['chg']['gold'] = ['coin' => $coinC, 'gram' => $gramC, 'mesghal' => $meshC, 'ounce' => $onsC];
+            return $any ? $out : null;
         });
     }
 

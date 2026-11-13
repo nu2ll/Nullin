@@ -105,66 +105,79 @@ final class PriceCard
         return is_numeric($c) ? (float) $c : null;
     }
 
-    private static function feedQuote(string $k, $row): ?array
+    // ezrate only: price = last hourly close; high/low/change from the last ~24 candles
+    private static function quote(string $k, ?array $feed = null): ?array
     {
-        $a = self::ASSETS[$k];
-        $p = is_array($row) ? self::n($row['p'] ?? null) : null;
-        if ($p === null) {
+        $c = self::candles($k);
+        if ($c === []) {
             return null;
-        }
-        $div   = $a[5] === 'usd' ? 1.0 : 10.0;
-        $mult  = $a[5] === 'mesh' ? 4.3318 : 1.0;
-        $f     = $mult / $div;
-        $dpRaw = (string) ($row['dp'] ?? '');
-        $neg   = ($row['dt'] ?? '') === 'low' || str_contains($dpRaw, '-');
-        $d     = self::n($row['d'] ?? null) ?? 0.0;
-        $h     = self::n($row['h'] ?? null);
-        $l     = self::n($row['l'] ?? null);
-        $dp    = preg_match('/\d+(?:\.\d+)?/', str_replace(['٫', ','], ['.', ''], $dpRaw), $mm) === 1 ? (float) $mm[0] : null;
-        return [
-            'dp'  => $dp !== null ? ($neg ? -abs($dp) : abs($dp)) : null,
-            'p'   => $p * $f,
-            'h'   => $h !== null ? $h * $f : null,
-            'l'   => $l !== null ? $l * $f : null,
-            'd'   => ($neg ? -abs($d) : abs($d)) * $f,
-            't'   => (string) ($row['t'] ?? ''),
-            'f'   => $f,
-            'pts' => null,
-        ];
-    }
-
-    public static function changeByFeedKey(string $feedKey, ?array $feed): ?float
-    {
-        foreach (self::ASSETS as $k => $a) {
-            if ($a[0] === $feedKey) {
-                return self::quote($k, $feed)['dp'] ?? null;
-            }
-        }
-        return null;
-    }
-
-    private static function quote(string $k, ?array $feed): ?array
-    {
-        $fq = $feed !== null ? self::feedQuote($k, $feed[self::ASSETS[$k][0]] ?? null) : null;
-        $c  = self::candles($k);
-        if (count($c) < 6) {
-            return $fq;
         }
         $last  = $c[count($c) - 1][4];
         $first = $c[0][1];
         $hi = max(max(array_column($c, 2)), $last);
         $lo = min(min(array_column($c, 3)), $last);
-        $p  = $last;
         return [
-            'dp'  => ($last / $first - 1) * 100,
-            'p'   => $p,
+            'dp'  => $first > 0 ? ($last / $first - 1) * 100 : null,
+            'p'   => $last,
             'h'   => $hi,
             'l'   => $lo,
-            'd'   => $p - $first,
-            't'   => $fq['t'] ?? '',
-            'f'   => $fq['f'] ?? 1.0,
-            'pts' => self::path($c),
+            'd'   => $last - $first,
+            't'   => '',
+            'f'   => 1.0,
+            'pts' => count($c) >= 6 ? self::path($c) : null,
         ];
+    }
+
+    // one request for every symbol: GET /v1/rates?symbols=... -> [symbol => row]
+    private static function ezSnapshot(): ?array
+    {
+        static $snap = false;
+        if ($snap !== false) {
+            return $snap;
+        }
+        $keys = array_values(array_filter(array_map('trim', explode(',', (string) env('EZRATE_KEYS', (string) env('EZRATE_KEY', ''))))));
+        $url  = 'https://api.ezrate.me/v1/rates?symbols=' . implode(',', array_values(array_unique(self::EZ)));
+        foreach ($keys as $key) {
+            $j = Http::getJson($url, ['X-API-Key: ' . $key], 8);
+            if (!is_array($j) || isset($j['error']) || !is_array($j['data'] ?? null)) {
+                continue;
+            }
+            $out = [];
+            foreach ($j['data'] as $r) {
+                if (is_array($r) && isset($r['symbol'])) {
+                    $out[strtolower((string) $r['symbol'])] = $r;
+                }
+            }
+            return $snap = ($out !== [] ? $out : null);
+        }
+        return $snap = null;
+    }
+
+    // used by Currency: [price, 24h change %] for a tgju-style key (kept as the stable id of each asset)
+    public static function ezByFeedKey(string $feedKey, bool $mesh = false): ?array
+    {
+        $snap = self::ezSnapshot();
+        if ($snap === null) {
+            return null;
+        }
+        foreach (self::ASSETS as $k => $a) {
+            if ($a[0] !== $feedKey || ($a[5] === 'mesh') !== $mesh) {
+                continue;
+            }
+            $r = $snap[self::EZ[$k] ?? ''] ?? null;
+            if (!is_array($r)) {
+                return null;
+            }
+            if ($a[5] === 'usd') {
+                $p = self::n($r['usd'] ?? null);
+            } else {
+                $buy  = self::n($r['buy'] ?? null);
+                $sell = self::n($r['sell'] ?? null);
+                $p    = $buy !== null && $sell !== null ? ($buy + $sell) / 2 : ($sell ?? $buy);
+            }
+            return $p === null ? null : ['p' => $p, 'dp' => self::n($r['change_pct'] ?? null)];
+        }
+        return null;
     }
 
     private static function path(array $c): array
@@ -189,15 +202,11 @@ final class PriceCard
         if (is_array($q['pts'] ?? null) && count($q['pts']) >= 2) {
             return $q['pts'];
         }
-        $pts = self::history((string) self::ASSETS[$k][0], (float) ($q['f'] ?? 1.0), (float) $q['p']);
-        if (count($pts) < 3) {
-            return [$q['p'] - $q['d'], $q['p']];
-        }
-        return $pts;
+        return [$q['p'] - $q['d'], $q['p']];
     }
 
     private const EZ = [
-        'usd' => 'usd', 'eur' => 'eur', 'gbp' => 'gbp', 'aed' => 'aed', 'try' => 'try', 'cny' => 'cny',
+        'usd' => 'usd', 'eur' => 'eur', 'chf' => 'chf', 'gbp' => 'gbp', 'aed' => 'aed', 'try' => 'try', 'cny' => 'cny',
         'cad' => 'cad', 'rub' => 'rub', 'iqd' => 'iqd', 'afn' => 'afn', 'usdt' => 'usdt', 'inr' => 'inr',
         'coin' => 'emami', 'gold' => 'g18', 'mesh' => 'mesghal', 'ons' => 'ounce',
         'btc' => 'btc', 'eth' => 'eth', 'ton' => 'ton', 'trx' => 'trx',
@@ -289,46 +298,6 @@ final class PriceCard
             return $cache[$k] = $c;
         } catch (\Throwable $e) {
             return $cache[$k] = [];
-        }
-    }
-
-    private static function history(string $feedKey, float $f, float $cur): array
-    {
-        try {
-            $j    = Http::getJson('https://api.tgju.org/v1/market/indicator/summary-table-data/' . rawurlencode($feedKey) . '?start=0&length=40', [], 8);
-            $rows = is_array($j) ? ($j['data'] ?? null) : null;
-            if (!is_array($rows)) {
-                return [];
-            }
-            $vals  = [];
-            $newest = '';
-            foreach (array_slice($rows, 0, 40) as $r) {
-                $c = is_array($r) ? self::n($r[3] ?? null) : null;
-                if ($c === null || $c <= 0) {
-                    continue;
-                }
-                if ($vals === []) {
-                    $newest = (string) ($r[6] ?? '');
-                }
-                $vals[] = $c * $f;
-            }
-            if (count($vals) < 3 || $cur <= 0) {
-                return [];
-            }
-            $vals = array_reverse($vals);
-            if ($newest === date('Y/m/d')) {
-                $vals[count($vals) - 1] = $cur;
-            } else {
-                $vals[] = $cur;
-            }
-            foreach ($vals as $v) {
-                if ($v < $cur * 0.2 || $v > $cur * 5) {
-                    return [];
-                }
-            }
-            return array_slice($vals, -30);
-        } catch (\Throwable $e) {
-            return [];
         }
     }
 
