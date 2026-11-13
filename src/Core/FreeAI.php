@@ -4,7 +4,6 @@ final class FreeAI
 {
     public const PROVIDERS = [
         'groq'       => ['name' => 'Groq', 'url' => 'https://api.groq.com/openai/v1'],
-        'numes'      => ['name' => 'Numes', 'url' => 'https://api.numes.ai/api/v1'],
     ];
 
     private const MODELS = [
@@ -44,87 +43,12 @@ final class FreeAI
         return isset(self::PROVIDERS[$prov]);
     }
 
-    private const FALLBACK = [
-        'numes' => ['z-ai/glm-5.3', 'z-ai/glm-5.3-flash', 'nvidia/nemotron-3-ultra-550b-a55b'],
-    ];
-    private const NOT_CHAT = '/embed|rerank|whisper|tts|speech|transcri|image|video|moderat|guard|\bocr\b/i';
-    private static array $disc = [];
-
-    private static function baseIds(string $prov): array
-    {
-        if (isset(self::MODELS[$prov])) {
-            return self::MODELS[$prov];
-        }
-        $cfg    = App::cfg('ai', []);
-        $manual = array_values(array_filter(array_map('strval', (array) ($cfg['free_models'][$prov] ?? []))));
-        if ($manual) {
-            return $manual;
-        }
-        return self::discover($prov) ?: (self::FALLBACK[$prov] ?? []);
-    }
-
-    private static function isFree(array $m): bool
-    {
-        if (($m['free'] ?? $m['is_free'] ?? false) === true) {
-            return true;
-        }
-        $price = $m['pricing'] ?? null;
-        if (!is_array($price) || !$price) {
-            return preg_match('/(:|-)free$/i', (string) ($m['id'] ?? '')) === 1;
-        }
-        $nums = [];
-        array_walk_recursive($price, static function ($v) use (&$nums): void {
-            if (is_int($v) || is_float($v) || (is_string($v) && is_numeric($v))) {
-                $nums[] = (float) $v;
-            }
-        });
-        return $nums !== [] && max($nums) <= 0.0;
-    }
-
-    /** لیست مدل‌های رایگانِ Numes رو از خودِ API می‌گیره (۶ ساعت کش) */
-    private static function discover(string $prov): array
-    {
-        if ($prov !== 'numes') {
-            return [];
-        }
-        if (isset(self::$disc[$prov])) {
-            return self::$disc[$prov];
-        }
-        if (App::cfg('ai', [])['free_discover'][$prov] ?? true) {
-            $cache = Store::get('ai', 'models_' . $prov);
-            if (is_array($cache) && time() - (int) ($cache['at'] ?? 0) < 21600) {
-                return self::$disc[$prov] = array_values(array_map('strval', (array) ($cache['ids'] ?? [])));
-            }
-            $ids = [];
-            foreach (self::keys($prov) as $key) {
-                $j = Http::getJson(self::PROVIDERS[$prov]['url'] . '/models', ['Authorization: Bearer ' . $key], 10);
-                $rows = is_array($j) ? ($j['data'] ?? $j['models'] ?? null) : null;
-                if (!is_array($rows)) {
-                    continue;
-                }
-                foreach ($rows as $m) {
-                    $m  = is_string($m) ? ['id' => $m] : (is_array($m) ? $m : []);
-                    $id = trim((string) ($m['id'] ?? ''));
-                    if ($id !== '' && preg_match(self::NOT_CHAT, $id) !== 1 && self::isFree($m)) {
-                        $ids[] = $id;
-                    }
-                }
-                break;
-            }
-            $ids = array_values(array_unique($ids));
-            // اگه نشد، ۱۰ دقیقه دیگه دوباره امتحان می‌کنه
-            Store::set('ai', 'models_' . $prov, ['at' => $ids ? time() : time() - 21600 + 600, 'ids' => $ids]);
-            return self::$disc[$prov] = $ids;
-        }
-        return self::$disc[$prov] = [];
-    }
-
     public static function models(string $prov): array
     {
         if (!isset(self::PROVIDERS[$prov])) {
             return [];
         }
-        $list = array_map(static fn($id) => ['id' => $id, 'name' => $id, 'vision' => null], self::baseIds($prov));
+        $list = array_map(static fn($id) => ['id' => $id, 'name' => $id, 'vision' => null], self::MODELS[$prov] ?? []);
         if (!empty(App::cfg('ai', [])['free_only'][$prov])) {
             $only = array_map('strval', (array) (App::cfg('ai', [])['free_order'][$prov] ?? []));
             $list = array_values(array_filter($list, static fn($e) => in_array($e['id'] ?? '', $only, true)));

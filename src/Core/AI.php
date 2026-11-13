@@ -679,12 +679,12 @@ final class AI
             if ($m === '' || (int) ($c['until'] ?? 0) <= time()) {
                 continue;
             }
-            $isGroq = FreeAI::valid($m);
+            $isGroq = str_starts_with($m, 'groq:');
             if (!$isGroq && !in_array($m, $all, true)) {
                 continue;
             }
             $label = h(self::whyLabel((string) $c['why'])) . L(' (تا ', ' (until ') . Jalali::time((int) $c['until']) . ')';
-            $groups[$label][$isGroq ? str_replace(':', '-', $m) : self::shortModel($m)] = true;
+            $groups[$label][$isGroq ? 'groq-' . substr($m, 5) : self::shortModel($m)] = true;
             if (!$isGroq) {
                 $coolGemini[$m] = true;
             }
@@ -700,8 +700,7 @@ final class AI
             . L("\n\n✅ آماده (Gemini): ", "\n\n✅ Ready (Gemini): ") . fa((string) max(0, $ready)) . L(' مدل', ' models')
             . L("\n🔎 سرچ: ", "\n🔎 Search: ") . (self::searchOn() ? L('روشن', 'on') : L('خاموش', 'off'))
             . L("\n\n🔑 <b>وضعیت کلیدها</b> (ریست: ", "\n\n🔑 <b>Key status</b> (reset: ") . Jalali::time(self::quotaResetAt()) . ")\n"
-            . self::keyReport('gemini', 'Gemini', self::keys(), $all) . "\n" . self::keyReport('groq', 'Groq', FreeAI::keys('groq'), array_map(static fn($e) => 'groq:' . $e['id'], FreeAI::models('groq')))
-            . "\n" . self::keyReport('numes', 'Numes', FreeAI::keys('numes'), array_map(static fn($e) => 'numes:' . $e['id'], FreeAI::models('numes')));
+            . self::keyReport('gemini', 'Gemini', self::keys(), $all) . "\n" . self::keyReport('groq', 'Groq', FreeAI::keys('groq'), array_map(static fn($e) => 'groq:' . $e['id'], FreeAI::models('groq')));
     }
 
     private const WHY_EN = [
