@@ -2,7 +2,7 @@
 
 final class Intent
 {
-    public const NAMES = ['translate', 'download', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'short', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'love', 'roast', 'userinfo', 'giveaway'];
+    public const NAMES = ['translate', 'download', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'short', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'love', 'roast', 'userinfo', 'giveaway', 'gif'];
 
     public static function prompt(): string
     {
@@ -19,6 +19,7 @@ final class Intent
             . "\n- date | <optional city or country>: the current date or time (leave empty for the user's own time; give the place only if they asked about another city or country)."
             . "\n- coin: heads or tails."
             . "\n- giveaway: create a giveaway."
+            . "\n- gif | <search query in English, one to four words>: send a GIF that matches what they want to see or express."
             . "\n- download | <full link; leave empty if the link is in the message they replied to>: download the video, photo or audio of a link."
             . "\n- calc | <math expression with + - * / ^ and parentheses>: numeric calculation."
             . "\n- nid | <national ID code>: check whether an Iranian national ID is valid."
@@ -64,6 +65,9 @@ final class Intent
         if ($name === 'giveaway') {
             $private ? Giveaway::start($msg) : Giveaway::fromGroup($msg);
             return true;
+        }
+        if ($name === 'gif') {
+            return Gif::send($msg, $arg);
         }
         if (in_array($name, ['translate', 'rates', 'weather', 'wiki', 'search', 'love', 'roast'], true)) {
             $tg->action($chat, 'typing');
@@ -244,6 +248,9 @@ final class Intent
             case 'userinfo':
                 [$text, $kb] = UserInfo::card($msg['from'], $guest ? null : ($msg['chat']['type'] ?? null));
                 return ['text' => $text, 'kb' => $kb];
+
+            case 'gif':
+                return Gif::output($arg, (int) ($msg['from']['id'] ?? 0));
 
             case 'giveaway':
                 return $guest ? ['text' => L("🎁 قرعه‌کشی رو تو پیوی من بساز 👇", "🎁 Create the giveaway in my private chat 👇"), 'kb' => ikb([[urlBtn(L('🎁 ساخت قرعه‌کشی', '🎁 Create giveaway'), "https://t.me/{$bot}?start=giveaway", 'success')]])] : null;

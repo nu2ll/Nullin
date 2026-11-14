@@ -50,6 +50,9 @@ return [
 
     'funstat_url'   => env('FUNSTAT_URL', ''),
 
+    'giphy_key'     => env('GIPHY_API_KEY', ''),
+    'giphy_caption' => env('GIPHY_CAPTION', '1') !== '0',
+
     'backup' => [
         'token'  => env('GITHUB_TOKEN', ''),
         'repo'   => env('GITHUB_REPO', ''),

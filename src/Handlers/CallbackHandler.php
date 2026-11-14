@@ -116,6 +116,10 @@ final class CallbackHandler
             UserMemory::onCallback($cq, $data);
             return;
         }
+        if (str_starts_with($data, 'gif:')) {
+            Gif::onCallback($cq, $data);
+            return;
+        }
 
         if (str_starts_with($data, 'rates:')) {
             Currency::onCallback($cq, $data, $imid ?: null);

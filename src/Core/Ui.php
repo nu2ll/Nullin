@@ -40,6 +40,7 @@ final class Ui
         'download' => ['Inbox tray', 'inbox_tray'],
         'gift'     => ['Wrapped gift', 'wrapped_gift'],
         'wiki'     => ['Books', 'books'],
+        'gif'      => ['Film frames', 'film_frames'],
         'group'    => ['Busts in silhouette', 'busts_in_silhouette'],
         'linkcheck' => ['Shield', 'shield'],
         'short'    => ['Link', 'link'],
@@ -643,7 +644,7 @@ final class Ui
             $c('ping', L('🏓 پینگ', '🏓 Ping')),
             $c('lang', '🌐 زبان / Language'),
         ];
-        foreach ([['img', L('🎨 ساخت عکس', '🎨 Create image')], ['tr', L('🌐 ترجمه', '🌐 Translate')], ['ft', L('✨ فونت‌ساز', '✨ Font maker')], ['gw', L('🎁 قرعه‌کشی', '🎁 Giveaway')], ['wk', L('📖 ویکی‌پدیا', '📖 Wikipedia')], ['st', L('🛡 ردیاب اشتراک', '🛡 Invite link tracker')]] as [$cmd, $desc]) {
+        foreach ([['img', L('🎨 ساخت عکس', '🎨 Create image')], ['tr', L('🌐 ترجمه', '🌐 Translate')], ['ft', L('✨ فونت‌ساز', '✨ Font maker')], ['gw', L('🎁 قرعه‌کشی', '🎁 Giveaway')], ['wk', L('📖 ویکی‌پدیا', '📖 Wikipedia')], ['gif', L('🎞 گیف', '🎞 GIF')], ['st', L('🛡 ردیاب اشتراک', '🛡 Invite link tracker')]] as [$cmd, $desc]) {
             if (Switches::on(Switches::COMMAND_SWITCH[$cmd])) {
                 $base[] = $c($cmd, $desc);
             }
@@ -720,6 +721,7 @@ final class Ui
         'giveaway'  => '🎁 قرعه‌کشی',
         'like'      => '❤️ لایک‌ساز',
         'wiki'      => '📖 ویکی‌پدیا',
+        'gif'       => '🎞 گیف',
         'whisper'   => '🤫 نجوا',
         'weather'   => '🌦 آب‌وهوا',
         'calc'      => '🧮 محاسبه سریع',
@@ -744,6 +746,7 @@ final class Ui
         'giveaway'  => '🎁 Giveaway',
         'like'      => '❤️ Like maker',
         'wiki'      => '📖 Wikipedia',
+        'gif'       => '🎞 GIF',
         'whisper'   => '🤫 Whisper',
         'weather'   => '🌦 Weather',
         'calc'      => '🧮 Quick calc',
@@ -855,6 +858,13 @@ final class Ui
                 . L("<code>نالین ویکی‌پدیا درباره‌ی حافظ چی میگه</code>\n", "<code>Nullin what does Wikipedia say about Einstein</code>\n")
                 . L("• دستور:\n<code>/wk حافظ</code>", "• Command:\n<code>/wk Einstein</code>"),
 
+            'gif' => L("<b>🎞 گیف</b>\n", "<b>🎞 GIF</b>\n")
+                . L("هر گیفی بخوای از GIPHY برات پیدا می‌کنم.\n\n", "I'll find any GIF you want on GIPHY.\n\n")
+                . L("• اینلاین تو هر چتی:\n", "• Inline in any chat:\n") . $c(L('gif گربه', 'gif cat')) . "\n"
+                . L("• دستور:\n<code>/gif خنده</code>\n", "• Command:\n<code>/gif laugh</code>\n")
+                . L("• پیوی یا گروه:\n<code>نالین یه گیف خنده‌دار بفرست</code>\n\n", "• Private or group:\n<code>Nullin send a funny GIF</code>\n\n")
+                . L("💡 زیر هر گیف دکمه‌ی «🔄 یکی دیگه» هست.", "💡 Every GIF has a “🔄 Another” button."),
+
             'whisper' => L("<b>🤫 نجوا</b>\n", "<b>🤫 Whisper</b>\n")
                 . L("پیام مخفی وسط هر چتی\n", "A secret message in the middle of any chat\n")
                 . L("که فقط گیرنده می‌تونه بخونه.\n\n", "that only the recipient can read.\n\n")
@@ -962,7 +972,7 @@ final class Ui
 
     private const HELP_LAYOUT = [
         1 => [['ai', 'image'], ['translate', 'search'], ['whisper', 'linkcheck'], ['font', 'download'], ['giveaway', 'wiki']],
-        2 => [['weather', 'calc'], ['qr', 'short'], ['love', 'group'], ['like', 'unit'], ['roast', 'nid'], ['funstat', 'games']],
+        2 => [['weather', 'calc'], ['qr', 'short'], ['love', 'group'], ['like', 'unit'], ['roast', 'nid'], ['funstat', 'games'], ['gif']],
     ];
 
     public static function helpPage(string $key): int
@@ -999,9 +1009,9 @@ final class Ui
     }
 
     private const TRY_PREFIX = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'love ', 'like' => 'like ', 'roast' => 'roast ', 'date' => 'date ',
-        'nid' => 'meli ', 'unit' => 'تبدیل', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'calc' => '2+2', 'linkcheck' => 'st '];
+        'nid' => 'meli ', 'unit' => 'تبدیل', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
     const TRY_PREFIX_EN = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'love ', 'like' => 'like ', 'roast' => 'roast ', 'date' => 'date ',
-        'nid' => 'meli ', 'unit' => 'convert', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'calc' => '2+2', 'linkcheck' => 'st '];
+        'nid' => 'meli ', 'unit' => 'convert', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
 
     private static function tryButton(string $key): array
     {

@@ -8,6 +8,7 @@ final class Switches
         'translate' => ['🌐 ترجمه', '🌐 Translate'],
         'search'   => ['🔍 سرچ گوگل', '🔍 Google search'],
         'wiki'     => ['📖 ویکی‌پدیا', '📖 Wikipedia'],
+        'gif'      => ['🎞 گیف', '🎞 GIF'],
         'weather'  => ['🌦 آب‌وهوا', '🌦 Weather'],
         'rates'    => ['💱 نرخ ارز و طلا', '💱 Exchange rates & gold'],
         'download' => ['⬇️ دانلودر', '⬇️ Downloader'],
@@ -43,6 +44,7 @@ final class Switches
         'ft'  => 'font', 'font' => 'font',
         'gw'  => 'giveaway', 'giveaway' => 'giveaway',
         'wk'  => 'wiki', 'wiki' => 'wiki',
+        'gif' => 'gif',
         'st' => 'linkcheck',
         'monshi' => 'business',
     ];
