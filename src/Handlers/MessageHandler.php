@@ -3,6 +3,7 @@
 final class MessageHandler
 {
     private const TRIGGER = '(?:نالینی|نالین|nullini|nullin)';
+    private const RATES_CMD = '/^(?:نرخ[\s\x{200C}]*(?:ارز|ارزها|ارز[\s\x{200C}]*و[\s\x{200C}]*طلا)|قیمت[\s\x{200C}]*ارز(?:ها)?|(?:(?:exchange|currency|gold|market|live)(?:\s*(?:&|and)\s*|\s+))*rates?)[\s؟?!.]*$/iu';
     private const TIDY_SKIP = ['cookies', 'broadcast', 'giveaway', 'gw'];
     private const TIDY_SEND = '/^send(Message|RichMessage|Photo|Video|Animation|Document|Audio|Voice|Sticker|Poll|Dice|MediaGroup)$/';
 
@@ -92,8 +93,15 @@ final class MessageHandler
             $pq    = preg_replace('/^' . self::TRIGGER . '[\s،,:]*/iu', '', mbTrim($pq)) ?? $pq;
             $price = PriceCard::match($pq, true);
         }
+        $ratesCmd = false;
+        if ($text !== '' && empty($msg['is_automatic_forward']) && Switches::on('rates')) {
+            $rq       = preg_replace('/@' . preg_quote(App::botUsername(), '/') . '\b/iu', '', $text) ?? $text;
+            $rq       = preg_replace('/^' . self::TRIGGER . '[\s،,:]*/iu', '', mbTrim($rq)) ?? $rq;
+            $ratesCmd = preg_match(self::RATES_CMD, mbTrim($rq)) === 1;
+        }
         $shouldRespond  = $link !== null
             || $price !== null
+            || $ratesCmd
             || (!$toolReply && (
                 $private
                 || ($group && !empty($msg['is_automatic_forward']))
@@ -117,6 +125,11 @@ final class MessageHandler
                 return;
             }
         } elseif ($group && !is_array($msg['dice'] ?? null) && empty($msg['is_automatic_forward']) && Membership::gateGroup($msg, $link !== null ? 'download' : '')) {
+            return;
+        }
+
+        if ($ratesCmd && $price === null && $link === null) {
+            Intent::run($msg, 'rates', '');
             return;
         }
 
