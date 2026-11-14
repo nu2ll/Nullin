@@ -24,7 +24,7 @@ final class PriceCard
         'eth'  => ['crypto-ethereum', ['اتر', 'اتریوم', 'eth', 'ethereum'], 'اتریوم', 'واحد', 'Ξ', 'usd', 'Ethereum', ''],
         'bnb'  => ['crypto-binance-coin', ['بایننس', 'بایننس کوین', 'bnb', 'binance'], 'بایننس کوین', 'واحد', 'BNB', 'usd', 'Binance Coin', ''],
         'sol'  => ['crypto-solana', ['سول', 'سولانا', 'sol', 'solana'], 'سولانا', 'واحد', 'SOL', 'usd', 'Solana', ''],
-        'ton'  => ['crypto-toncoin', ['گرام', 'gram', 'تون', 'تون کوین', 'تونکوین', 'ton', 'toncoin'], 'گرام', 'واحد', 'GRAM', 'usd', 'Gram', ''],
+        'ton'  => ['crypto-gram', ['گرام', 'gram', 'تون', 'تون کوین', 'تونکوین', 'ton', 'toncoin'], 'گرام', 'واحد', 'GRAM', 'usd', 'Gram', ''],
         'xrp'  => ['crypto-ripple', ['ریپل', 'xrp', 'ripple'], 'ریپل', 'واحد', 'XRP', 'usd', 'Ripple', ''],
         'trx'  => ['crypto-tron', ['ترون', 'trx', 'tron'], 'ترون', 'واحد', 'TRX', 'usd', 'Tron', ''],
         'doge' => ['crypto-dogecoin', ['دوج', 'دوج کوین', 'دوجکوین', 'doge', 'dogecoin'], 'دوج‌کوین', 'واحد', 'Ð', 'usd', 'Dogecoin', ''],
@@ -105,79 +105,47 @@ final class PriceCard
         return is_numeric($c) ? (float) $c : null;
     }
 
-    // ezrate only: price = last hourly close; high/low/change from the last ~24 candles
-    private static function quote(string $k, ?array $feed = null): ?array
+    private static function feedQuote(string $k, $row): ?array
     {
-        $c = self::candles($k);
-        if ($c === []) {
+        $a = self::ASSETS[$k];
+        $p = is_array($row) ? self::n($row['p'] ?? null) : null;
+        if ($p === null) {
             return null;
         }
-        $last  = $c[count($c) - 1][4];
-        $first = $c[0][1];
-        $hi = max(max(array_column($c, 2)), $last);
-        $lo = min(min(array_column($c, 3)), $last);
+        $div   = $a[5] === 'usd' ? 1.0 : 10.0;
+        $mult  = $a[5] === 'mesh' ? 4.3318 : 1.0;
+        $f     = $mult / $div;
+        $dpRaw = (string) ($row['dp'] ?? '');
+        $neg   = ($row['dt'] ?? '') === 'low' || str_contains($dpRaw, '-');
+        $d     = self::n($row['d'] ?? null) ?? 0.0;
+        $h     = self::n($row['h'] ?? null);
+        $l     = self::n($row['l'] ?? null);
+        $dp    = preg_match('/\d+(?:\.\d+)?/', str_replace(['٫', ','], ['.', ''], $dpRaw), $mm) === 1 ? (float) $mm[0] : null;
         return [
-            'dp'  => $first > 0 ? ($last / $first - 1) * 100 : null,
-            'p'   => $last,
-            'h'   => $hi,
-            'l'   => $lo,
-            'd'   => $last - $first,
-            't'   => '',
-            'f'   => 1.0,
-            'pts' => count($c) >= 6 ? self::path($c) : null,
+            'dp'  => $dp !== null ? ($neg ? -abs($dp) : abs($dp)) : null,
+            'p'   => $p * $f,
+            'h'   => $h !== null ? $h * $f : null,
+            'l'   => $l !== null ? $l * $f : null,
+            'd'   => ($neg ? -abs($d) : abs($d)) * $f,
+            't'   => (string) ($row['t'] ?? ''),
+            'f'   => $f,
+            'pts' => null,
         ];
     }
 
-    // one request for every symbol: GET /v1/rates?symbols=... -> [symbol => row]
-    private static function ezSnapshot(): ?array
+    public static function changeByFeedKey(string $feedKey, ?array $feed): ?float
     {
-        static $snap = false;
-        if ($snap !== false) {
-            return $snap;
-        }
-        $keys = array_values(array_filter(array_map('trim', explode(',', (string) env('EZRATE_KEYS', (string) env('EZRATE_KEY', ''))))));
-        $url  = 'https://api.ezrate.me/v1/rates?symbols=' . implode(',', array_values(array_unique(self::EZ)));
-        foreach ($keys as $key) {
-            $j = Http::getJson($url, ['X-API-Key: ' . $key], 8);
-            if (!is_array($j) || isset($j['error']) || !is_array($j['data'] ?? null)) {
-                continue;
-            }
-            $out = [];
-            foreach ($j['data'] as $r) {
-                if (is_array($r) && isset($r['symbol'])) {
-                    $out[strtolower((string) $r['symbol'])] = $r;
-                }
-            }
-            return $snap = ($out !== [] ? $out : null);
-        }
-        return $snap = null;
-    }
-
-    // used by Currency: [price, 24h change %] for a tgju-style key (kept as the stable id of each asset)
-    public static function ezByFeedKey(string $feedKey, bool $mesh = false): ?array
-    {
-        $snap = self::ezSnapshot();
-        if ($snap === null) {
-            return null;
-        }
         foreach (self::ASSETS as $k => $a) {
-            if ($a[0] !== $feedKey || ($a[5] === 'mesh') !== $mesh) {
-                continue;
+            if ($a[0] === $feedKey) {
+                return self::quote($k, $feed)['dp'] ?? null;
             }
-            $r = $snap[self::EZ[$k] ?? ''] ?? null;
-            if (!is_array($r)) {
-                return null;
-            }
-            if ($a[5] === 'usd') {
-                $p = self::n($r['usd'] ?? null);
-            } else {
-                $buy  = self::n($r['buy'] ?? null);
-                $sell = self::n($r['sell'] ?? null);
-                $p    = $buy !== null && $sell !== null ? ($buy + $sell) / 2 : ($sell ?? $buy);
-            }
-            return $p === null ? null : ['p' => $p, 'dp' => self::n($r['change_pct'] ?? null)];
         }
         return null;
+    }
+
+    private static function quote(string $k, ?array $feed): ?array
+    {
+        return $feed !== null ? self::feedQuote($k, $feed[self::ASSETS[$k][0]] ?? null) : null;
     }
 
     private static function path(array $c): array
@@ -202,102 +170,50 @@ final class PriceCard
         if (is_array($q['pts'] ?? null) && count($q['pts']) >= 2) {
             return $q['pts'];
         }
-        return [$q['p'] - $q['d'], $q['p']];
+        $pts = self::history((string) self::ASSETS[$k][0], (float) ($q['f'] ?? 1.0), (float) $q['p']);
+        if (count($pts) < 3) {
+            return [$q['p'] - $q['d'], $q['p']];
+        }
+        return $pts;
     }
 
-    private const EZ = [
-        'usd' => 'usd', 'eur' => 'eur', 'chf' => 'chf', 'gbp' => 'gbp', 'aed' => 'aed', 'try' => 'try', 'cny' => 'cny',
-        'cad' => 'cad', 'rub' => 'rub', 'iqd' => 'iqd', 'afn' => 'afn', 'usdt' => 'usdt', 'inr' => 'inr',
-        'coin' => 'emami', 'gold' => 'g18', 'mesh' => 'mesghal', 'ons' => 'ounce',
-        'btc' => 'btc', 'eth' => 'eth', 'ton' => 'ton', 'trx' => 'trx',
-        'bnb' => 'bnb', 'sol' => 'sol', 'xrp' => 'xrp', 'doge' => 'doge', 'ltc' => 'ltc',
-    ];
-
-    private static function candles(string $k): array
+    private static function history(string $feedKey, float $f, float $cur): array
     {
-        static $cache = [];
-        if (isset($cache[$k])) {
-            return $cache[$k];
-        }
-        $sym = self::EZ[$k] ?? null;
-        $keys = array_values(array_filter(array_map('trim', explode(',', (string) env('EZRATE_KEYS', (string) env('EZRATE_KEY', ''))))));
-        if ($sym === null || $keys === []) {
-            return $cache[$k] = [];
-        }
         try {
-            $url  = 'https://api.ezrate.me/v1/history/' . $sym . '?interval=1h&from=' . gmdate('Y-m-d', time() - 2 * 86400)
-                  . '&to=' . gmdate('Y-m-d', time() + 86400);
-            $j  = null;
-            $bf = sys_get_temp_dir() . '/nl_ezrate_blocked.json';
-            $blocked = is_file($bf) ? json_decode((string) @file_get_contents($bf), true) : null;
-            $blocked = is_array($blocked) ? $blocked : [];
-            $now = time();
-            foreach ($blocked as $bk => $until) {
-                if ((int) $until <= $now) {
-                    unset($blocked[$bk]);
-                }
-            }
-            foreach ($keys as $key) {
-                $kid = substr(hash('sha256', $key), 0, 16);
-                if (isset($blocked[$kid])) {
-                    continue;
-                }
-                $j = Http::getJson($url, ['X-API-Key: ' . $key], 8);
-                if (is_array($j) && isset($j['error'])) {
-                    $code = (string) ($j['error']['code'] ?? '');
-                    $ts   = strtotime((string) ($j['meta']['reset_at'] ?? ''));
-                    if ($code === 'rate_limited') {
-                        $blocked[$kid] = $ts !== false && $ts > $now ? $ts : $now + 900;
-                    } else {
-                        $blocked[$kid] = $now + 600;
-                    }
-                    @file_put_contents($bf, json_encode($blocked), LOCK_EX);
-                    $j = null;
-                    continue;
-                }
-                break;
-            }
-            @file_put_contents($bf, json_encode($blocked), LOCK_EX);
+            $j    = Http::getJson('https://api.tgju.org/v1/market/indicator/summary-table-data/' . rawurlencode($feedKey) . '?start=0&length=40', [], 8);
             $rows = is_array($j) ? ($j['data'] ?? null) : null;
             if (!is_array($rows)) {
-                return $cache[$k] = [];
+                return [];
             }
-            $c = [];
-            foreach ($rows as $r) {
-                $v = is_array($r) ? self::n($r['c'] ?? null) : null;
-                if ($v === null || $v <= 0) {
+            $vals  = [];
+            $newest = '';
+            foreach (array_slice($rows, 0, 40) as $r) {
+                $c = is_array($r) ? self::n($r[3] ?? null) : null;
+                if ($c === null || $c <= 0) {
                     continue;
                 }
-                $o = self::n($r['o'] ?? null);
-                $h = self::n($r['h'] ?? null);
-                $l = self::n($r['l'] ?? null);
-                $c[] = [(string) ($r['t'] ?? ''), $o !== null && $o > 0 ? $o : $v, $h !== null && $h > 0 ? $h : $v, $l !== null && $l > 0 ? $l : $v, $v];
-            }
-            usort($c, static fn($x, $y) => strcmp($x[0], $y[0]));
-            $c = array_slice($c, -24);
-            if (self::ASSETS[$k][5] === 'usd' && strtoupper((string) ($j['meta']['quote'] ?? '')) === 'IRT') {
-                $u = [];
-                foreach (self::candles('usd') as $x) {
-                    $u[$x[0]] = $x[4];
+                if ($vals === []) {
+                    $newest = (string) ($r[6] ?? '');
                 }
-                if ($u === []) {
-                    return $cache[$k] = [];
-                }
-                ksort($u);
-                $c = array_map(static function ($x) use ($u) {
-                    $r = reset($u);
-                    foreach ($u as $t => $v) {
-                        if (strcmp((string) $t, $x[0]) > 0) {
-                            break;
-                        }
-                        $r = $v;
-                    }
-                    return [$x[0], $x[1] / $r, $x[2] / $r, $x[3] / $r, $x[4] / $r];
-                }, $c);
+                $vals[] = $c * $f;
             }
-            return $cache[$k] = $c;
+            if (count($vals) < 3 || $cur <= 0) {
+                return [];
+            }
+            $vals = array_reverse($vals);
+            if ($newest === date('Y/m/d')) {
+                $vals[count($vals) - 1] = $cur;
+            } else {
+                $vals[] = $cur;
+            }
+            foreach ($vals as $v) {
+                if ($v < $cur * 0.2 || $v > $cur * 5) {
+                    return [];
+                }
+            }
+            return array_slice($vals, -30);
         } catch (\Throwable $e) {
-            return $cache[$k] = [];
+            return [];
         }
     }
 
