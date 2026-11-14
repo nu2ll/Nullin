@@ -636,6 +636,7 @@ final class InlineHandler
             Ui::article('ttt', 'ttt', L('⭕ دوز', '⭕ Tic-tac-toe'), L('دوز کلاسیک، با ربات یا دوستت', 'Classic tic-tac-toe, against the bot or a friend'), TicTacToe::intro(), TicTacToe::modeKeyboard()),
             Ui::article('c4', 'c4', L('🔴 دوز سکه‌ای', '🔴 Connect Four'), L('۴ تا پشت سر هم، با ربات یا دوستت', '4 in a row, against the bot or a friend'), ConnectFour::intro(), ConnectFour::modeKeyboard()),
             Ui::article('rps', 'rps', L('✊ سنگ کاغذ قیچی', '✊ Rock paper scissors'), L('بهترین از ۳ دور', 'Best of 3 rounds'), Rps::intro(), Rps::modeKeyboard()),
+            Ui::article('chop', 'chop', L('🖐 چاپ‌استیک', '🖐 Chopsticks'), L('بازی انگشتی، با ربات یا دوستت', 'The finger game, against the bot or a friend'), Chopsticks::intro(), Chopsticks::modeKeyboard()),
             Ui::article('math', 'math', L('🔢 دوئل ریاضی', '🔢 Math duel'), L('مسابقه‌ی سرعت حساب، چندنفره', 'A math speed contest, multiplayer'), MathDuel::intro(), MathDuel::modeKeyboard()),
             Ui::article('coin', 'coin', L('🪙 سکه', '🪙 Coin'), L('شیر یا خط؟', 'Heads or tails?'), L("<b>🪙 سکه</b>\n\nآماده‌ی پرتاب! 👇", "<b>🪙 Coin</b>\n\nReady to flip! 👇"), Tools::coinKeyboard()),
             Ui::article('fal', 'fal', L('🔮 فال حافظ', '🔮 Hafez fortune'), L('یه فال از دیوان حافظ', 'A fortune from the Divan of Hafez'), Tools::hafezCaption(), Tools::hafezKeyboard()),
@@ -659,7 +660,7 @@ final class InlineHandler
             Ui::article('help_funstat', 'funstat', L('🔍 استعلام کاربر', '🔍 User lookup'), L('id [آیدی عددی]', 'id [numeric ID]'), Ui::guide('funstat'), Ui::tryKeyboard('funstat')),
         ];
 
-        $swMap = ['info' => 'userinfo', 'chess' => 'chess', 'ttt' => 'ttt', 'c4' => 'c4', 'rps' => 'rps', 'math' => 'math', 'calc' => 'calc', 'unit' => 'unit', 'rates' => 'rates', 'date' => 'date', 'pass' => 'password', 'coin' => 'coin', 'fal' => 'fal',
+        $swMap = ['info' => 'userinfo', 'chess' => 'chess', 'ttt' => 'ttt', 'c4' => 'c4', 'rps' => 'rps', 'chop' => 'chop', 'math' => 'math', 'calc' => 'calc', 'unit' => 'unit', 'rates' => 'rates', 'date' => 'date', 'pass' => 'password', 'coin' => 'coin', 'fal' => 'fal',
             'help_image' => 'image', 'help_whisper' => 'whisper', 'help_giveaway' => 'giveaway', 'help_like' => 'like', 'help_wiki' => 'wiki', 'help_ai' => 'ai', 'help_translate' => 'translate', 'help_search' => 'search',
             'help_font' => 'font', 'help_weather' => 'weather', 'help_qr' => 'qr', 'help_short' => 'short', 'help_roast' => 'roast', 'help_love' => 'love', 'help_nid' => 'nid', 'help_funstat' => 'funstat', 'help_linkcheck' => 'linkcheck'];
         $items = array_values(array_filter($items, static fn($r) => !isset($swMap[$r['id']]) || Switches::on($swMap[$r['id']])));
