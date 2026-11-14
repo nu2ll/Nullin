@@ -151,13 +151,14 @@ final class Gif
             }
             $tg  = App::tg();
             $r   = $tg->call('sendVideo', ['chat_id' => $chat, 'video' => $url, 'disable_notification' => true], 30);
-            $id  = $r['result']['video']['file_id'] ?? null;
+            $id  = $r['result']['video']['file_id'] ?? $r['result']['animation']['file_id'] ?? null;
             $mid = (int) ($r['result']['message_id'] ?? 0);
             if ($mid > 0) {
                 $tg->call('deleteMessage', ['chat_id' => $chat, 'message_id' => $mid], 8);
             }
             if (!is_string($id) || $id === '') {
-                logWarn('gif', 'file_id upload failed: ' . (string) ($r['description'] ?? ''));
+                $why = $r === null ? 'no response' : ((string) ($r['description'] ?? '') ?: 'ok=' . (int) !empty($r['ok']) . ' result=[' . implode(',', array_keys((array) ($r['result'] ?? []))) . ']');
+                logWarn('gif', 'file_id upload failed: ' . $why);
                 return null;
             }
             return $id;
