@@ -7,7 +7,6 @@ final class CallbackHandler
         'ttt'   => [TicTacToe::class, 'onCallback'],
         'c4'    => [ConnectFour::class, 'onCallback'],
         'math'  => [MathDuel::class, 'onCallback'],
-        'chop'  => [Chopsticks::class, 'onCallback'],
         'chess' => [Chess::class, 'onCallback'],
     ];
 

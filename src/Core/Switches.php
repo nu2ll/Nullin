@@ -34,7 +34,6 @@ final class Switches
         'ttt'      => ['⭕ دوز', '⭕ Tic-tac-toe'],
         'c4'       => ['🔴 دوز سکه‌ای', '🔴 Connect Four'],
         'rps'      => ['✊ سنگ کاغذ قیچی', '✊ Rock paper scissors'],
-        'chop'     => ['🖐 چاپ‌استیک', '🖐 Chopsticks'],
         'math'     => ['🔢 دوئل ریاضی', '🔢 Math duel'],
     ];
 
@@ -48,7 +47,7 @@ final class Switches
         'monshi' => 'business',
     ];
 
-    private const GAME_KEYS = ['chess', 'ttt', 'c4', 'rps', 'chop', 'math'];
+    private const GAME_KEYS = ['chess', 'ttt', 'c4', 'rps', 'math'];
 
     private static function load(): array
     {

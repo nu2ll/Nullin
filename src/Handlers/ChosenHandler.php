@@ -4,9 +4,9 @@ final class ChosenHandler
 {
     public const OWNED = ['calc', 'unit', 'coin', 'fal', 'pass'];
 
-    private const GAMES = ['rps' => 'rps', 'ttt' => 'ttt', 'c4' => 'c4', 'math' => 'math', 'chop' => 'chop', 'chess' => 'chess'];
+    private const GAMES = ['rps' => 'rps', 'ttt' => 'ttt', 'c4' => 'c4', 'math' => 'math', 'chess' => 'chess'];
 
-    private const GAME_CLASS = ['rps' => Rps::class, 'ttt' => TicTacToe::class, 'c4' => ConnectFour::class, 'math' => MathDuel::class, 'chop' => Chopsticks::class, 'chess' => Chess::class];
+    private const GAME_CLASS = ['rps' => Rps::class, 'ttt' => TicTacToe::class, 'c4' => ConnectFour::class, 'math' => MathDuel::class, 'chess' => Chess::class];
 
     public static function handle(array $c): void
     {
