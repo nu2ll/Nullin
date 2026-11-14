@@ -165,19 +165,15 @@ final class InlineHandler
 
     private static function gif(string $q): void
     {
-        if (!Gif::enabled()) {
-            self::fail('gif_off', L('🎞 گیف فعال نیست', '🎞 GIF isn’t set up'), L('کلید گیفی هنوز تنظیم نشده', 'The Giphy key isn’t configured yet'), L('🎞 گیف‌ها هنوز راه‌اندازی نشدن.', '🎞 GIFs aren’t set up yet.'));
-            return;
-        }
         $offset = max(0, (int) (self::$iq['offset'] ?? 0));
         $page   = Gif::inline($q, $offset);
         if ($page === null) {
-            self::fail('gif_err', L('😕 گیفی در دسترس نیست', '😕 GIFs are unavailable'), L('چند لحظه‌ی دیگه دوباره امتحان کن', 'Try again in a moment'), L('😕 الان به سرویس گیف دسترسی ندارم؛ چند لحظه‌ی دیگه دوباره امتحان کن.', '😕 I can’t reach the GIF service right now; try again in a moment.'));
+            self::fail('gif_err', L('😕 GIPHY در دسترس نیست', '😕 GIPHY is unavailable'), L('یه‌کم دیگه امتحان کن', 'Try again in a bit'), Gif::notice('fail'));
             return;
         }
         if (!$page['results']) {
             if ($offset === 0) {
-                self::fail('gif_none', L('🎞 گیفی پیدا نشد', '🎞 No GIFs found'), L('یه جور دیگه بنویس', 'Try wording it differently'), L('🎞 برای «', '🎞 I couldn’t find a GIF for “') . h(mb_substr($q, 0, 60)) . L('» گیفی پیدا نکردم.', '”.'));
+                self::fail('gif_none', L('🎞 گیفی پیدا نشد', '🎞 No GIFs found'), L('یه جور دیگه بنویس', 'Try wording it differently'), Gif::notice('none', $q));
                 return;
             }
             self::answer([], 0);
@@ -337,7 +333,6 @@ final class InlineHandler
         $from = self::$iq['from'];
         if ($p['to'] !== []) {
             $tokens = array_slice(array_values(array_unique($p['to'])), 0, 10);
-            Whisper::prefetch($tokens);
             $to = [];
             foreach ($tokens as $t) {
                 $r = UserInfo::resolve($t);

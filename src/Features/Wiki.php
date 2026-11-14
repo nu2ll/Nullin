@@ -14,7 +14,7 @@ final class Wiki
             return [];
         }
         $lang ??= self::lang($q);
-        $list = Store::remember('cache', 'wiki:' . $lang . ':' . md5(mb_strtolower($q) . '|' . $limit), 6 * 3600, static function () use ($q, $limit, $lang) {
+        $list = Store::remember('cache', 'wiki:' . $lang . ':' . md5(mb_strtolower($q) . '|' . $limit), 3600, static function () use ($q, $limit, $lang) {
             $j = Http::getJson("https://{$lang}.wikipedia.org/w/api.php?" . http_build_query([
                 'action' => 'query', 'format' => 'json', 'formatversion' => 2, 'redirects' => 1, 'generator' => 'search', 'gsrsearch' => $q, 'gsrlimit' => $limit,
                 'prop' => 'extracts|pageimages|info|description', 'exintro' => 1, 'explaintext' => 1, 'exchars' => 1200, 'exlimit' => 'max',

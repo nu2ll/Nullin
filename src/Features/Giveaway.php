@@ -163,9 +163,6 @@ final class Giveaway
                 [btn(L('🏁 قرعه بکش', '🏁 Draw winners'), "gw:d:{$id}", null), btn(L('❌ لغو', '❌ Cancel'), "gw:c:{$id}", null)],
             ]);
         }
-        if ($g['status'] === 'done' && (int) ($g['total'] ?? 0) > 0) {
-            return ikb([[btn(L('🔁 دوباره قرعه بکش', '🔁 Draw again'), "gw:r:{$id}", null)]]);
-        }
         return ikb([]);
     }
 
@@ -470,9 +467,9 @@ final class Giveaway
         return implode("\n", $out);
     }
 
-    private static function resultText(array $g, bool $again): string
+    private static function resultText(array $g): string
     {
-        $head = $again ? L("🔁 <b>قرعه دوباره کشیده شد!</b>\n\n", "🔁 <b>The draw was redone!</b>\n\n") : L("🎉 <b>قرعه‌کشی تموم شد!</b>\n\n", "🎉 <b>The giveaway is over!</b>\n\n");
+        $head = L("🎉 <b>قرعه‌کشی تموم شد!</b>\n\n", "🎉 <b>The giveaway is over!</b>\n\n");
         $body = L('🏆 جایزه: <b>', '🏆 Prize: <b>') . h($g['prize']) . "</b>\n"
             . L('👥 شرکت‌کننده‌ها: <b>', '👥 Participants: <b>') . fa(number_format((int) $g['total'])) . L("</b> نفر\n\n", "</b>\n\n");
         if (!$g['won']) {
@@ -514,15 +511,13 @@ final class Giveaway
         $id   = $g['id'];
         $rows = [];
         if ($ask !== '') {
-            $q = ['d' => L('✅ آره، قرعه بکش', '✅ Yes, draw'), 'c' => L('✅ آره، لغوش کن', '✅ Yes, cancel it'), 'r' => L('✅ آره، دوباره بکش', '✅ Yes, redraw')][$ask];
+            $q = ['d' => L('✅ آره، قرعه بکش', '✅ Yes, draw'), 'c' => L('✅ آره، لغوش کن', '✅ Yes, cancel it')][$ask];
             $rows[] = [btn($q, "gw:{$ask}{$ask}:{$id}", 'danger'), btn(L('🔙 نه', '🔙 No'), "gw:s:{$id}", null)];
             return ikb($rows);
         }
         if ($g['status'] === 'live') {
             $rows[] = [btn(L('🔄 آمار', '🔄 Stats'), "gw:s:{$id}", null), btn(L('🏁 الان قرعه بکش', '🏁 Draw now'), "gw:d:{$id}", 'success')];
             $rows[] = [btn(L('❌ لغو قرعه‌کشی', '❌ Cancel giveaway'), "gw:c:{$id}", null)];
-        } elseif ($g['status'] === 'done' && (int) $g['total'] > 0) {
-            $rows[] = [btn(L('🔁 دوباره قرعه بکش', '🔁 Draw again'), "gw:r:{$id}", null)];
         }
         if (($l = self::link($g)) !== null && $g['status'] !== 'cancel') {
             $rows[] = [urlBtn(L('🔗 دیدن پیام قرعه‌کشی', '🔗 View giveaway post'), $l, null)];
@@ -589,7 +584,7 @@ final class Giveaway
             self::publish($cq, $uid, $chat, $mid);
             return;
         }
-        if (!preg_match('/^gw:(j|s|d|dd|c|cc|r|rr):([a-f0-9]{10})$/', $data, $m)) {
+        if (!preg_match('/^gw:(j|s|d|dd|c|cc):([a-f0-9]{10})$/', $data, $m)) {
             $tg->answer($cq);
             return;
         }
@@ -612,8 +607,8 @@ final class Giveaway
             $tg->alert($cq, L("🔒 فقط سازنده‌ی قرعه‌کشی\nبه این دکمه دسترسی داره.", "🔒 Only the giveaway’s creator\ncan use this button."));
             return;
         }
-        if (in_array($act, ['d', 'c', 'r'], true)) {
-            $ok = ($act === 'r') ? $g['status'] === 'done' : $g['status'] === 'live';
+        if (in_array($act, ['d', 'c'], true)) {
+            $ok = $g['status'] === 'live';
             if ($ok && $imid) {
                 Rich::editInline($imid, self::publicText($g, self::count($g['id'])), self::managerKeyboard($g, $act));
             } elseif ($ok) {
@@ -624,12 +619,7 @@ final class Giveaway
         }
         if ($act === 'dd') {
             $tg->answer($cq, L('🎲 دارم قرعه می‌کشم...', '🎲 Drawing...'));
-            self::draw($id, false);
-            return;
-        }
-        if ($act === 'rr') {
-            $tg->answer($cq, L('🎲 دارم دوباره قرعه می‌کشم...', '🎲 Redrawing...'));
-            self::draw($id, true);
+            self::draw($id);
             return;
         }
         if ($act === 'cc') {
@@ -637,6 +627,8 @@ final class Giveaway
             if ($g !== null) {
                 Store::delete('gw_due', $id);
                 Store::delete('gw_dirty', $id);
+                Db::run('DELETE FROM gw_entries WHERE gid = ?', [$id]);
+                Store::delete('gw', $id);
                 self::editPublic($g, L("❌ <b>این قرعه‌کشی لغو شد.</b>", "❌ <b>This giveaway was cancelled.</b>") . "\n\n🏆 " . h($g['prize']));
                 $tg->answer($cq, L('👌 لغو شد', '👌 Cancelled'));
                 if ($imid) {
@@ -645,6 +637,9 @@ final class Giveaway
             } else {
                 $tg->answer($cq);
                 $g = Store::get('gw', $id);
+                if (!is_array($g)) {
+                    return;
+                }
             }
         } else {
             $tg->answer($cq, $imid ? null : L('🔄 به‌روز شد', '🔄 Updated'));
@@ -754,7 +749,7 @@ final class Giveaway
     {
         foreach (self::rows('gw_due') as $id => $at) {
             if ($at <= time()) {
-                self::draw($id, false);
+                self::draw($id);
             }
         }
         foreach (array_keys(self::rows('gw_dirty')) as $id) {
@@ -777,9 +772,9 @@ final class Giveaway
         return $a;
     }
 
-    public static function draw(string $id, bool $again): bool
+    public static function draw(string $id): bool
     {
-        $g  = Store::update('gw', $id, static fn($x) => (is_array($x) && ($x['status'] === 'live' || ($again && $x['status'] === 'done'))) ? ['status' => 'drawing'] + $x : null);
+        $g  = Store::update('gw', $id, static fn($x) => (is_array($x) && $x['status'] === 'live') ? ['status' => 'drawing'] + $x : null);
         if ($g === null) {
             return false;
         }
@@ -790,11 +785,7 @@ final class Giveaway
         $won = [];
         try {
             $all  = Db::run('SELECT uid, name FROM gw_entries WHERE gid = ?', [$id])->fetchAll();
-            $prev = $again ? array_flip(array_map(static fn($p) => (int) $p['uid'], (array) $g['won'])) : [];
-            $pool = array_values(array_filter($all, static fn($p) => !isset($prev[(int) $p['uid']])));
-            if (!$pool) {
-                $pool = $all;
-            }
+            $pool = $all;
             $won  = [];
             $need = (int) $g['winners'];
             $left = self::shuffle($pool);
@@ -815,11 +806,12 @@ final class Giveaway
             $g['drawn']  = time();
         } finally {
             $g['status'] = 'done';
-            Store::set('gw', $id, $g);
+            Store::delete('gw', $id);
+            Db::run('DELETE FROM gw_entries WHERE gid = ?', [$id]);
         }
 
         $inline = !empty($g['imid']);
-        self::editPublic($g, self::resultText($g, $again), $inline ? self::inlineKeyboard($g) : null);
+        self::editPublic($g, self::resultText($g), $inline ? self::inlineKeyboard($g) : null);
         if ($won && !$inline) {
             $tg->send($g['chat'], L("🎊 <b>برنده‌های قرعه‌کشی «" . h($g['prize']) . "»</b>\n\n", "🎊 <b>Winners of the “" . h($g['prize']) . "” giveaway</b>\n\n") . self::winnerList($won) . L("\n\nتبریک! 🥳", "\n\nCongratulations! 🥳"), [
                 'reply_parameters' => ['message_id' => (int) $g['msg'], 'allow_sending_without_reply' => true],
@@ -839,14 +831,9 @@ final class Giveaway
         if ($mc && $mm) {
             Rich::editMsg($mc, (int) $mm, self::managerText($g), self::managerKeyboard($g));
         } elseif ($inline) {
-            $tg->call('sendMessage', ['chat_id' => (int) $g['owner'], 'text' => self::resultText($g, $again), 'parse_mode' => 'HTML'], 10);
+            $tg->call('sendMessage', ['chat_id' => (int) $g['owner'], 'text' => self::resultText($g), 'parse_mode' => 'HTML'], 10);
         }
         logInfo('gw', "{$id} drawn: " . count($won) . '/' . $g['total']);
         return true;
-    }
-
-    public static function janitor(): void
-    {
-        Db::run('DELETE FROM gw_entries WHERE at < ?', [time() - 120 * 86400]);
     }
 }

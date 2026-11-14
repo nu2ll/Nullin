@@ -102,10 +102,10 @@ final class Roast
         if ($id <= 0) {
             return null;
         }
-        return Store::remember('cache', 'rchat_' . $id, 1800, static function () use ($id) {
+        return (static function () use ($id) {
             $r = App::tg()->call('getChat', ['chat_id' => $id], 8);
             return !empty($r['ok']) ? $r['result'] : null;
-        });
+        })();
     }
 
     private static function photo(int $id): ?array

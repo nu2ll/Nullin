@@ -41,6 +41,7 @@ final class Likes
             return;
         }
         Store::update('like', $imid, static fn($s) => (is_array($s) && isset($s['t'])) ? null : ['t' => (string) $src['t'], 'u' => []]);
+        Store::delete('like_txt', $token);
     }
 
     public static function onCallback(array $cq, string $data, string $imid): void

@@ -75,7 +75,7 @@ final class Ui
             unset($r['input_message_content']['parse_mode']);
         }
         if (Rich::usable($markup)) {
-            $keep = preg_match('/^(?:(?:fal|unit|calc|coin|pass|chess|ttt|c4|rps|math)$|(?:ai|tr)q_|rs_|st_|lv_|gwi_|wk_|pc_)/', $id) === 1;
+            $keep = preg_match('/^(?:(?:fal|unit|calc|coin|pass|chess|ttt|c4|rps|math)$|(?:ai|tr)q_|rs_|st_|lv_|gwi_|wk_|pc_|gif_)/', $id) === 1;
             $r['input_message_content'] = Rich::inlineContent($html ? $text : h($text), $markup, $img);
             if ($keep) {
                 $r['reply_markup'] = ikb([[btn('Nullin', 'noop', null)]]);
@@ -859,11 +859,13 @@ final class Ui
                 . L("• دستور:\n<code>/wk حافظ</code>", "• Command:\n<code>/wk Einstein</code>"),
 
             'gif' => L("<b>🎞 گیف</b>\n", "<b>🎞 GIF</b>\n")
-                . L("هر گیفی بخوای از GIPHY برات پیدا می‌کنم.\n\n", "I'll find any GIF you want on GIPHY.\n\n")
-                . L("• اینلاین تو هر چتی:\n", "• Inline in any chat:\n") . $c(L('gif گربه', 'gif cat')) . "\n"
-                . L("• دستور:\n<code>/gif خنده</code>\n", "• Command:\n<code>/gif laugh</code>\n")
-                . L("• پیوی یا گروه:\n<code>نالین یه گیف خنده‌دار بفرست</code>\n\n", "• Private or group:\n<code>Nullin send a funny GIF</code>\n\n")
-                . L("💡 زیر هر گیف دکمه‌ی «🔄 یکی دیگه» هست.", "💡 Every GIF has a “🔄 Another” button."),
+                . L("هر گیفی بخوای\n", "Any GIF you want\n")
+                . L("از GIPHY برات پیدا می‌کنم.\n\n", "I'll find it for you on GIPHY.\n\n")
+                . "• " . $c(L('gif گربه', 'gif cat')) . "\n"
+                . L("• پیوی یا گروه:\n<code>نالین یه گیف خنده‌دار بفرست</code>\n", "• Private or group:\n<code>Nullin send a funny GIF</code>\n")
+                . L("• دستور:\n<code>/gif خنده</code>\n\n", "• Command:\n<code>/gif laugh</code>\n\n")
+                . L("💡 زیر هر گیف دکمه‌ی «🔄» هست تا یکی دیگه بگیری؛\n", "💡 Every GIF has a \"🔄\" button for another one;\n")
+                . L("«🔎» هم گیف‌های بیشتر همین جستجو رو نشونت می‌ده.", "\"🔎\" shows you more GIFs from the same search."),
 
             'whisper' => L("<b>🤫 نجوا</b>\n", "<b>🤫 Whisper</b>\n")
                 . L("پیام مخفی وسط هر چتی\n", "A secret message in the middle of any chat\n")

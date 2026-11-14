@@ -50,7 +50,7 @@ return [
 
     'funstat_url'   => env('FUNSTAT_URL', ''),
 
-    'giphy_key'     => env('GIPHY_API_KEY', ''),
+    'giphy_keys'    => array_values(array_unique(array_merge(envList('GIPHY_API_KEYS'), envList('GIPHY_API_KEY')))),
     'giphy_caption' => env('GIPHY_CAPTION', '1') !== '0',
 
     'backup' => [

@@ -70,10 +70,10 @@ final class Assistant
 
     private static function chatInfo(int $chatId): array
     {
-        return Store::remember('cache', 'gchat_' . $chatId, 3600, static function () use ($chatId) {
+        return (static function () use ($chatId) {
             $r = App::tg()->call('getChat', ['chat_id' => $chatId], 8);
             return !empty($r['ok']) ? ['title' => $r['result']['title'] ?? '', 'bio' => $r['result']['description'] ?? ''] : null;
-        }) ?? ['title' => '', 'bio' => ''];
+        })() ?? ['title' => '', 'bio' => ''];
     }
 
     private static function bestPhoto(array $msg): ?string

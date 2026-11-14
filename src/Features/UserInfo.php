@@ -69,7 +69,7 @@ final class UserInfo
 
     public static function probe(int $id): array
     {
-        return Store::remember('cache', 'probe_' . $id, 600, static fn() => self::probeLive($id));
+        return self::probeLive($id);
     }
 
     private static function probeLive(int $id): array
@@ -178,10 +178,10 @@ final class UserInfo
         $row    = self::local($chatId);
         $target = $row['id'] ?? $chatId;
 
-        $info = Store::remember('cache', 'chat_' . mb_strtolower((string) $target), 3600, static function () use ($target) {
+        $info = (static function () use ($target) {
             $r = App::tg()->call('getChat', ['chat_id' => $target], 8);
             return !empty($r['ok']) ? $r['result'] : null;
-        });
+        })();
 
         if (is_array($info) && isset($info['id'])) {
             $name = trim(($info['first_name'] ?? '') . ' ' . ($info['last_name'] ?? ''));
@@ -211,10 +211,10 @@ final class UserInfo
         if ($url === '' || $id <= 0) {
             return null;
         }
-        return Store::remember('cache', 'fs_' . $id, 3600, static function () use ($url, $id) {
+        return (static function () use ($url, $id) {
             $d = Http::getJson(rtrim($url, '/?') . '/?q=' . $id, [], 15);
             return (is_array($d) && isset($d['id']) && !isset($d['error'])) ? $d : null;
-        });
+        })();
     }
 
     private static function isoToJalali(?string $iso): string

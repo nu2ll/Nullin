@@ -90,7 +90,7 @@ final class Clock
             return null;
         }
         $lang = Lang::get();
-        return Store::remember('cache', 'clock_tz_' . $lang . '_' . md5(mb_strtolower($place)), 86400 * 30, static function () use ($place, $lang) {
+        return (static function () use ($place, $lang) {
             $key   = preg_replace('/[\s\-_.]+/u', '', mb_strtolower($place)) ?? '';
             $query = self::ALIASES[$key] ?? $place;
             $g = Http::getJson(self::GEO . '?' . http_build_query(['name' => $query, 'count' => 10, 'language' => $lang, 'format' => 'json']), [], 8);
@@ -101,7 +101,7 @@ final class Clock
             usort($list, static fn ($a, $b) => ((int) ($b['population'] ?? 0)) <=> ((int) ($a['population'] ?? 0)));
             $r = $list[0];
             return ['zone' => (string) $r['timezone'], 'name' => (string) ($r['name'] ?? $place), 'country' => (string) ($r['country'] ?? '')];
-        });
+        })();
     }
 
     public static function resolve(string $place): ?array

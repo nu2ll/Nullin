@@ -2,7 +2,7 @@
 
 final class Kernel
 {
-    private const DAILY = ['whisper_pending', 'gw_draft', 'gw_wiz', 'like_txt'];
+    private const DAILY = ['whisper_pending', 'gw_draft', 'gw_wiz', 'like_txt', 'wiki_pending', 'pc_pending', 'linkcheck_inline'];
 
     private const TTL = [
         'games'           => 7 * 86400,
@@ -12,10 +12,11 @@ final class Kernel
         'weather'         => 14 * 86400,
         'weather_pending' => 2 * 86400,
         'ai_memory'       => 2 * 86400,
-        'cache'           => 3 * 86400,
+        'cache'           => 2 * 86400,
         'join'            => 86400,
         'inline_ai'       => 86400,
         'dl'              => 2 * 86400,
+        'dl_claim'        => 2 * 86400,
         'rl'              => 3600,
         'spam'            => 3600,
         'tban'            => 2 * 3600,
@@ -27,7 +28,6 @@ final class Kernel
         'love'            => 86400,
         'roast'           => 3600,
         'uname'           => 30 * 86400,
-        'gw'              => 120 * 86400,
         'biz_msgs'        => 3 * 86400,
         'biz_hist'        => 2 * 86400,
         'biz_pause'       => 30 * 86400,
@@ -103,7 +103,7 @@ final class Kernel
     public static function dailyCleanup(): void
     {
         try {
-            $removed = Store::cleanupDaily(self::DAILY) + AnswerButtons::sweep(120);
+            $removed = Store::cleanupDaily(self::DAILY) + AnswerButtons::sweep(120) + Gif::sweep(60);
         } catch (\Throwable $e) {
             logError('daily', $e->getMessage());
             return;
@@ -118,8 +118,8 @@ final class Kernel
         try {
             $removed = Store::cleanup(self::TTL) + Store::cleanupDaily(self::DAILY);
             Users::cleanupStats();
-            Giveaway::janitor();
             $removed += AnswerButtons::sweep(600);
+            $removed += Gif::sweep(120);
         } catch (\Throwable $e) {
             logError('janitor', $e->getMessage());
             return;

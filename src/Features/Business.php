@@ -277,10 +277,10 @@ final class Business
 
     private static function bio(int $id): string
     {
-        $v = Store::remember('cache', 'bizbio_' . $id, 3600, static function () use ($id) {
+        $v = (static function () use ($id) {
             $r = App::tg()->call('getChat', ['chat_id' => $id], 8);
             return !empty($r['ok']) ? (string) ($r['result']['bio'] ?? '') : null;
-        });
+        })();
         return is_string($v) ? $v : '';
     }
 

@@ -174,7 +174,7 @@ final class Currency
 
     public static function rates(): ?array
     {
-        return Store::remember('cache', 'rates2', 120, static function () {
+        return (static function () {
             $feed = self::fetchFeed();
             if ($feed === null) {
                 return null;
@@ -207,7 +207,7 @@ final class Currency
                 'ounce'   => self::chg($feed, 'ons'),
             ];
             return $out;
-        });
+        })();
     }
 
     private static function toman(?float $v): string

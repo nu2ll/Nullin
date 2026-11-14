@@ -242,6 +242,21 @@ final class GuestHandler
         if ($imid !== null && !empty($o['retry'])) {
             AnswerButtons::attachInline($imid, $o['retry'] + ['q' => (string) ($o['retry']['q'] ?? '')]);
         }
+        if (!empty($o['video'])) {
+            $imid ??= self::send($qid, L('🎞 دارم گیف میارم…', '🎞 Getting the GIF…'), ikb([[btn('Nullin', 'noop', null)]]));
+            if ($imid === null) {
+                return;
+            }
+            $r = Rich::editInlineVideo($imid, $o['text'], (string) $o['video'], $o['kb'] ?? null);
+            if (!empty($r['ok']) && !empty($o['gif'])) {
+                Gif::bind((string) $o['gif'], ['im' => (string) $imid, 'b' => App::botIndex()]);
+            }
+            if (empty($r['ok'])) {
+                logWarn('gif', 'guest rich video edit failed: ' . (string) ($r['description'] ?? ''));
+                Rich::editInlineRich($imid, Gif::notice('send'));
+            }
+            return;
+        }
         if ($imid === null) {
             self::send($qid, $o['text'], $o['kb'] ?? null, !empty($o['rich']));
             return;

@@ -88,38 +88,6 @@ final class Whisper
         Store::set('whisper_av', (string) $id, ['u' => $uid, 'b' => base64_encode($img), 'at' => time()]);
     }
 
-    public static function prefetch(array $tokens): void
-    {
-        $calls = [];
-        foreach ($tokens as $t) {
-            $target = null;
-            if (preg_match('/^@([A-Za-z0-9_]{3,32})$/', $t, $m)) {
-                $target = '@' . $m[1];
-            } elseif (preg_match('/^\d{5,15}$/', $t)) {
-                $target = (int) $t;
-            }
-            if ($target === null) {
-                continue;
-            }
-            $row = UserInfo::local($target);
-            $cid = $row['id'] ?? $target;
-            $key = 'chat_' . mb_strtolower((string) $cid);
-            $hit = Store::get('cache', $key);
-            if (is_array($hit) && isset($hit['at']) && time() - $hit['at'] < 3600) {
-                continue;
-            }
-            $calls[$key] = ['chat_id' => $cid];
-        }
-        if ($calls === []) {
-            return;
-        }
-        foreach (App::tg()->multi('getChat', $calls, 8) as $key => $r) {
-            if (!empty($r['ok'])) {
-                Store::set('cache', $key, ['at' => time(), 'v' => $r['result']]);
-            }
-        }
-    }
-
     public static function pendingKeyboard(string $token = '', bool $multi = false): array
     {
         $show = $token === '' ? 'wh:show' : 'wh:show:' . $token;

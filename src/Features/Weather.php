@@ -52,14 +52,14 @@ final class Weather
             return null;
         }
         $lang = Lang::get();
-        return Store::remember('cache', 'tz_' . $lang . '_' . md5(mb_strtolower($city)), 86400 * 30, static function () use ($city, $lang) {
+        return (static function () use ($city, $lang) {
             $g = Http::getJson(self::GEO . '?' . http_build_query(['name' => $city, 'count' => 1, 'language' => $lang, 'format' => 'json']), [], 8);
             $r = $g['results'][0] ?? null;
             if (!is_array($r) || empty($r['timezone'])) {
                 return null;
             }
             return ['zone' => (string) $r['timezone'], 'name' => (string) ($r['name'] ?? $city), 'country' => (string) ($r['country'] ?? '')];
-        });
+        })();
     }
 
     private const ALIASES = [
@@ -75,7 +75,7 @@ final class Weather
     {
         $city = self::norm($city);
         $lang = Lang::get();
-        return Store::remember('cache', 'geo2_' . $lang . '_' . md5(mb_strtolower($city)), 86400 * 30, static function () use ($city, $lang) {
+        return (static function () use ($city, $lang) {
             $key   = preg_replace('/[\s\-_.]+/u', '', mb_strtolower($city)) ?? '';
             $query = self::ALIASES[$key] ?? $city;
             $g = Http::getJson(self::GEO . '?' . http_build_query(['name' => $query, 'count' => 10, 'language' => $lang, 'format' => 'json']), [], 8);
@@ -101,7 +101,7 @@ final class Weather
                 ];
             }
             return null;
-        });
+        })();
     }
 
     public static function fetch(string $city): ?array

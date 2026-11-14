@@ -194,24 +194,29 @@ final class Rich
         return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::payload($html, $kb, $fileId, $rtl)], 15);
     }
 
-    private static function videoPayload(string $html, string $fileId): array
+    public static function videoPayload(string $html, string $media, ?array $kb = null): array
     {
         return [
-            'html'   => '<video src="tg://video?id=v"></video><p>' . str_replace("\n", '<br>', $html) . '</p>',
-            'media'  => [['id' => 'v', 'media' => ['type' => 'video', 'media' => $fileId]]],
+            'html'   => '<video src="tg://video?id=v"></video>' . ($html !== '' ? '<p>' . str_replace("\n", '<br>', $html) . '</p>' : '') . self::buttonsHtml($kb),
+            'media'  => [['id' => 'v', 'media' => ['type' => 'video', 'media' => $media]]],
         ];
     }
 
-    public static function editInlineVideo(string $inlineId, string $html, string $fileId): ?array
+    public static function editInlineVideo(string $inlineId, string $html, string $media, ?array $kb = null): ?array
     {
-        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::videoPayload($html, $fileId)], 15);
+        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::videoPayload($html, $media, $kb)], 15);
     }
 
-    public static function sendVideo(int|string $chatId, string $html, string $fileId, ?int $replyTo = null): ?array
+    public static function editVideoMsg(int|string $chatId, int $mid, string $html, string $media, ?array $kb = null): ?array
+    {
+        return App::tg()->call('editMessageText', ['chat_id' => $chatId, 'message_id' => $mid, 'rich_message' => self::videoPayload($html, $media, $kb)], 15);
+    }
+
+    public static function sendVideo(int|string $chatId, string $html, string $media, ?int $replyTo = null, ?array $kb = null): ?array
     {
         return App::tg()->call('sendRichMessage', [
             'chat_id'          => $chatId,
-            'rich_message'     => self::videoPayload($html, $fileId),
+            'rich_message'     => self::videoPayload($html, $media, $kb),
             'reply_parameters' => $replyTo ? ['message_id' => $replyTo, 'allow_sending_without_reply' => true] : null,
         ], 30);
     }

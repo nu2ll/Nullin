@@ -203,12 +203,12 @@ final class AI
         return (new DateTime('tomorrow', new DateTimeZone('America/Los_Angeles')))->getTimestamp() + 60;
     }
 
-    private static function cool(string $key, string $model, int $until, string $why): void
+    public static function cool(string $key, string $model, int $until, string $why): void
     {
         Store::set('ai', self::coolKey($key, $model), ['until' => $until, 'why' => $why, 'model' => $model]);
     }
 
-    private static function isCooling(string $key, string $model): bool
+    public static function isCooling(string $key, string $model): bool
     {
         $c = Store::get('ai', self::coolKey($key, $model));
         return is_array($c) && (int) ($c['until'] ?? 0) > time();
@@ -700,7 +700,8 @@ final class AI
             . L("\n\n✅ آماده (Gemini): ", "\n\n✅ Ready (Gemini): ") . fa((string) max(0, $ready)) . L(' مدل', ' models')
             . L("\n🔎 سرچ: ", "\n🔎 Search: ") . (self::searchOn() ? L('روشن', 'on') : L('خاموش', 'off'))
             . L("\n\n🔑 <b>وضعیت کلیدها</b> (ریست: ", "\n\n🔑 <b>Key status</b> (reset: ") . Jalali::time(self::quotaResetAt()) . ")\n"
-            . self::keyReport('gemini', 'Gemini', self::keys(), $all) . "\n" . self::keyReport('groq', 'Groq', FreeAI::keys('groq'), array_map(static fn($e) => 'groq:' . $e['id'], FreeAI::models('groq')));
+            . self::keyReport('gemini', 'Gemini', self::keys(), $all) . "\n" . self::keyReport('groq', 'Groq', FreeAI::keys('groq'), array_map(static fn($e) => 'groq:' . $e['id'], FreeAI::models('groq')))
+            . "\n" . self::keyReport('giphy', 'GIPHY', Gif::keys(), ['giphy']);
     }
 
     private const WHY_EN = [
@@ -711,6 +712,7 @@ final class AI
         'کلید نامعتبر یا بدون دسترسی' => 'Invalid key or no access',
         'شلوغه / جواب نداد' => 'Busy / no response',
         'محدودیت ویس' => 'Voice limit',
+        'سقف ساعتی تموم شد' => 'Hourly limit reached',
     ];
 
     private static function whyLabel(string $why): string
@@ -742,7 +744,7 @@ final class AI
             }
             $what = $code === -1 ? L('هنوز استفاده نشده', 'not used yet') : ($code === 200 ? L('سالم', 'healthy') : L('خطای ', 'error ') . fa((string) $code));
             $rows[] = "{$icon} {$name} " . fa((string) ($i + 1)) . " (…" . h(substr($key, -4)) . "): {$what}"
-                . ($cool > 0 ? ' · ' . fa((string) $cool) . L(' مدل در استراحت', ' models cooling down') : '')
+                . ($cool > 0 ? ' · ' . ($prov === 'giphy' ? L('در استراحت', 'cooling down') : fa((string) $cool) . L(' مدل در استراحت', ' models cooling down')) : '')
                 . (is_array($st) ? ' · ' . Jalali::time((int) $st['at']) : '');
         }
         return implode("\n", $rows);
@@ -780,7 +782,7 @@ final class AI
         $l[] = "Where you work: 1) Private chat: every message, photo, voice message or file gets a direct reply. 2) Groups: people call you by writing “نالین” or “Nullin” at the start or middle of a message, by tagging {$bot}, or by replying to one of my messages; I also answer posts of a linked channel automatically; if I'm not a group admin, some messages never reach me. 3) Any chat, even one you're not a member of: typing {$bot} (inline) opens the tools menu, and I also answer when tagged.";
         $l[] = ('Memory: I remember the last 20 messages of each chat, and every night at 12 this short-term memory starts over'
             . '. I understand: text, photos, voice messages, music, files, location, contacts, polls, dice and emoji games (darts, basketball, football, bowling, slots); from animated stickers, GIFs and videos only one frame. Text inside [The user ...] is a system note about something the user sent, not their own words; use it to understand but never repeat it.');
-        $l[] = "Tools (by asking normally, or from the inline menu with a prefix): translation (tr, /tr); image creation (/img); Persian and English Wikipedia (wk, /wk); current weather and a two-day forecast (hv); exchange rates, gold, coins and crypto; calculator; Persian and English font maker (ft, /ft); QR code (qr); link shortener (sh); Hafez fortune; strong password; date and time (Jalali calendar in Persian, Gregorian in English); coin flip; Iranian national ID structure check (meli; check digit only, not the civil registry); love percentage for two people (love; just for fun); roast (roast; once a minute per person); the user's Telegram account info; user stats by numeric ID (id); whisper: a secret message in any chat that only the recipient can read (nj, max 200 characters); giveaways for a channel, group or any chat (gw, /gw; in a channel I must be an admin, and in a group an admin has to start it).";
+        $l[] = "Tools (by asking normally, or from the inline menu with a prefix): translation (tr, /tr); image creation (/img); Persian and English Wikipedia (wk, /wk); GIF search from GIPHY (gif, /gif); current weather and a two-day forecast (hv); exchange rates, gold, coins and crypto; calculator; Persian and English font maker (ft, /ft); QR code (qr); link shortener (sh); Hafez fortune; strong password; date and time (Jalali calendar in Persian, Gregorian in English); coin flip; Iranian national ID structure check (meli; check digit only, not the civil registry); love percentage for two people (love; just for fun); roast (roast; once a minute per person); the user's Telegram account info; user stats by numeric ID (id); whisper: a secret message in any chat that only the recipient can read (nj, max 200 characters); giveaways for a channel, group or any chat (gw, /gw; in a channel I must be an admin, and in a group an admin has to start it).";
         $l[] = "Downloader: links from YouTube, Instagram, TikTok, Twitter, Facebook, Reddit, Pinterest, Snapchat, SoundCloud and single Spotify tracks (not albums or playlists); from photo posts on Instagram, Pinterest, Twitter and Reddit I send the photos; for long videos there's a “low size” or “audio only” option. Games from the main menu, against the bot or with friends: chess (3 difficulty levels), tic-tac-toe, Connect Four, rock-paper-scissors and math duel. Commands: /start /help /img /tr /ft /gw /wk.";
 
         $name = trim(preg_replace('/[\x{2066}-\x{2069}]/u', '', (string) ($ctx['user_name'] ?? '')));
