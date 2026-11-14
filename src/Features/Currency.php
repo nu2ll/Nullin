@@ -62,10 +62,82 @@ final class Currency
         foreach (self::FEEDS as $url) {
             $data = Http::getJson($url, [], 8);
             if (isset($data['current']) && is_array($data['current'])) {
-                return $data['current'];
+                $feed = $data['current'];
+                if (!isset($feed['crypto-gram']['p'])) {
+                    $row = self::gramRow();
+                    if ($row !== null) {
+                        $feed['crypto-gram'] = $row;
+                    }
+                }
+                return $feed;
             }
         }
         return null;
+    }
+
+    private static function plain($v): ?float
+    {
+        if (!is_scalar($v)) {
+            return null;
+        }
+        $c = str_replace([',', ' '], '', (string) $v);
+        return is_numeric($c) ? (float) $c : null;
+    }
+
+    private static function gramRow(): ?array
+    {
+        $j      = Http::getJson('https://api.tgju.org/v1/market/indicator/today-table-data/crypto-gram?lang=fa&start=0&length=120', [], 8);
+        $rows   = is_array($j) ? ($j['data'] ?? null) : null;
+        $prices = [];
+        if (is_array($rows)) {
+            foreach ($rows as $r) {
+                $v = is_array($r) ? self::plain($r[0] ?? null) : null;
+                if ($v !== null && $v > 0) {
+                    $prices[] = $v;
+                }
+            }
+        }
+        if ($prices === []) {
+            return self::gramDaily();
+        }
+        $p    = $prices[0];
+        $base = $prices[count($prices) - 1];
+        $d    = $p - $base;
+        $dp   = $p > 0 ? $d / $p * 100 : 0.0;
+        return [
+            'p'  => (string) $p,
+            'h'  => (string) max($prices),
+            'l'  => (string) min($prices),
+            'd'  => (string) abs($d),
+            'dp' => number_format(abs($dp), 2, '.', ''),
+            'dt' => $d < 0 ? 'low' : 'high',
+            't'  => (string) ($rows[0][1] ?? ''),
+        ];
+    }
+
+    private static function gramDaily(): ?array
+    {
+        $j    = Http::getJson('https://api.tgju.org/v1/market/indicator/summary-table-data/crypto-gram?start=0&length=2', [], 8);
+        $rows = is_array($j) ? ($j['data'] ?? null) : null;
+        if (!is_array($rows) || !isset($rows[0]) || !is_array($rows[0])) {
+            return null;
+        }
+        $p = self::plain($rows[0][3] ?? null);
+        if ($p === null || $p <= 0) {
+            return null;
+        }
+        $prev = isset($rows[1]) && is_array($rows[1]) ? self::plain($rows[1][3] ?? null) : null;
+        $d    = $prev !== null ? $p - $prev : 0.0;
+        $dp   = $prev !== null && $prev > 0 ? $d / $prev * 100 : 0.0;
+        return [
+            'p'  => (string) $p,
+            'h'  => (string) (self::plain($rows[0][2] ?? null) ?? $p),
+            'l'  => (string) (self::plain($rows[0][1] ?? null) ?? $p),
+            'd'  => (string) abs($d),
+            'dp' => number_format(abs($dp), 2, '.', ''),
+            'dt' => $d < 0 ? 'low' : 'high',
+            't'  => '',
+        ];
     }
 
     public static function feed(): ?array
