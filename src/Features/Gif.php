@@ -316,14 +316,19 @@ final class Gif
             if ($g['thumb'] === '') {
                 continue;
             }
-            $results[] = Ui::article(
+            $wait = L('🎞 دارم گیف میارم…', '🎞 Getting the GIF…');
+            $item = Ui::article(
                 'gif_' . $g['id'] . '_' . ($offset + $n),
                 $g['thumb'],
                 $g['title'] !== '' ? $g['title'] : L('گیف', 'GIF'),
                 'GIPHY',
-                L('🎞 دارم گیف میارم…', '🎞 Getting the GIF…'),
+                $wait,
                 ikb([[btn('Nullin', 'noop', null)]])
             );
+            // The reply_markup placeholder above is what makes the message editable;
+            // keep the rich body free of a second, useless Nullin button.
+            $item['input_message_content'] = Rich::inlineContent($wait, null);
+            $results[] = $item;
         }
         $next = $offset + self::PAGE;
         return ['results' => $results, 'next' => count($r['items']) >= self::PAGE && $next < min((int) $r['total'], 500) ? (string) $next : ''];

@@ -24,6 +24,8 @@ final class Switches
         'love'     => ['💘 تطابق عشقی', '💘 Love match'],
         'roast'    => ['🔥 روست', '🔥 Roast'],
         'nid'      => ['🪪 کد ملی', '🪪 National ID'],
+        'card'     => ['💳 شماره کارت', '💳 Card number'],
+        'sheba'    => ['🏧 شماره شبا', '🏧 IBAN (Sheba)'],
         'unit'     => ['⚖️ تبدیل واحد', '⚖️ Unit converter'],
         'userinfo' => ['👤 اطلاعات کاربر', '👤 User info'],
         'funstat'  => ['🔍 استعلام کاربر', '🔍 User lookup'],

@@ -8,6 +8,8 @@ final class InlineHandler
         'whisper' => ['nj', 'najva', 'نجوا'],
         'weather' => ['hv', 'havaye', 'hava', 'weather', 'آب و هوای', 'آب و هوا', 'آب‌وهوای', 'آب‌وهوا', 'هوای', 'هوا'],
         'nid'     => ['codemeli', 'codmeli', 'meli', 'کدملی', 'کد‌ملی'],
+        'card'    => ['card', 'کارت', 'شمارهکارت'],
+        'sheba'   => ['sheba', 'iban', 'شبا'],
         'funstat' => ['id', 'آیدی'],
         'love'    => ['love', 'عشق'],
         'roast'   => ['roast', 'روست', 'بشور'],
@@ -63,6 +65,8 @@ final class InlineHandler
                         'whisper' => self::whisper($rest),
                         'weather' => self::weather($rest),
                         'nid'     => self::nid($rest),
+                        'card'    => self::card($rest),
+                        'sheba'   => self::sheba($rest),
                         'funstat' => self::funstat($rest),
                         'love'    => self::love($rest),
                         'roast'   => self::roast($rest),
@@ -475,6 +479,36 @@ final class InlineHandler
         self::answer([Ui::article("nid_{$code}", $ok ? 'ok' : 'fail', $ok ? L('✅ کد ملی سالمه', '✅ National ID is valid') : L('❌ کد ملی نامعتبره', '❌ National ID is invalid'), Tools::nidDisplay($code), Tools::nidText($code))], 300, false);
     }
 
+    private static function card(string $raw): void
+    {
+        if ($raw === '') {
+            self::guide('card', 'card', L('💳 شماره کارت', '💳 Card number'), L('بعد از card شماره کارت رو بنویس', 'Type the card number after card'));
+            return;
+        }
+        $code = Tools::normalizeCard($raw);
+        if ($code === null) {
+            self::fail('card_bad', L('⚠️ فرمت شماره کارت اشتباهه', '⚠️ Wrong card number format'), L('باید ۱۶ رقم باشه', 'It must be 16 digits'), L('⚠️ شماره کارت باید فقط عدد و ۱۶ رقم باشه.', '⚠️ The card number must be digits only, 16 digits.'));
+            return;
+        }
+        $ok = Tools::isValidCard($code);
+        self::answer([Ui::article("card_{$code}", $ok ? 'ok' : 'fail', $ok ? L('✅ شماره کارت سالمه', '✅ Card number is valid') : L('❌ شماره کارت نامعتبره', '❌ Card number is invalid'), Tools::cardDisplay($code), Tools::cardText($code))], 300, false);
+    }
+
+    private static function sheba(string $raw): void
+    {
+        if ($raw === '') {
+            self::guide('sheba', 'sheba', L('🏧 شماره شبا', '🏧 IBAN (Sheba)'), L('بعد از sheba شماره شبا رو بنویس', 'Type the IBAN after sheba'));
+            return;
+        }
+        $code = Tools::normalizeSheba($raw);
+        if ($code === null) {
+            self::fail('sheba_bad', L('⚠️ فرمت شبا اشتباهه', '⚠️ Wrong IBAN format'), L('باید IR و ۲۴ رقم باشه', 'It must be IR plus 24 digits'), L('⚠️ شبا باید IR و بعدش ۲۴ رقم باشه.', '⚠️ The IBAN must be IR followed by 24 digits.'));
+            return;
+        }
+        $ok = Tools::isValidSheba($code);
+        self::answer([Ui::article("sheba_{$code}", $ok ? 'ok' : 'fail', $ok ? L('✅ شبا سالمه', '✅ IBAN is valid') : L('❌ شبا نامعتبره', '❌ IBAN is invalid'), Tools::shebaDisplay($code), Tools::shebaText($code))], 300, false);
+    }
+
     private static function linkcheck(string $rest): void
     {
         $url = LinkCheck::extract($rest);
@@ -676,13 +710,15 @@ final class InlineHandler
             Ui::article('help_roast', 'roast', L('🔥 روست', '🔥 Roast'), L('roast [@یوزرنیم] [آیدی]', 'roast [@username] [ID]'), Ui::guide('roast'), Ui::tryKeyboard('roast')),
             Ui::article('help_love', 'love', L('💘 تطابق عشقی', '💘 Love match'), L('love [یوزرنیم/آیدی] [یوزرنیم/آیدی۲]', 'love [username/ID] [username/ID 2]'), Ui::guide('love'), Ui::tryKeyboard('love')),
             Ui::article('help_nid', 'nid', L('🪪 کد ملی', '🪪 National ID'), L('meli [کد ملی]', 'meli [national ID]'), Ui::guide('nid'), Ui::tryKeyboard('nid')),
+            Ui::article('help_card', 'card', L('💳 شماره کارت', '💳 Card number'), L('card [شماره کارت]', 'card [card number]'), Ui::guide('card'), Ui::tryKeyboard('card')),
+            Ui::article('help_sheba', 'sheba', L('🏧 شماره شبا', '🏧 IBAN (Sheba)'), L('sheba [شماره شبا]', 'sheba [IBAN]'), Ui::guide('sheba'), Ui::tryKeyboard('sheba')),
             Ui::article('help_linkcheck', 'linkcheck', L('🛡 ردیاب اشتراک', '🛡 Invite link tracker'), L('st [لینک اشتراک]', 'st [invite link]'), Ui::guide('linkcheck'), Ui::tryKeyboard('linkcheck')),
             Ui::article('help_funstat', 'funstat', L('🔍 استعلام کاربر', '🔍 User lookup'), L('id [آیدی عددی]', 'id [numeric ID]'), Ui::guide('funstat'), Ui::tryKeyboard('funstat')),
         ];
 
         $swMap = ['info' => 'userinfo', 'chess' => 'chess', 'ttt' => 'ttt', 'c4' => 'c4', 'rps' => 'rps', 'math' => 'math', 'calc' => 'calc', 'unit' => 'unit', 'rates' => 'rates', 'date' => 'date', 'pass' => 'password', 'coin' => 'coin', 'fal' => 'fal',
             'help_image' => 'image', 'help_whisper' => 'whisper', 'help_giveaway' => 'giveaway', 'help_like' => 'like', 'help_wiki' => 'wiki', 'help_gif' => 'gif', 'help_ai' => 'ai', 'help_translate' => 'translate', 'help_search' => 'search',
-            'help_font' => 'font', 'help_weather' => 'weather', 'help_qr' => 'qr', 'help_short' => 'short', 'help_roast' => 'roast', 'help_love' => 'love', 'help_nid' => 'nid', 'help_funstat' => 'funstat', 'help_linkcheck' => 'linkcheck'];
+            'help_font' => 'font', 'help_weather' => 'weather', 'help_qr' => 'qr', 'help_short' => 'short', 'help_roast' => 'roast', 'help_love' => 'love', 'help_nid' => 'nid', 'help_card' => 'card', 'help_sheba' => 'sheba', 'help_funstat' => 'funstat', 'help_linkcheck' => 'linkcheck'];
         $items = array_values(array_filter($items, static fn($r) => !isset($swMap[$r['id']]) || Switches::on($swMap[$r['id']])));
 
         if ($filter !== '') {

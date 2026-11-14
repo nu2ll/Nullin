@@ -2,7 +2,7 @@
 
 final class Intent
 {
-    public const NAMES = ['translate', 'download', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'short', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'love', 'roast', 'userinfo', 'giveaway', 'gif'];
+    public const NAMES = ['translate', 'download', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'short', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'card', 'sheba', 'love', 'roast', 'userinfo', 'giveaway', 'gif'];
 
     public static function prompt(): string
     {
@@ -23,6 +23,8 @@ final class Intent
             . "\n- download | <full link; leave empty if the link is in the message they replied to>: download the video, photo or audio of a link."
             . "\n- calc | <math expression with + - * / ^ and parentheses>: numeric calculation."
             . "\n- nid | <national ID code>: check whether an Iranian national ID is valid."
+            . "\n- card | <card number>: check whether an Iranian bank card number is valid and which bank issued it."
+            . "\n- sheba | <IBAN>: check whether an Iranian IBAN (Sheba) is valid and which bank issued it."
             . "\n- love | <first person> | <second person>: love percentage for two people."
             . "\n- roast | <me, reply, @username or numeric id>: roast a person; me means the user themselves, reply means the author of the message they replied to. Only for a new roast; commenting on a previous roast is not a roast request."
             . "\n- userinfo: the user’s own Telegram account info."
@@ -206,6 +208,14 @@ final class Intent
             case 'nid':
                 $code = Tools::normalizeNid($arg);
                 return $code === null ? ['text' => L('🪪 یه کد ملی ۱۰ رقمی بفرست تا چکش کنم.', '🪪 Send a 10-digit national ID code and I’ll check it.')] : ['text' => Tools::nidText($code)];
+
+            case 'card':
+                $code = Tools::normalizeCard($arg);
+                return $code === null ? ['text' => L('💳 یه شماره کارت ۱۶ رقمی بفرست تا چکش کنم.', '💳 Send a 16-digit card number and I’ll check it.')] : ['text' => Tools::cardText($code)];
+
+            case 'sheba':
+                $code = Tools::normalizeSheba($arg);
+                return $code === null ? ['text' => L('🏧 یه شماره شبا بفرست تا چکش کنم.', '🏧 Send an IBAN (Sheba) and I’ll check it.')] : ['text' => Tools::shebaText($code)];
 
             case 'search':
                 if (mb_strlen($arg) < 2) {

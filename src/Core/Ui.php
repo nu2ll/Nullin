@@ -21,6 +21,8 @@ final class Ui
         'chat'     => ['Speech balloon', 'speech_balloon'],
         'weather'  => ['Sun behind rain cloud', 'sun_behind_rain_cloud'],
         'nid'      => ['Identification card', 'identification_card'],
+        'card'     => ['Credit card', 'credit_card'],
+        'sheba'    => ['Bank', 'bank'],
         'funstat'  => ['Magnifying glass tilted left', 'magnifying_glass_tilted_left'],
         'ai'       => ['Brain', 'brain'],
         'love'     => ['Heart with arrow', 'heart_with_arrow'],
@@ -730,6 +732,8 @@ final class Ui
         'love'      => '💘 تطابق عشقی',
         'roast'     => '🔥 روست',
         'nid'       => '🪪 کد ملی',
+        'card'      => '💳 شماره کارت',
+        'sheba'     => '🏧 شماره شبا',
         'unit'      => '⚖️ تبدیل واحد',
         'funstat'   => '🔍 استعلام کاربر',
         'linkcheck' => '🛡 ردیاب اشتراک',
@@ -755,6 +759,8 @@ final class Ui
         'love'      => '💘 Love match',
         'roast'     => '🔥 Roast',
         'nid'       => '🪪 National ID',
+        'card'      => '💳 Card number',
+        'sheba'     => '🏧 IBAN (Sheba)',
         'unit'      => '⚖️ Unit converter',
         'funstat'   => '🔍 User lookup',
         'linkcheck' => '🛡 Invite link tracker',
@@ -932,6 +938,18 @@ final class Ui
                 . "• " . $c('meli 0012345678') . "\n\n"
                 . L("⚠️ فقط ساختار رو چک می‌کنه، نه ثبت‌احوال رو.", "⚠️ It only checks the structure, not the civil registry."),
 
+            'card' => L("<b>💳 شماره کارت</b>\n", "<b>💳 Card number</b>\n")
+                . L("بررسی سالم بودن ساختار شماره کارت (الگوریتم Luhn)\n", "Checks that a card number's structure is valid (Luhn algorithm)\n")
+                . L("و تشخیص بانک صادرکننده.\n\n", "and detects the issuing bank.\n\n")
+                . "• " . $c('card 6037991234567890') . "\n\n"
+                . L("⚠️ فقط ساختار و بانک رو چک می‌کنه، نه صاحب کارت رو.", "⚠️ It only checks the structure and the bank, not the card's owner."),
+
+            'sheba' => L("<b>🏧 شماره شبا</b>\n", "<b>🏧 IBAN (Sheba)</b>\n")
+                . L("بررسی سالم بودن رقم کنترل شماره شبا\n", "Checks that an IBAN's check digits are valid\n")
+                . L("و تشخیص بانک صادرکننده.\n\n", "and detects the issuing bank.\n\n")
+                . "• " . $c('sheba IR820540102680020817909002') . "\n\n"
+                . L("⚠️ فقط رقم کنترل و بانک رو چک می‌کنه، نه صاحب حساب رو.", "⚠️ It only checks the check digits and the bank, not the account's owner."),
+
             'unit' => L("<b>⚖️ تبدیل واحد</b>\n", "<b>⚖️ Unit converter</b>\n")
                 . L("طول، وزن، حجم، سرعت، مساحت، دیتا و دما\n", "Length, weight, volume, speed, area, data and temperature\n")
                 . L("• از منوی اصلی:\n", "• From the main menu:\n")
@@ -974,7 +992,7 @@ final class Ui
 
     private const HELP_LAYOUT = [
         1 => [['ai', 'image'], ['translate', 'search'], ['whisper', 'linkcheck'], ['font', 'download'], ['giveaway', 'wiki']],
-        2 => [['weather', 'calc'], ['qr', 'short'], ['love', 'group'], ['like', 'unit'], ['roast', 'nid'], ['funstat', 'games'], ['gif']],
+        2 => [['weather', 'calc'], ['qr', 'short'], ['love', 'group'], ['like', 'unit'], ['roast', 'nid'], ['card', 'sheba'], ['funstat', 'games'], ['gif']],
     ];
 
     public static function helpPage(string $key): int
@@ -1011,9 +1029,9 @@ final class Ui
     }
 
     private const TRY_PREFIX = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'love ', 'like' => 'like ', 'roast' => 'roast ', 'date' => 'date ',
-        'nid' => 'meli ', 'unit' => 'تبدیل', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
+        'nid' => 'meli ', 'card' => 'card ', 'sheba' => 'sheba ', 'unit' => 'تبدیل', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
     const TRY_PREFIX_EN = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'love ', 'like' => 'like ', 'roast' => 'roast ', 'date' => 'date ',
-        'nid' => 'meli ', 'unit' => 'convert', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
+        'nid' => 'meli ', 'card' => 'card ', 'sheba' => 'sheba ', 'unit' => 'convert', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
 
     private static function tryButton(string $key): array
     {
