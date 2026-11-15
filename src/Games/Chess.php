@@ -23,25 +23,15 @@ final class Chess
         return GameKit::modeKeyboard(self::P);
     }
 
-    private static function show(string $imid, array &$s, string $text, ?array $kb, ?string $img = null): void
+    private static function show(string $imid, array &$s, string $text, ?array $kb, ?array $view = null): void
     {
-        $r = Rich::editInline($imid, $text, $kb, $img);
-        if ($img === null || !empty($r['ok']) || self::notModified($r)) {
-            return;
+        $img = $view !== null ? self::img($view) : null;
+        $r   = Rich::editInline($imid, $text, $kb, $img['id'] ?? null);
+        if ($img !== null && $img['cached'] && empty($r['ok']) && stripos((string) ($r['description'] ?? ''), 'not modified') === false) {
+            Store::delete('chessimg', $img['key']);
+            $img = self::img($view);
+            Rich::editInline($imid, $text, $kb, $img['id'] ?? null);
         }
-        $r = App::tg()->call('editMessageMedia', [
-            'inline_message_id' => $imid,
-            'media'             => ['type' => 'photo', 'media' => $img, 'caption' => $text, 'parse_mode' => 'HTML'],
-            'reply_markup'      => $kb,
-        ], 30);
-        if (empty($r['ok']) && !self::notModified($r)) {
-            Rich::editInline($imid, $text, $kb);
-        }
-    }
-
-    private static function notModified(?array $r): bool
-    {
-        return stripos((string) ($r['description'] ?? ''), 'not modified') !== false;
     }
 
     private static function flipped(array $s): bool
@@ -84,32 +74,20 @@ final class Chess
         return ['b' => ChessEngine::START, 'flip' => false, 'last' => [], 'sel' => -1, 'targets' => [], 'caps' => [], 'check' => -1];
     }
 
-    private static function startImage(): ?string
+    private static function img(array $v): ?array
     {
-        return self::imageFor(self::startView());
-    }
-
-    private static function image(array $s, bool $active): ?string
-    {
-        return self::imageFor(self::view($s, $active));
-    }
-
-    private static function imageFor(array $v): ?string
-    {
-        $key = 'b' . App::botIndex() . ':' . md5((string) json_encode($v));
+        $key = 'v3:b' . App::botIndex() . ':' . md5((string) json_encode($v));
         $hit = Store::get('chessimg', $key);
         if (is_string($hit) && $hit !== '') {
-            return $hit;
+            return ['id' => $hit, 'key' => $key, 'cached' => true];
         }
         $png = self::renderPng($v);
-        if ($png === null) {
+        $id  = $png === null ? null : ImageGen::fileId($png);
+        if ($id === null) {
             return null;
         }
-        $id = ImageGen::fileId($png);
-        if ($id !== null) {
-            Store::set('chessimg', $key, $id);
-        }
-        return $id;
+        Store::set('chessimg', $key, $id);
+        return ['id' => $id, 'key' => $key, 'cached' => false];
     }
 
     private static function renderPng(array $v): ?string
@@ -122,7 +100,8 @@ final class Chess
         if ($tmp === false) {
             return null;
         }
-        $v['out'] = $tmp;
+        $v['out']  = $tmp;
+        $v['foot'] = '@' . App::botUsername();
         $proc = @proc_open(['timeout', '20', 'python3', $script], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
         if (!is_resource($proc)) {
             @unlink($tmp);
@@ -282,7 +261,7 @@ final class Chess
     {
         $active = ($s['status'] ?? '') === 'playing';
         $status = $override ?? ($active ? self::turnLine($s) : self::resultLine($s));
-        self::show($imid, $s, self::text($s, $status), self::board($s, $active, $override !== null), self::image($s, $active));
+        self::show($imid, $s, self::text($s, $status), self::board($s, $active, $override !== null), self::view($s, $active));
     }
 
     private static function resultLine(array $s): string
@@ -363,7 +342,7 @@ final class Chess
                     foreach (self::levels() as $lvl => $label) {
                         $row[] = btn($label, self::P . ":lvl:{$lvl}", $lvl === 3 ? 'danger' : ($lvl === 1 ? 'success' : 'primary'));
                     }
-                    self::show($imid, $s, L("<b>♟️ شطرنج</b> · با ربات\n\nچقدر سخت بگیرم؟ 😏", "<b>♟️ Chess</b> · Vs bot\n\nHow hard should I go? 😏"), ikb([$row, GameKit::cancelRow(self::P)]), self::startImage());
+                    self::show($imid, $s, L("<b>♟️ شطرنج</b> · با ربات\n\nچقدر سخت بگیرم؟ 😏", "<b>♟️ Chess</b> · Vs bot\n\nHow hard should I go? 😏"), ikb([$row, GameKit::cancelRow(self::P)]), self::startView());
                     return;
                 }
                 $s = self::start($s, 'pvp');
@@ -373,7 +352,7 @@ final class Chess
             function () use (&$s, $imid, $tg) {
                 $s = GameKit::fresh(self::P, $s['p1']);
                 GameKit::save($imid, $s);
-                self::show($imid, $s, self::intro(), self::modeKeyboard(), self::startImage());
+                self::show($imid, $s, self::intro(), self::modeKeyboard(), self::startView());
             },
             function (string $by) use (&$s, $imid, $tg) {
                 if (isset($s['pos'])) {
@@ -382,7 +361,7 @@ final class Chess
                     self::render($imid, $s);
                 } else {
                     GameKit::save($imid, $s);
-                    self::show($imid, $s, L("<b>♟️ شطرنج</b>\n\n✖️ بازی توسط {$by} لغو شد.", "<b>♟️ Chess</b>\n\n✖️ Game cancelled by {$by}."), GameKit::replayKeyboard(self::P), self::startImage());
+                    self::show($imid, $s, L("<b>♟️ شطرنج</b>\n\n✖️ بازی توسط {$by} لغو شد.", "<b>♟️ Chess</b>\n\n✖️ Game cancelled by {$by}."), GameKit::replayKeyboard(self::P), self::startView());
                 }
             },
             function (bool $done) use (&$s, $imid) {
