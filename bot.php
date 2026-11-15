@@ -287,11 +287,7 @@ function bootExtraBots(array $pcfg): array
             Ui::pushCommands($tg, 'private', ['type' => 'all_private_chats']);
             Ui::pushCommands($tg, 'group', ['type' => 'all_group_chats']);
             $tg->call('deleteMyCommands', ['scope' => ['type' => 'default']], 10);
-            foreach ((array) App::cfg('admins', []) as $adminId) {
-                if ((int) $adminId > 0) {
-                    Ui::pushCommands($tg, 'admin', ['type' => 'chat', 'chat_id' => (int) $adminId]);
-                }
-            }
+            Ui::pushAdminCommands($tg);
         } catch (\Throwable $e) {
             logError('boot', "setMyCommands #{$bi}: " . $e->getMessage());
         }
@@ -418,11 +414,7 @@ try {
     Ui::pushCommands($tg, 'private', ['type' => 'all_private_chats']);
     Ui::pushCommands($tg, 'group', ['type' => 'all_group_chats']);
     $tg->call('deleteMyCommands', ['scope' => ['type' => 'default']], 10);
-    foreach ((array) App::cfg('admins', []) as $adminId) {
-        if ((int) $adminId > 0) {
-            Ui::pushCommands($tg, 'admin', ['type' => 'chat', 'chat_id' => (int) $adminId]);
-        }
-    }
+    Ui::pushAdminCommands($tg);
 } catch (\Throwable $e) {
     logError('boot', 'setMyCommands: ' . $e->getMessage());
 }

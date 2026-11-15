@@ -148,7 +148,7 @@ final class InlineHandler
             $isAi ? L('🧠 بپرس از نالین', '🧠 Ask Nullin') : L('🌐 ترجمه کن', '🌐 Translate'),
             mb_substr($q, 0, 80),
             "{$head}\n\n⏳ {$wait}",
-            ikb([[btn(L('⏳ صبر کن...', '⏳ Wait...'), "{$kind}q:{$token}", null)]])
+            ikb([[btn(L('⏳ صبر کن...', '⏳ Wait...'), 'noop', null)]])
         );
     }
 

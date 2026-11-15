@@ -41,14 +41,14 @@ final class Switches
     ];
 
     public const COMMAND_SWITCH = [
-        'img' => 'image', 'image' => 'image',
-        'tr'  => 'translate', 'translate' => 'translate',
-        'ft'  => 'font', 'font' => 'font',
-        'gw'  => 'giveaway', 'giveaway' => 'giveaway',
-        'wk'  => 'wiki', 'wiki' => 'wiki',
-        'gif' => 'gif',
-        'st' => 'linkcheck',
-        'monshi' => 'business',
+        'image'     => 'image',
+        'translate' => 'translate',
+        'font'      => 'font',
+        'giveaway'  => 'giveaway',
+        'wiki'      => 'wiki',
+        'gif'       => 'gif',
+        'sharetrace' => 'linkcheck',
+        'secretary' => 'business',
     ];
 
     private const GAME_KEYS = ['chess', 'ttt', 'c4', 'rps', 'math'];
@@ -96,11 +96,7 @@ final class Switches
                 $tg = App::tgFor($bi);
                 Ui::pushCommands($tg, 'private', ['type' => 'all_private_chats']);
                 Ui::pushCommands($tg, 'group', ['type' => 'all_group_chats']);
-                foreach ((array) App::cfg('admins', []) as $adminId) {
-                    if ((int) $adminId > 0) {
-                        Ui::pushCommands($tg, 'admin', ['type' => 'chat', 'chat_id' => (int) $adminId]);
-                    }
-                }
+                Ui::pushAdminCommands($tg);
             }
         } catch (\Throwable $e) {
             logError('tools', 'syncCommands: ' . $e->getMessage());

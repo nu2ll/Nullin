@@ -2,6 +2,10 @@
 
 final class CallbackHandler
 {
+    // Buttons anyone in the chat may tap: whisper recipient, likers, weather and currency tabs/refresh.
+    // Games are exempt too (see GAMES). These skip the forced-join gate.
+    private const OPEN_PREFIXES = ['wh', 'lk', 'weather', 'rates'];
+
     private const GAMES = [
         'rps'   => [Rps::class, 'onCallback'],
         'ttt'   => [TicTacToe::class, 'onCallback'],
@@ -17,7 +21,9 @@ final class CallbackHandler
         $imid = $cq['inline_message_id'] ?? null;
         $uid  = (int) ($cq['from']['id'] ?? 0);
 
-        if ($data === 'noop' || $data === 'love:noop' || $data === 'info:label') {
+        // Display-only buttons. 'aiq:' / 'trq:' are the old AI/translate placeholder buttons that may
+        // still sit on already-sent messages; new ones use plain 'noop'.
+        if ($data === 'noop' || $data === 'love:noop' || $data === 'info:label' || preg_match('/^(?:ai|tr)q:\w+$/', $data)) {
             $tg->answer($cq);
             return;
         }
@@ -28,6 +34,21 @@ final class CallbackHandler
             $own = (int) Store::get('menuowner', ($cq['message']['chat']['id'] ?? 0) . ':' . ($cq['message']['message_id'] ?? 0), 0);
             if ($own > 0 && $own !== $uid) {
                 $tg->alert($cq, L("این منو مال تو نیست؛\nخودت دستورش رو بزن 🙂", "This menu isn't yours;\nsend the command yourself 🙂"));
+                return;
+            }
+        }
+
+        // Forced-join gate for every button press (private, group, inline messages),
+        // except buttons meant for other people: game opponents, whisper recipients, likers.
+        $gatePrefix = strstr($data, ':', true) ?: $data;
+        $openButton = isset(self::GAMES[$gatePrefix]) || in_array($gatePrefix, self::OPEN_PREFIXES, true);
+        if ($data !== 'joincheck' && !$openButton && $uid > 0) {
+            $missing = Membership::missing($uid);
+            if ($missing) {
+                $tg->alert($cq, L("⏳ هنوز عضو نشدی!\nاول عضو شو بعد دکمه رو بزن.", "⏳ You haven't joined yet!\nJoin first, then tap the button."));
+                if (($cq['message']['chat']['type'] ?? '') === 'private') {
+                    Membership::prompt($cq['message']['chat']['id'], $uid, $missing);
+                }
                 return;
             }
         }
@@ -62,18 +83,6 @@ final class CallbackHandler
             }
             $tg->answer($cq, $data === 'lang:menu' ? null : L('✅ زبان فارسی شد', '✅ Language set to English'));
             return;
-        }
-
-        // Forced-join gate for every button press (private, group, inline messages)
-        if ($data !== 'joincheck' && $uid > 0) {
-            $missing = Membership::missing($uid);
-            if ($missing) {
-                $tg->alert($cq, L("⏳ هنوز عضو نشدی!\nاول عضو شو بعد دکمه رو بزن.", "⏳ You haven't joined yet!\nJoin first, then tap the button."));
-                if (($cq['message']['chat']['type'] ?? '') === 'private') {
-                    Membership::prompt($cq['message']['chat']['id'], $uid, $missing);
-                }
-                return;
-            }
         }
 
         if (str_starts_with($data, 'dl:')) {
@@ -155,11 +164,6 @@ final class CallbackHandler
             return;
         }
 
-        if (preg_match('/^(ai|tr)q:(\w+)$/', $data, $m)) {
-            $tg->answer($cq, L('⏳ دارم می‌نویسم...', '⏳ Writing...'));
-            InlineHandler::resolveDeferred($m[2], $imid);
-            return;
-        }
         if (str_starts_with($data, 'lk:')) {
             if (!Switches::on('like')) {
                 $tg->answer($cq);

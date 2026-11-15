@@ -609,6 +609,25 @@ final class Ui
         }
     }
 
+    /**
+     * Re-publish every admin's private-chat command menu in the language that admin picked in the bot.
+     * Admins get a per-chat menu; a plain pushCommands() there would replace it with the
+     * Telegram-app-language pair (English / Persian) and undo the language they chose.
+     */
+    public static function pushAdminCommands($tg): void
+    {
+        $prev = Lang::get();
+        foreach ((array) App::cfg('admins', []) as $adminId) {
+            $adminId = (int) $adminId;
+            if ($adminId <= 0) {
+                continue;
+            }
+            Lang::set(Lang::stored($adminId) ?? Lang::default());
+            self::pushUserCommands($tg, $adminId);
+        }
+        Lang::set($prev);
+    }
+
     public static function syncMemberCommands($tg, int $chatId, int $uid, bool $force = false): void
     {
         if ($chatId === 0 || $uid <= 0) {
@@ -646,13 +665,13 @@ final class Ui
             $c('ping', L('🏓 پینگ', '🏓 Ping')),
             $c('lang', '🌐 زبان / Language'),
         ];
-        foreach ([['img', L('🎨 ساخت عکس', '🎨 Create image')], ['tr', L('🌐 ترجمه', '🌐 Translate')], ['ft', L('✨ فونت‌ساز', '✨ Font maker')], ['gw', L('🎁 قرعه‌کشی', '🎁 Giveaway')], ['wk', L('📖 ویکی‌پدیا', '📖 Wikipedia')], ['gif', L('🎞 گیف', '🎞 GIF')], ['st', L('🛡 ردیاب اشتراک', '🛡 Invite link tracker')]] as [$cmd, $desc]) {
+        foreach ([['image', L('🎨 ساخت عکس', '🎨 Create image')], ['translate', L('🌐 ترجمه', '🌐 Translate')], ['font', L('✨ فونت‌ساز', '✨ Font maker')], ['giveaway', L('🎁 قرعه‌کشی', '🎁 Giveaway')], ['wiki', L('📖 ویکی‌پدیا', '📖 Wikipedia')], ['gif', L('🎞 گیف', '🎞 GIF')], ['sharetrace', L('🛡 ردیاب اشتراک', '🛡 Invite link tracker')]] as [$cmd, $desc]) {
             if (Switches::on(Switches::COMMAND_SWITCH[$cmd])) {
                 $base[] = $c($cmd, $desc);
             }
         }
-        if ($scope !== 'group' && Switches::on(Switches::COMMAND_SWITCH['monshi'])) {
-            $base[] = $c('monshi', L('🤝 منشی هوشمند', '🤝 Smart secretary'));
+        if ($scope !== 'group' && Switches::on(Switches::COMMAND_SWITCH['secretary'])) {
+            $base[] = $c('secretary', L('🤝 منشی هوشمند', '🤝 Smart secretary'));
         }
         if ($scope === 'admin') {
             return array_merge($base, [
@@ -801,7 +820,7 @@ final class Ui
                 . L("خودم می‌فهمم و می‌کشم.\n\n", "and I'll understand and draw it.\n\n")
                 . L("• پیوی:\n<code>یه گربه‌ی فضانورد برام بکش</code>\n", "• Private:\n<code>draw me an astronaut cat</code>\n")
                 . L("• گروه:\n<code>نالین یه والپیپر از جنگل بارونی می‌خوام</code>\n", "• Group:\n<code>Nullin I want a rainforest wallpaper</code>\n")
-                . L("• یا دستور:\n<code>/img شهر آینده‌نگر در شب</code>", "• Or command:\n<code>/img a futuristic city at night</code>"),
+                . L("• یا دستور:\n<code>/image شهر آینده‌نگر در شب</code>", "• Or command:\n<code>/image a futuristic city at night</code>"),
 
             'translate' => L("<b>🌐 ترجمه</b>\n", "<b>🌐 Translate</b>\n")
                 . L("فارسی ⇄ انگلیسی خودکار،\n", "Automatic Persian ⇄ English,\n")
@@ -839,8 +858,8 @@ final class Ui
                 . L("برای کانال، گروه یا هر چتی قرعه‌کشی بساز؛\n", "Create a giveaway for a channel, group or any chat;\n")
                 . L("بقیه با یه دکمه شرکت می‌کنن\n", "others join with one button\n")
                 . L("و خودم سر وقت برنده‌ها رو انتخاب و اعلام می‌کنم 🎉\n\n", "and I pick and announce the winners on time 🎉\n\n")
-                . L("• پیوی: /gw بزن یا بگو «یه قرعه‌کشی بساز»\n", "• Private: send /gw or say \"create a giveaway\"\n")
-                . L("• گروه: ادمین /gw بزنه\n", "• Group: an admin sends /gw\n")
+                . L("• پیوی: /giveaway بزن یا بگو «یه قرعه‌کشی بساز»\n", "• Private: send /giveaway or say \"create a giveaway\"\n")
+                . L("• گروه: ادمین /giveaway بزنه\n", "• Group: an admin sends /giveaway\n")
                 . L("• اینلاین تو هر چتی:\n", "• Inline in any chat:\n") . $c(L('gw 2 1h آیفون', 'gw 2 1h iPhone')) . "\n"
                 . L("(۲ برنده، ۱ ساعت دیگه، جایزه آیفون)\n\n", "(2 winners, in 1 hour, prize iPhone)\n\n")
                 . L("💡 تو کانال باید ادمین باشم؛\n", "💡 In a channel I must be an admin;\n")
@@ -862,7 +881,7 @@ final class Ui
                 . "• " . $c('wk Albert Einstein') . "\n"
                 . L("• پیوی یا گروه:\n", "• Private or group:\n")
                 . L("<code>نالین ویکی‌پدیا درباره‌ی حافظ چی میگه</code>\n", "<code>Nullin what does Wikipedia say about Einstein</code>\n")
-                . L("• دستور:\n<code>/wk حافظ</code>", "• Command:\n<code>/wk Einstein</code>"),
+                . L("• دستور:\n<code>/wiki حافظ</code>", "• Command:\n<code>/wiki Einstein</code>"),
 
             'gif' => L("<b>🎞 گیف</b>\n", "<b>🎞 GIF</b>\n")
                 . L("هر گیفی بخوای\n", "Any GIF you want\n")
@@ -967,8 +986,8 @@ final class Ui
                 . L("تلگرام، دیسکورد، گیت‌هاب، گیت‌لب، هاگینگ‌فیس، تیک‌تاک، اینستاگرام، یوتیوب، ردیت، نوشن، لینکدین،\n", "Telegram, Discord, GitHub, GitLab, Hugging Face, TikTok, Instagram, YouTube, Reddit, Notion, LinkedIn,\n")
                 . L("چت‌جی‌پی‌تی، کلود، پرپلکسیتی، پینترست، سابستک،\n", "ChatGPT, Claude, Perplexity, Pinterest, Substack,\n")
                 . L("سونو، گوگل داکس و شیرپوینت\n\n", "Suno, Google Docs and SharePoint\n\n")
-                . L("• دستور: <code>/st https://example.com</code>\n", "• Command: <code>/st https://example.com</code>\n")
-                . L("• یا روی پیامی که لینک داره ریپلای کن و <code>/st</code> بزن", "• Or reply to a message that has a link and send <code>/st</code>"),
+                . L("• دستور: <code>/sharetrace https://example.com</code>\n", "• Command: <code>/sharetrace https://example.com</code>\n")
+                . L("• یا روی پیامی که لینک داره ریپلای کن و <code>/sharetrace</code> بزن", "• Or reply to a message that has a link and send <code>/sharetrace</code>"),
 
             'games' => L("<b>🎮 بازی‌ها</b>\n", "<b>🎮 Games</b>\n")
                 . L("همه از منوی اصلی در دسترسن؛\n", "All available from the main menu;\n")

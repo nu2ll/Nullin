@@ -4,7 +4,7 @@ final class MessageHandler
 {
     private const TRIGGER = '(?:نالینی|نالین|nullini|nullin)';
     private const RATES_CMD = '/^(?:نرخ[\s\x{200C}]*(?:ارز|ارزها|ارز[\s\x{200C}]*و[\s\x{200C}]*طلا)|قیمت[\s\x{200C}]*ارز(?:ها)?|(?:(?:exchange|currency|gold|market|live)(?:\s*(?:&|and)\s*|\s+))*rates?)[\s؟?!.]*$/iu';
-    private const TIDY_SKIP = ['cookies', 'broadcast', 'giveaway', 'gw', 'gif'];
+    private const TIDY_SKIP = ['cookies', 'broadcast', 'giveaway', 'gif'];
     private const TIDY_SEND = '/^send(Message|RichMessage|Photo|Video|Animation|Document|Audio|Voice|Sticker|Poll|Dice|MediaGroup)$/';
 
     private static ?array $tidy = null;
@@ -278,7 +278,7 @@ final class MessageHandler
         }
         Users::hit("cmd:{$cmd}");
 
-        $gate = ['wk' => 'wiki', 'wiki' => 'wiki', 'giveaway' => 'giveaway', 'gw' => 'giveaway', 'image' => 'image', 'img' => 'image', 'font' => 'font', 'ft' => 'font', 'tr' => 'translate', 'translate' => 'translate', 'gif' => 'gif', 'st' => 'linkcheck', 'monshi' => 'business'][$cmd] ?? null;
+        $gate = ['wiki' => 'wiki', 'giveaway' => 'giveaway', 'image' => 'image', 'font' => 'font', 'translate' => 'translate', 'gif' => 'gif', 'sharetrace' => 'linkcheck', 'secretary' => 'business'][$cmd] ?? null;
         if ($gate !== null && !Switches::guard($gate)) {
             return true;
         }
@@ -321,7 +321,7 @@ final class MessageHandler
                 Ui::sendMain($chatId, $from);
                 return true;
 
-            case 'monshi':
+            case 'secretary':
                 if ($private) {
                     Store::set('biz_back', (string) $from['id'], 0);
                     [$bt, $bk] = Business::panel((int) $from['id']);
@@ -351,13 +351,11 @@ final class MessageHandler
                 Rich::sendHtml($chatId, $vt, (int) $msg['message_id'], $vk);
                 return true;
 
-            case 'wk':
             case 'wiki':
                 $args === '' ? $tg->reply($msg, Ui::guide('wiki')) : Wiki::reply($msg, $args);
                 return true;
 
             case 'giveaway':
-            case 'gw':
                 $private ? Giveaway::start($msg) : Giveaway::fromGroup($msg);
                 return true;
 
@@ -366,7 +364,6 @@ final class MessageHandler
                 return true;
 
             case 'image':
-            case 'img':
                 if ($args === '') {
                     $tg->reply($msg, Ui::guide('image'));
                 } else {
@@ -375,16 +372,14 @@ final class MessageHandler
                 return true;
 
             case 'font':
-            case 'ft':
                 $tg->reply($msg, $args === '' ? Ui::guide('font') : Fonts::listText($args));
                 return true;
 
-            case 'tr':
             case 'translate':
                 Assistant::translate($msg, $args);
                 return true;
 
-            case 'st':
+            case 'sharetrace':
                 $tg->action($chatId, 'typing');
                 $res   = LinkCheck::respondFull($args, LinkCheck::replyText($msg), (int) ($from['id'] ?? 0));
                 if (!empty($res['rich'])) {
