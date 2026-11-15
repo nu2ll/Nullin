@@ -23,9 +23,125 @@ final class Chess
         return GameKit::modeKeyboard(self::P);
     }
 
-    private static function show(string $imid, array &$s, string $text, ?array $kb): void
+    private static function show(string $imid, array &$s, string $text, ?array $kb, ?string $img = null): void
     {
-        Rich::editInline($imid, $text, $kb);
+        $r = Rich::editInline($imid, $text, $kb, $img);
+        if ($img === null || !empty($r['ok']) || self::notModified($r)) {
+            return;
+        }
+        $r = App::tg()->call('editMessageMedia', [
+            'inline_message_id' => $imid,
+            'media'             => ['type' => 'photo', 'media' => $img, 'caption' => $text, 'parse_mode' => 'HTML'],
+            'reply_markup'      => $kb,
+        ], 30);
+        if (empty($r['ok']) && !self::notModified($r)) {
+            Rich::editInline($imid, $text, $kb);
+        }
+    }
+
+    private static function notModified(?array $r): bool
+    {
+        return stripos((string) ($r['description'] ?? ''), 'not modified') !== false;
+    }
+
+    private static function flipped(array $s): bool
+    {
+        return ($s['mode'] ?? '') === 'pvp' && ($s['pos']['t'] ?? 'w') === 'b';
+    }
+
+    private static function view(array $s, bool $active): array
+    {
+        $pos     = $s['pos'];
+        $sel     = $active ? (int) ($s['sel'] ?? -1) : -1;
+        $targets = [];
+        $caps    = [];
+        if ($sel >= 0) {
+            foreach (ChessEngine::legalFrom($pos, $sel) as $m) {
+                $to        = ChessEngine::to($m);
+                $targets[] = $to;
+                if ($pos['b'][$to] !== '.' || ($to === $pos['ep'] && strtoupper($pos['b'][$sel]) === 'P')) {
+                    $caps[] = $to;
+                }
+            }
+        }
+        $targets = array_values(array_unique($targets));
+        $caps    = array_values(array_unique($caps));
+        sort($targets);
+        sort($caps);
+        return [
+            'b'       => $pos['b'],
+            'flip'    => self::flipped($s),
+            'last'    => array_values($s['last'] ?? []),
+            'sel'     => $sel,
+            'targets' => $targets,
+            'caps'    => $caps,
+            'check'   => ChessEngine::inCheck($pos) ? ChessEngine::kingSquare($pos['b'], $pos['t']) : -1,
+        ];
+    }
+
+    private static function startView(): array
+    {
+        return ['b' => ChessEngine::START, 'flip' => false, 'last' => [], 'sel' => -1, 'targets' => [], 'caps' => [], 'check' => -1];
+    }
+
+    private static function startImage(): ?string
+    {
+        return self::imageFor(self::startView());
+    }
+
+    private static function image(array $s, bool $active): ?string
+    {
+        return self::imageFor(self::view($s, $active));
+    }
+
+    private static function imageFor(array $v): ?string
+    {
+        $key = 'b' . App::botIndex() . ':' . md5((string) json_encode($v));
+        $hit = Store::get('chessimg', $key);
+        if (is_string($hit) && $hit !== '') {
+            return $hit;
+        }
+        $png = self::renderPng($v);
+        if ($png === null) {
+            return null;
+        }
+        $id = ImageGen::fileId($png);
+        if ($id !== null) {
+            Store::set('chessimg', $key, $id);
+        }
+        return $id;
+    }
+
+    private static function renderPng(array $v): ?string
+    {
+        $script = (defined('NULLINI_ROOT') ? NULLINI_ROOT : dirname(__DIR__, 2)) . '/bin/chessboard.py';
+        if (!is_file($script) || !function_exists('proc_open')) {
+            return null;
+        }
+        $tmp = tempnam(sys_get_temp_dir(), 'nl_ch_');
+        if ($tmp === false) {
+            return null;
+        }
+        $v['out'] = $tmp;
+        $proc = @proc_open(['timeout', '20', 'python3', $script], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        if (!is_resource($proc)) {
+            @unlink($tmp);
+            return null;
+        }
+        fwrite($pipes[0], (string) json_encode($v));
+        fclose($pipes[0]);
+        stream_get_contents($pipes[1]);
+        $err = (string) stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        proc_close($proc);
+        $bytes = is_file($tmp) && filesize($tmp) > 0 ? file_get_contents($tmp) : false;
+        @unlink($tmp);
+        if ($bytes === false) {
+            logError('chess', mb_substr(trim($err), -300));
+            return null;
+        }
+        return $bytes;
     }
 
     private static function glyph(string $p): string
@@ -37,19 +153,15 @@ final class Chess
     {
         $pos     = $s['pos'];
         $sel     = (int) ($s['sel'] ?? -1);
-        $targets = [];
-        if ($active && $sel >= 0) {
-            foreach (ChessEngine::legalFrom($pos, $sel) as $m) {
-                $targets[ChessEngine::to($m)] = true;
-            }
-        }
+        $targets = array_fill_keys(self::view($s, $active)['targets'], true);
         $checkSq = ChessEngine::inCheck($pos) ? ChessEngine::kingSquare($pos['b'], $pos['t']) : -1;
+        $flip    = self::flipped($s);
 
         $rows = [];
         for ($r = 0; $r < 8; $r++) {
             $row = [];
             for ($c = 0; $c < 8; $c++) {
-                $sq    = $r * 8 + $c;
+                $sq    = $flip ? (7 - $r) * 8 + (7 - $c) : $r * 8 + $c;
                 $p     = $pos['b'][$sq];
                 $text  = self::glyph($p);
                 $style = null;
@@ -170,7 +282,7 @@ final class Chess
     {
         $active = ($s['status'] ?? '') === 'playing';
         $status = $override ?? ($active ? self::turnLine($s) : self::resultLine($s));
-        self::show($imid, $s, self::text($s, $status), self::board($s, $active, $override !== null));
+        self::show($imid, $s, self::text($s, $status), self::board($s, $active, $override !== null), self::image($s, $active));
     }
 
     private static function resultLine(array $s): string
@@ -251,7 +363,7 @@ final class Chess
                     foreach (self::levels() as $lvl => $label) {
                         $row[] = btn($label, self::P . ":lvl:{$lvl}", $lvl === 3 ? 'danger' : ($lvl === 1 ? 'success' : 'primary'));
                     }
-                    self::show($imid, $s, L("<b>♟️ شطرنج</b> · با ربات\n\nچقدر سخت بگیرم؟ 😏", "<b>♟️ Chess</b> · Vs bot\n\nHow hard should I go? 😏"), ikb([$row, GameKit::cancelRow(self::P)]));
+                    self::show($imid, $s, L("<b>♟️ شطرنج</b> · با ربات\n\nچقدر سخت بگیرم؟ 😏", "<b>♟️ Chess</b> · Vs bot\n\nHow hard should I go? 😏"), ikb([$row, GameKit::cancelRow(self::P)]), self::startImage());
                     return;
                 }
                 $s = self::start($s, 'pvp');
@@ -261,7 +373,7 @@ final class Chess
             function () use (&$s, $imid, $tg) {
                 $s = GameKit::fresh(self::P, $s['p1']);
                 GameKit::save($imid, $s);
-                self::show($imid, $s, self::intro(), self::modeKeyboard());
+                self::show($imid, $s, self::intro(), self::modeKeyboard(), self::startImage());
             },
             function (string $by) use (&$s, $imid, $tg) {
                 if (isset($s['pos'])) {
@@ -270,7 +382,7 @@ final class Chess
                     self::render($imid, $s);
                 } else {
                     GameKit::save($imid, $s);
-                    self::show($imid, $s, L("<b>♟️ شطرنج</b>\n\n✖️ بازی توسط {$by} لغو شد.", "<b>♟️ Chess</b>\n\n✖️ Game cancelled by {$by}."), GameKit::replayKeyboard(self::P));
+                    self::show($imid, $s, L("<b>♟️ شطرنج</b>\n\n✖️ بازی توسط {$by} لغو شد.", "<b>♟️ Chess</b>\n\n✖️ Game cancelled by {$by}."), GameKit::replayKeyboard(self::P), self::startImage());
                 }
             },
             function (bool $done) use (&$s, $imid) {
@@ -294,8 +406,8 @@ final class Chess
             $lvl = max(1, min(3, (int) substr($data, strlen(self::P . ':lvl:'))));
             $s   = self::start($s, 'bot', $lvl);
             GameKit::save($imid, $s);
-            self::render($imid, $s);
             $tg->answer($cq, L('تو سفیدی، شروع کن! ⚪', 'You’re white, you start! ⚪'));
+            self::render($imid, $s);
             return;
         }
 
@@ -317,14 +429,14 @@ final class Chess
                 $s['status'] = 'over';
                 $s['result'] = 'agreed';
                 GameKit::save($imid, $s);
-                self::render($imid, $s);
                 $tg->answer($cq, L('🤝 قبول شد', '🤝 Accepted'));
+                self::render($imid, $s);
                 return;
             }
             $s['draw_offer'] = $seat;
             GameKit::save($imid, $s);
-            self::render($imid, $s);
             $tg->answer($cq, L('🤝 پیشنهاد مساوی فرستاده شد', '🤝 Draw offer sent'));
+            self::render($imid, $s);
             return;
         }
 
@@ -360,8 +472,8 @@ final class Chess
                 $s['promo'] = null;
                 $s['sel']   = -1;
                 GameKit::save($imid, $s);
-                self::render($imid, $s);
                 $tg->answer($cq, L('لغو شد', 'Cancelled'));
+                self::render($imid, $s);
                 return;
             }
             self::commit($cq, $imid, $s, ChessEngine::move($pp[0], $pp[1], $code));
@@ -385,8 +497,8 @@ final class Chess
             if ($sq === $sel) {
                 $s['sel'] = -1;
                 GameKit::save($imid, $s);
-                self::render($imid, $s);
                 $tg->answer($cq);
+                self::render($imid, $s);
                 return;
             }
             if (!ChessEngine::legalFrom($pos, $sq)) {
@@ -395,8 +507,8 @@ final class Chess
             }
             $s['sel'] = $sq;
             GameKit::save($imid, $s);
-            self::render($imid, $s);
             $tg->answer($cq);
+            self::render($imid, $s);
             return;
         }
 
@@ -409,15 +521,15 @@ final class Chess
         if (!$candidates) {
             $s['sel'] = -1;
             GameKit::save($imid, $s);
-            self::render($imid, $s);
             $tg->answer($cq, L('🚫 حرکت غیرمجاز', '🚫 Illegal move'));
+            self::render($imid, $s);
             return;
         }
         if (count($candidates) > 1) {
             $s['promo'] = [$sel, $sq];
             GameKit::save($imid, $s);
-            self::render($imid, $s);
             $tg->answer($cq, L('👑 ارتقا!', '👑 Promoted!'));
+            self::render($imid, $s);
             return;
         }
         self::commit($cq, $imid, $s, $candidates[0]);
@@ -430,8 +542,8 @@ final class Chess
         GameKit::save($imid, $s);
 
         if ($s['status'] !== 'playing' || $s['mode'] !== 'bot') {
-            self::render($imid, $s);
             $tg->answer($cq, $s['status'] === 'over' ? L('🏁 بازی تموم شد', '🏁 Game over') : null);
+            self::render($imid, $s);
             return;
         }
 
