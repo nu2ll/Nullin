@@ -3,27 +3,29 @@
 final class InlineHandler
 {
     private const ROUTES = [
-        'ai'      => ['ai', 'nullini', 'nullin', 'هوش', 'نالینی', 'نالین'],
-        'tr'      => ['tr', 'tarjome', 'translate', 'ترجمه'],
-        'whisper' => ['nj', 'najva', 'نجوا'],
-        'weather' => ['hv', 'havaye', 'hava', 'weather', 'آب و هوای', 'آب و هوا', 'آب‌وهوای', 'آب‌وهوا', 'هوای', 'هوا'],
-        'nid'     => ['codemeli', 'codmeli', 'meli', 'کدملی', 'کد‌ملی'],
-        'card'    => ['card', 'کارت', 'شمارهکارت'],
-        'sheba'   => ['sheba', 'iban', 'شبا'],
-        'funstat' => ['id', 'آیدی'],
-        'love'    => ['love', 'عشق'],
-        'roast'   => ['roast', 'روست', 'بشور'],
-        'qr'      => ['qr', 'کیوآر'],
+        'ai'      => ['ai'],
+        'tr'      => ['tr'],
+        'whisper' => ['nj'],
+        'weather' => ['hv'],
+        'nid'     => ['ml'],
+        'card'    => ['cd'],
+        'sheba'   => ['sb'],
+        'funstat' => ['id'],
+        'love'    => ['lv'],
+        'roast'   => ['rs'],
+        'qr'      => ['qr'],
         'short'   => ['sh'],
-        'search'  => ['g', 'google', 'search', 'گوگل', 'سرچ', 'جستجو'],
-        'font'    => ['ft', 'font', 'fonts', 'فونت'],
-        'wiki'    => ['wk', 'wiki', 'ویکی‌پدیا', 'ویکیپدیا', 'ویکی'],
-        'gif'     => ['gif', 'گیف'],
-        'gw'      => ['gw', 'giveaway', 'قرعه‌کشی', 'قرعه کشی', 'قرعه'],
+        'search'  => ['g'],
+        'font'    => ['ft'],
+        'wiki'    => ['wk'],
+        'gif'     => ['gif'],
+        'gw'      => ['gw'],
         'linkcheck' => ['st'],
-        'like'    => ['like', 'لایک'],
-        'date'    => ['date'],
+        'like'    => ['lk'],
+        'date'    => ['dt'],
     ];
+
+    private const KEYWORDS = ['unit' => 'unit convert'];
 
     private static array $iq = [];
 
@@ -189,7 +191,7 @@ final class InlineHandler
     private static function like(string $text): void
     {
         if ($text === '') {
-            self::guide('like', 'like', L('❤️ لایک‌ساز', '❤️ Like maker'), L('بعد از like متنت رو بنویس', 'Type your text after like'));
+            self::guide('like', 'like', L('❤️ لایک‌ساز', '❤️ Like maker'), L('بعد از lk متنت رو بنویس', 'Type your text after lk'));
             return;
         }
         self::answer([Likes::article($text)], 0);
@@ -467,7 +469,7 @@ final class InlineHandler
     private static function nid(string $raw): void
     {
         if ($raw === '') {
-            self::guide('nid', 'nid', L('🪪 کد ملی', '🪪 National ID'), L('بعد از meli کد ملی رو بنویس', 'Type the national ID after meli'));
+            self::guide('nid', 'nid', L('🪪 کد ملی', '🪪 National ID'), L('بعد از ml کد ملی رو بنویس', 'Type the national ID after ml'));
             return;
         }
         $code = Tools::normalizeNid($raw);
@@ -482,7 +484,7 @@ final class InlineHandler
     private static function card(string $raw): void
     {
         if ($raw === '') {
-            self::guide('card', 'card', L('💳 شماره کارت', '💳 Card number'), L('بعد از card شماره کارت رو بنویس', 'Type the card number after card'));
+            self::guide('card', 'card', L('💳 شماره کارت', '💳 Card number'), L('بعد از cd شماره کارت رو بنویس', 'Type the card number after cd'));
             return;
         }
         $code = Tools::normalizeCard($raw);
@@ -497,7 +499,7 @@ final class InlineHandler
     private static function sheba(string $raw): void
     {
         if ($raw === '') {
-            self::guide('sheba', 'sheba', L('🏧 شماره شبا', '🏧 IBAN (Sheba)'), L('بعد از sheba شماره شبا رو بنویس', 'Type the IBAN after sheba'));
+            self::guide('sheba', 'sheba', L('🏧 شماره شبا', '🏧 IBAN (Sheba)'), L('بعد از sb شماره شبا رو بنویس', 'Type the IBAN after sb'));
             return;
         }
         $code = Tools::normalizeSheba($raw);
@@ -540,7 +542,7 @@ final class InlineHandler
         $parts = $rest === '' ? [] : preg_split('/\s+/u', $rest);
         $tok   = '/^(@[A-Za-z0-9_]{3,32}|\d{5,15})$/';
         if (count($parts) !== 2 || !preg_match($tok, $parts[0]) || !preg_match($tok, $parts[1])) {
-            self::guide('love', 'love', L('💘 تطابق عشقی', '💘 Love match'), L('love [یوزرنیم/آیدی] [یوزرنیم/آیدی۲]', 'love [username/ID] [username/ID 2]'));
+            self::guide('love', 'love', L('💘 تطابق عشقی', '💘 Love match'), L('lv [یوزرنیم/آیدی] [یوزرنیم/آیدی۲]', 'lv [username/ID] [username/ID 2]'));
             return;
         }
         $r = Love::pending($parts[0], $parts[1]);
@@ -558,7 +560,7 @@ final class InlineHandler
     {
         $tok = Roast::token($rest);
         if ($rest !== '' && $tok === '') {
-            self::guide('roast', 'roast', L('🔥 روست', '🔥 Roast'), L('roast [@یوزرنیم] [آیدی]', 'roast [@username] [ID]'));
+            self::guide('roast', 'roast', L('🔥 روست', '🔥 Roast'), L('rs [@یوزرنیم] [آیدی]', 'rs [@username] [ID]'));
             return;
         }
         $r = Roast::pending(self::$iq['from'], $tok === 'me' ? '' : $tok);
@@ -685,7 +687,7 @@ final class InlineHandler
             Ui::article('calc', 'calc', L('🧮 ماشین‌حساب', '🧮 Calculator'), L('با پرانتز و توان', 'With parentheses and powers'), Calculator::render('0'), Calculator::keyboard()),
             Ui::article('rates', 'rates', L('💱 نرخ ارز و طلا', '💱 Currency & gold rates'), L('دلار، یورو، سکه، تتر، بیت‌کوین...', 'Dollar, euro, coins, Tether, Bitcoin...'), L("<b>💱 نرخ لحظه‌ای بازار</b>\n\nبرای دیدن قیمت‌ها دکمه‌ی زیر رو بزن 👇", "<b>💱 Live market rates</b>\n\nTap the button below to see the prices 👇"), Currency::pendingKeyboard()),
             Ui::article('unit', 'unit', L('⚖️ تبدیل واحد', '⚖️ Unit converter'), L('طول، وزن، دما، حجم، سرعت و...', 'Length, weight, temperature, volume, speed and more...'), UnitConvert::render(UnitConvert::initial()), UnitConvert::keyboard(UnitConvert::initial())),
-            Ui::article('date', 'date', L('📅 تاریخ و ساعت', '📅 Date & time'), L('date [شهر] — مثلاً date tehran', 'date [city], e.g. date tehran'), Ui::guide('date'), Ui::tryKeyboard('date')),
+            Ui::article('date', 'date', L('📅 تاریخ و ساعت', '📅 Date & time'), L('dt [شهر] — مثلاً dt tehran', 'dt [city], e.g. dt tehran'), Ui::guide('date'), Ui::tryKeyboard('date')),
             Ui::article('pass', 'pass', L('🔑 پسورد ساز', '🔑 Password maker'), L('یه رمز قوی و غیرقابل حدس', 'A strong, unguessable password'), Tools::passwordText(16), Tools::passwordKeyboard()),
             Ui::article('ttt', 'ttt', L('⭕ دوز', '⭕ Tic-tac-toe'), L('دوز کلاسیک، با ربات یا دوستت', 'Classic tic-tac-toe, against the bot or a friend'), TicTacToe::intro(), TicTacToe::modeKeyboard()),
             Ui::article('c4', 'c4', L('🔴 دوز سکه‌ای', '🔴 Connect Four'), L('۴ تا پشت سر هم، با ربات یا دوستت', '4 in a row, against the bot or a friend'), ConnectFour::intro(), ConnectFour::modeKeyboard()),
@@ -696,7 +698,7 @@ final class InlineHandler
             Ui::article('help_group', 'group', L('👥 در گروه', '👥 In groups'), L('نالین رو به گروهت اضافه کن', 'Add Nullin to your group'), Ui::guide('group'), Ui::tryKeyboard('group')),
             Ui::article('help_image', 'image', L('🎨 ساخت عکس', '🎨 Create image'), L('فقط بگو چی بکشم؛ تو پیوی یا گروه', 'Just say what to draw; in private or group'), Ui::guide('image'), Ui::tryKeyboard('image')),
             Ui::article('help_whisper', 'whisper', L('🤫 نجوا', '🤫 Whisper'), L('nj [متن] [@یوزرنیم] [آیدی]', 'nj [text] [@username] [ID]'), Ui::guide('whisper'), Ui::tryKeyboard('whisper')),
-            Ui::article('help_like', 'like', L('❤️ لایک‌ساز', '❤️ Like maker'), L('like [متن]', 'like [text]'), Ui::guide('like'), Ui::tryKeyboard('like')),
+            Ui::article('help_like', 'like', L('❤️ لایک‌ساز', '❤️ Like maker'), L('lk [متن]', 'lk [text]'), Ui::guide('like'), Ui::tryKeyboard('like')),
             Ui::article('help_giveaway', 'gift', L('🎁 قرعه‌کشی', '🎁 Giveaway'), L('gw [تعداد] [زمان] [جایزه]', 'gw [count] [time] [prize]'), Ui::guide('giveaway'), Ui::tryKeyboard('giveaway')),
             Ui::article('help_wiki', 'wiki', L('📖 ویکی‌پدیا', '📖 Wikipedia'), L('wk [موضوع]', 'wk [topic]'), Ui::guide('wiki'), Ui::tryKeyboard('wiki')),
             Ui::article('help_gif', 'gif', L('🎞 گیف', '🎞 GIF'), L('gif [هر چی بخوای]', 'gif [anything you want]'), Ui::guide('gif'), Ui::tryKeyboard('gif')),
@@ -707,11 +709,11 @@ final class InlineHandler
             Ui::article('help_weather', 'weather', L('🌦 آب‌وهوا', '🌦 Weather'), L('hv [شهر]', 'hv [city]'), Ui::guide('weather'), Ui::tryKeyboard('weather')),
             Ui::article('help_qr', 'qr', L('🔳 QR کد', '🔳 QR code'), L('qr [متن یا لینک]', 'qr [text or link]'), Ui::guide('qr'), Ui::tryKeyboard('qr')),
             Ui::article('help_short', 'short', L('🔗 کوتاه‌کننده لینک', '🔗 Link shortener'), L('sh [لینک بلند]', 'sh [long link]'), Ui::guide('short'), Ui::tryKeyboard('short')),
-            Ui::article('help_roast', 'roast', L('🔥 روست', '🔥 Roast'), L('roast [@یوزرنیم] [آیدی]', 'roast [@username] [ID]'), Ui::guide('roast'), Ui::tryKeyboard('roast')),
-            Ui::article('help_love', 'love', L('💘 تطابق عشقی', '💘 Love match'), L('love [یوزرنیم/آیدی] [یوزرنیم/آیدی۲]', 'love [username/ID] [username/ID 2]'), Ui::guide('love'), Ui::tryKeyboard('love')),
-            Ui::article('help_nid', 'nid', L('🪪 کد ملی', '🪪 National ID'), L('meli [کد ملی]', 'meli [national ID]'), Ui::guide('nid'), Ui::tryKeyboard('nid')),
-            Ui::article('help_card', 'card', L('💳 شماره کارت', '💳 Card number'), L('card [شماره کارت]', 'card [card number]'), Ui::guide('card'), Ui::tryKeyboard('card')),
-            Ui::article('help_sheba', 'sheba', L('🏧 شماره شبا', '🏧 IBAN (Sheba)'), L('sheba [شماره شبا]', 'sheba [IBAN]'), Ui::guide('sheba'), Ui::tryKeyboard('sheba')),
+            Ui::article('help_roast', 'roast', L('🔥 روست', '🔥 Roast'), L('rs [@یوزرنیم] [آیدی]', 'rs [@username] [ID]'), Ui::guide('roast'), Ui::tryKeyboard('roast')),
+            Ui::article('help_love', 'love', L('💘 تطابق عشقی', '💘 Love match'), L('lv [یوزرنیم/آیدی] [یوزرنیم/آیدی۲]', 'lv [username/ID] [username/ID 2]'), Ui::guide('love'), Ui::tryKeyboard('love')),
+            Ui::article('help_nid', 'nid', L('🪪 کد ملی', '🪪 National ID'), L('ml [کد ملی]', 'ml [national ID]'), Ui::guide('nid'), Ui::tryKeyboard('nid')),
+            Ui::article('help_card', 'card', L('💳 شماره کارت', '💳 Card number'), L('cd [شماره کارت]', 'cd [card number]'), Ui::guide('card'), Ui::tryKeyboard('card')),
+            Ui::article('help_sheba', 'sheba', L('🏧 شماره شبا', '🏧 IBAN (Sheba)'), L('sb [شماره شبا]', 'sb [IBAN]'), Ui::guide('sheba'), Ui::tryKeyboard('sheba')),
             Ui::article('help_linkcheck', 'linkcheck', L('🛡 ردیاب اشتراک', '🛡 Invite link tracker'), L('st [لینک اشتراک]', 'st [invite link]'), Ui::guide('linkcheck'), Ui::tryKeyboard('linkcheck')),
             Ui::article('help_funstat', 'funstat', L('🔍 استعلام کاربر', '🔍 User lookup'), L('id [آیدی عددی]', 'id [numeric ID]'), Ui::guide('funstat'), Ui::tryKeyboard('funstat')),
         ];
@@ -722,7 +724,7 @@ final class InlineHandler
         $items = array_values(array_filter($items, static fn($r) => !isset($swMap[$r['id']]) || Switches::on($swMap[$r['id']])));
 
         if ($filter !== '') {
-            $hits = array_values(array_filter($items, static fn($r) => mb_stripos($r['title'] . ' ' . $r['description'], $filter) !== false));
+            $hits = array_values(array_filter($items, static fn($r) => mb_stripos($r['title'] . ' ' . $r['description'] . ' ' . (self::KEYWORDS[$r['id']] ?? ''), $filter) !== false));
             if ($hits) {
                 $items = $hits;
             }

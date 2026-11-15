@@ -39,6 +39,7 @@ final class MessageHandler
         }
 
         if ($text !== '' && $text[0] === '/' && self::tidy($msg, $text, $private, static fn() => self::command($msg, $text, $private))) {
+            App::tg()->react($msg['chat']['id'], (int) ($msg['message_id'] ?? 0), '👾');
             return;
         }
 
@@ -129,6 +130,7 @@ final class MessageHandler
         }
 
         if ($ratesCmd && $price === null && $link === null) {
+            App::tg()->react($msg['chat']['id'], (int) $msg['message_id'], '👾');
             Intent::run($msg, 'rates', '');
             return;
         }
@@ -144,6 +146,7 @@ final class MessageHandler
         }
 
         if (is_array($msg['dice'] ?? null)) {
+            App::tg()->react($msg['chat']['id'], (int) $msg['message_id'], '👾');
             Rich::replyWithButton($msg, Ui::diceHello((string) ($msg['dice']['emoji'] ?? '🎲'), (int) ($msg['dice']['value'] ?? 0)), 'Nullin', 'noop', null);
             return;
         }
@@ -157,6 +160,7 @@ final class MessageHandler
         }
 
         if ($group && $question === '' && !$hasMedia && !isset($msg['reply_to_message']) && ($mentioned || $startsWithName)) {
+            App::tg()->react($msg['chat']['id'], (int) $msg['message_id'], '👾');
             $r = Rich::replyTo($msg, Ui::hello(), Ui::groupKeyboard());
             AI::markMsg($msg['chat']['id'], $r['result']['message_id'] ?? 0);
             return;

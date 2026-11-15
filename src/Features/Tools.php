@@ -176,6 +176,19 @@ final class Tools
         '502910' => ['Caspian Credit Institution', 'موسسه اعتباری کاسپین'],
         '585947' => ['Khavarmianeh Bank', 'بانک خاورمیانه'],
         '639599' => ['Ghavamin Bank', 'بانک قوامین'],
+        '170019' => ['Bank Melli Iran', 'بانک ملی ایران'],
+        '207177' => ["Tose'e Saderat Bank", 'بانک توسعه صادرات'],
+        '639217' => ['Bank Keshavarzi', 'بانک کشاورزی'],
+        '627884' => ['Bank Parsian', 'بانک پارسیان'],
+        '505426' => ['Bank Gardeshgari', 'بانک گردشگری'],
+        '636795' => ['Central Bank of Iran', 'بانک مرکزی'],
+        '636797' => ['Central Bank of Iran', 'بانک مرکزی'],
+        '903769' => ['Bank Saderat Iran', 'بانک صادرات ایران'],
+        '639370' => ['Mehr Eghtesad Bank', 'بانک مهر اقتصاد'],
+        '628157' => ["Tose'e Credit Institution", 'موسسه اعتباری توسعه'],
+        '507677' => ['Noor Credit Institution', 'موسسه اعتباری نور'],
+        '606256' => ['Mellal Credit Institution', 'موسسه اعتباری ملل'],
+        '581874' => ['Iran Venezuela Bi-National Bank', 'بانک ایران ونزوئلا'],
     ];
 
     private const SHEBA_CODES = [
@@ -213,6 +226,8 @@ final class Tools
         '073' => ['Kowsar Credit Institution', 'موسسه اعتباری کوثر'],
         '075' => ['Mellat Credit Institution', 'موسسه اعتباری ملل'],
         '078' => ['Khavarmianeh Bank', 'بانک خاورمیانه'],
+        '079' => ['Mehr Eghtesad Bank', 'بانک مهر اقتصاد'],
+        '090' => ['Mehr Iran Credit Institution', 'موسسه قرض الحسنه مهر ایران'],
         '080' => ['Noor Credit Institution', 'موسسه اعتباری نور'],
         '095' => ['Iran Venezuela Bi-National Bank', 'بانک ایران ونزوئلا'],
     ];

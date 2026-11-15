@@ -514,9 +514,7 @@ final class Assistant
             $live?->stop();
         }
 
-        if ($res['reaction'] !== null) {
-            $tg->react($chatId, (int) $msg['message_id'], $res['reaction']);
-        }
+        $tg->react($chatId, (int) $msg['message_id'], $res['reaction'] ?? '👾');
 
         if (!empty($res['action'])) {
             $live?->discard();
@@ -643,9 +641,7 @@ final class Assistant
             if (!empty($res['action'])) {
                 $res = AI::reply($content, ['no_action' => true] + $ctx, $history, $opt);
             }
-            if ($res['reaction'] !== null) {
-                $tg->react($chatId, $origId, $res['reaction']);
-            }
+            $tg->react($chatId, $origId, $res['reaction'] ?? '👾');
             $searched = AI::$searched;
 
             if (!empty($res['image']) || !empty($res['image_partial'])) {

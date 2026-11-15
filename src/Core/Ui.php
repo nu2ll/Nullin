@@ -891,9 +891,9 @@ final class Ui
                 . L("مستقیم بنویس.", "just type it directly."),
 
             'date' => L("<b>📅 تاریخ و ساعت</b>\n", "<b>📅 Date & time</b>\n")
-                . L("اول «date» رو بنویس، بعدش اسم شهر یا کشور.\n\n", "First type \"date\", then the name of a city or country.\n\n")
-                . "• " . $c('Date Tehran') . "\n"
-                . "• " . $c('Date New York') . "\n\n"
+                . L("اول «dt» رو بنویس، بعدش اسم شهر یا کشور.\n\n", "First type \"dt\", then the name of a city or country.\n\n")
+                . "• " . $c('dt Tehran') . "\n"
+                . "• " . $c('dt New York') . "\n\n"
                 . L("💡 فارسی یا انگلیسی فرقی نداره؛\n", "💡 Persian or English doesn't matter;\n")
                 . L("تاریخ و ساعت اون شهر رو می‌گیری.", "you get the date and time of that city."),
 
@@ -915,12 +915,12 @@ final class Ui
             'like' => L("<b>❤️ لایک‌ساز</b>\n", "<b>❤️ Like maker</b>\n")
                 . L("هر متنی بنویسی با دکمه‌ی ❤️ و شمارنده می‌فرستمش؛\n", "Write any text and I'll send it with a ❤️ button and a counter;\n")
                 . L("هر نفر یه بار می‌تونه لایک کنه و با زدن دوباره برمی‌داره.\n\n", "each person can like once and tapping again removes it.\n\n")
-                . "• " . $c(L('like نالین', 'like Nullin')),
+                . "• " . $c(L('lk نالین', 'lk Nullin')),
 
             'love' => L("<b>💘 تطابق عشقی</b>\n", "<b>💘 Love match</b>\n")
                 . L("درصد عشق بین دو نفر (کاملاً شانسی و فان 😄).\n\n", "Love percentage between two people (purely random and for fun 😄).\n\n")
-                . "• " . $c('love @ali @sara') . "\n"
-                . "• " . $c('love @ali 12345678'),
+                . "• " . $c('lv @ali @sara') . "\n"
+                . "• " . $c('lv @ali 12345678'),
 
             'roast' => L("<b>🔥 روست</b>\n", "<b>🔥 Roast</b>\n")
                 . L("با عکس پروفایل، اسم، بیو، یوزرنیم و حرفاش،\n", "Using the profile photo, name, bio, username and messages,\n")
@@ -928,26 +928,26 @@ final class Ui
                 . L("• خودت: <code>نالین منو روست کن</code>\n", "• Yourself: <code>Nullin roast me</code>\n")
                 . L("• یه نفر دیگه: <code>نالین اینو روست کن</code>\n", "• Someone else: <code>Nullin roast this person</code>\n")
                 . L("• با آیدی: <code>نالین @username رو روست کن</code>\n", "• By username: <code>Nullin roast @username</code>\n")
-                . L("• تو هر چتی:\n", "• In any chat:\n") . $c('roast') . "\n" . $c('roast @username') . "\n\n"
+                . L("• تو هر چتی:\n", "• In any chat:\n") . $c('rs') . "\n" . $c('rs @username') . "\n\n"
                 . L("💡 هر جوری بگی می‌فهمم 😉\n", "💡 I understand however you phrase it 😉\n")
                 . L("⏱ هر نفر دقیقه‌ای یه بار؛ فقط شوخیه، ناراحت نشی 😄", "⏱ Once a minute per person; it's just a joke, don't be upset 😄"),
 
             'nid' => L("<b>🪪 کد ملی</b>\n", "<b>🪪 National ID</b>\n")
                 . L("بررسی سالم بودن ساختار کد ملی\n", "Checks that the structure of a national ID is valid\n")
                 . L("(رقم کنترل).\n\n", "(check digit).\n\n")
-                . "• " . $c('meli 0012345678') . "\n\n"
+                . "• " . $c('ml 0012345678') . "\n\n"
                 . L("⚠️ فقط ساختار رو چک می‌کنه، نه ثبت‌احوال رو.", "⚠️ It only checks the structure, not the civil registry."),
 
             'card' => L("<b>💳 شماره کارت</b>\n", "<b>💳 Card number</b>\n")
                 . L("بررسی سالم بودن ساختار شماره کارت (الگوریتم Luhn)\n", "Checks that a card number's structure is valid (Luhn algorithm)\n")
                 . L("و تشخیص بانک صادرکننده.\n\n", "and detects the issuing bank.\n\n")
-                . "• " . $c('card 6037991234567890') . "\n\n"
+                . "• " . $c('cd 6037991234567890') . "\n\n"
                 . L("⚠️ فقط ساختار و بانک رو چک می‌کنه، نه صاحب کارت رو.", "⚠️ It only checks the structure and the bank, not the card's owner."),
 
             'sheba' => L("<b>🏧 شماره شبا</b>\n", "<b>🏧 IBAN (Sheba)</b>\n")
                 . L("بررسی سالم بودن رقم کنترل شماره شبا\n", "Checks that an IBAN's check digits are valid\n")
                 . L("و تشخیص بانک صادرکننده.\n\n", "and detects the issuing bank.\n\n")
-                . "• " . $c('sheba IR820540102680020817909002') . "\n\n"
+                . "• " . $c('sb IR820540102680020817909002') . "\n\n"
                 . L("⚠️ فقط رقم کنترل و بانک رو چک می‌کنه، نه صاحب حساب رو.", "⚠️ It only checks the check digits and the bank, not the account's owner."),
 
             'unit' => L("<b>⚖️ تبدیل واحد</b>\n", "<b>⚖️ Unit converter</b>\n")
@@ -1028,10 +1028,10 @@ final class Ui
         return ikb($rows);
     }
 
-    private const TRY_PREFIX = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'love ', 'like' => 'like ', 'roast' => 'roast ', 'date' => 'date ',
-        'nid' => 'meli ', 'card' => 'card ', 'sheba' => 'sheba ', 'unit' => 'تبدیل', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
-    const TRY_PREFIX_EN = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'love ', 'like' => 'like ', 'roast' => 'roast ', 'date' => 'date ',
-        'nid' => 'meli ', 'card' => 'card ', 'sheba' => 'sheba ', 'unit' => 'convert', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
+    private const TRY_PREFIX = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'lv ', 'like' => 'lk ', 'roast' => 'rs ', 'date' => 'dt ',
+        'nid' => 'ml ', 'card' => 'cd ', 'sheba' => 'sb ', 'unit' => 'unit', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
+    const TRY_PREFIX_EN = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'lv ', 'like' => 'lk ', 'roast' => 'rs ', 'date' => 'dt ',
+        'nid' => 'ml ', 'card' => 'cd ', 'sheba' => 'sb ', 'unit' => 'convert', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
 
     private static function tryButton(string $key): array
     {
