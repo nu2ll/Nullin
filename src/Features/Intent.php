@@ -2,7 +2,7 @@
 
 final class Intent
 {
-    public const NAMES = ['translate', 'download', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'short', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'card', 'sheba', 'phone', 'love', 'roast', 'userinfo', 'giveaway', 'gif'];
+    public const NAMES = ['translate', 'download', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'short', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'card', 'sheba', 'love', 'roast', 'userinfo', 'giveaway', 'gif'];
 
     public static function prompt(): string
     {
@@ -25,7 +25,6 @@ final class Intent
             . "\n- nid | <national ID code>: check whether an Iranian national ID is valid."
             . "\n- card | <card number>: check whether an Iranian bank card number is valid and which bank issued it."
             . "\n- sheba | <IBAN>: check whether an Iranian IBAN (Sheba) is valid and which bank issued it."
-            . "\n- phone | <phone number>: find the operator of an Iranian mobile number or the province of an Iranian landline number from its prefix."
             . "\n- love | <first person> | <second person>: love percentage for two people."
             . "\n- roast | <me, reply, @username or numeric id>: roast a person; me means the user themselves, reply means the author of the message they replied to. Only for a new roast; commenting on a previous roast is not a roast request."
             . "\n- userinfo: the user’s own Telegram account info."
@@ -217,10 +216,6 @@ final class Intent
             case 'sheba':
                 $code = Tools::normalizeSheba($arg);
                 return $code === null ? ['text' => L('🏧 یه شماره شبا بفرست تا چکش کنم.', '🏧 Send an IBAN (Sheba) and I’ll check it.')] : ['text' => Tools::shebaText($code)];
-
-            case 'phone':
-                $code = Tools::normalizePhone($arg);
-                return $code === null ? ['text' => L('📞 یه شماره تلفن بفرست تا چکش کنم.', '📞 Send a phone number and I’ll check it.')] : ['text' => Tools::phoneText($code)];
 
             case 'search':
                 if (mb_strlen($arg) < 2) {

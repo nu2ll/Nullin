@@ -23,7 +23,6 @@ final class Ui
         'nid'      => ['Identification card', 'identification_card'],
         'card'     => ['Credit card', 'credit_card'],
         'sheba'    => ['Bank', 'bank'],
-        'phone'    => ['Mobile phone', 'mobile_phone'],
         'funstat'  => ['Magnifying glass tilted left', 'magnifying_glass_tilted_left'],
         'ai'       => ['Brain', 'brain'],
         'love'     => ['Heart with arrow', 'heart_with_arrow'],
@@ -757,7 +756,6 @@ final class Ui
         'nid'       => '🪪 کد ملی',
         'card'      => '💳 شماره کارت',
         'sheba'     => '🏧 شماره شبا',
-        'phone'     => '📞 شماره تلفن',
         'unit'      => '⚖️ تبدیل واحد',
         'funstat'   => '🔍 استعلام کاربر',
         'linkcheck' => '🛡 ردیاب اشتراک',
@@ -785,7 +783,6 @@ final class Ui
         'nid'       => '🪪 National ID',
         'card'      => '💳 Card number',
         'sheba'     => '🏧 IBAN (Sheba)',
-        'phone'     => '📞 Phone number',
         'unit'      => '⚖️ Unit converter',
         'funstat'   => '🔍 User lookup',
         'linkcheck' => '🛡 Invite link tracker',
@@ -975,13 +972,6 @@ final class Ui
                 . "• " . $c('sb IR820540102680020817909002') . "\n\n"
                 . L("⚠️ فقط رقم کنترل و بانک رو چک می‌کنه، نه صاحب حساب رو.", "⚠️ It only checks the check digits and the bank, not the account's owner."),
 
-            'phone' => L("<b>📞 شماره تلفن</b>\n", "<b>📞 Phone number</b>\n")
-                . L("تشخیص اپراتور و استان شماره‌ی موبایل و تلفن ثابت\n", "Detects the operator and province of a mobile or landline number\n")
-                . L("از روی پیش‌شماره.\n\n", "from its prefix.\n\n")
-                . "• " . $c('ph 09121234567') . "\n"
-                . "• " . $c('ph 02112345678') . "\n\n"
-                . L("⚠️ فقط پیش‌شماره رو چک می‌کنه؛ شماره‌ی موبایل ممکنه بین اپراتورها منتقل شده باشه.", "⚠️ It only checks the prefix; a mobile number may have been ported between operators."),
-
             'unit' => L("<b>⚖️ تبدیل واحد</b>\n", "<b>⚖️ Unit converter</b>\n")
                 . L("طول، وزن، حجم، سرعت، مساحت، دیتا و دما\n", "Length, weight, volume, speed, area, data and temperature\n")
                 . L("• از منوی اصلی:\n", "• From the main menu:\n")
@@ -1025,7 +1015,7 @@ final class Ui
 
     private const HELP_LAYOUT = [
         1 => [['ai', 'image'], ['translate', 'search'], ['whisper', 'linkcheck'], ['font', 'download'], ['giveaway', 'wiki']],
-        2 => [['weather', 'calc'], ['qr', 'short'], ['love', 'group'], ['like', 'unit'], ['roast', 'nid'], ['card', 'sheba'], ['funstat', 'games'], ['gif', 'phone']],
+        2 => [['weather', 'calc'], ['qr', 'short'], ['love', 'group'], ['like', 'unit'], ['roast', 'nid'], ['card', 'sheba'], ['funstat', 'games'], ['gif']],
     ];
 
     public static function helpPage(string $key): int
@@ -1064,9 +1054,9 @@ final class Ui
     }
 
     private const TRY_PREFIX = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'lv ', 'like' => 'lk ', 'roast' => 'rs ', 'date' => 'dt ',
-        'nid' => 'ml ', 'card' => 'cd ', 'sheba' => 'sb ', 'phone' => 'ph ', 'unit' => 'unit', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
+        'nid' => 'ml ', 'card' => 'cd ', 'sheba' => 'sb ', 'unit' => 'unit', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
     const TRY_PREFIX_EN = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'lv ', 'like' => 'lk ', 'roast' => 'rs ', 'date' => 'dt ',
-        'nid' => 'ml ', 'card' => 'cd ', 'sheba' => 'sb ', 'phone' => 'ph ', 'unit' => 'convert', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
+        'nid' => 'ml ', 'card' => 'cd ', 'sheba' => 'sb ', 'unit' => 'convert', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
 
     private static function tryButton(string $key): array
     {
