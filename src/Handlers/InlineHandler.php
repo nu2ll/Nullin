@@ -10,6 +10,7 @@ final class InlineHandler
         'nid'     => ['ml'],
         'card'    => ['cd'],
         'sheba'   => ['sb'],
+        'phone'   => ['ph'],
         'funstat' => ['id'],
         'love'    => ['lv'],
         'roast'   => ['rs'],
@@ -69,6 +70,7 @@ final class InlineHandler
                         'nid'     => self::nid($rest),
                         'card'    => self::card($rest),
                         'sheba'   => self::sheba($rest),
+                        'phone'   => self::phone($rest),
                         'funstat' => self::funstat($rest),
                         'love'    => self::love($rest),
                         'roast'   => self::roast($rest),
@@ -511,6 +513,21 @@ final class InlineHandler
         self::answer([Ui::article("sheba_{$code}", $ok ? 'ok' : 'fail', $ok ? L('✅ شبا سالمه', '✅ IBAN is valid') : L('❌ شبا نامعتبره', '❌ IBAN is invalid'), Tools::shebaDisplay($code), Tools::shebaText($code))], 300, false);
     }
 
+    private static function phone(string $raw): void
+    {
+        if ($raw === '') {
+            self::guide('phone', 'phone', L('📞 شماره تلفن', '📞 Phone number'), L('بعد از ph شماره تلفن رو بنویس', 'Type the phone number after ph'));
+            return;
+        }
+        $code = Tools::normalizePhone($raw);
+        if ($code === null) {
+            self::fail('phone_bad', L('⚠️ فرمت شماره اشتباهه', '⚠️ Wrong phone number format'), L('باید ۱۰ یا ۱۱ رقم باشه', 'It must be 10 or 11 digits'), L('⚠️ شماره تلفن باید فقط عدد و ۱۰ یا ۱۱ رقم باشه (با پیش‌شماره).', '⚠️ The phone number must be digits only, 10 or 11 digits (with the prefix).'));
+            return;
+        }
+        $ok = Tools::isRecognizedPhone($code);
+        self::answer([Ui::article("phone_{$code}", $ok ? 'ok' : 'fail', $ok ? L('✅ پیش‌شماره شناخته‌شده‌ست', '✅ Prefix recognized') : L('❌ پیش‌شماره ناشناخته‌ست', '❌ Prefix unknown'), Tools::phoneDisplay($code), Tools::phoneText($code))], 300, false);
+    }
+
     private static function linkcheck(string $rest): void
     {
         $url = LinkCheck::extract($rest);
@@ -714,13 +731,14 @@ final class InlineHandler
             Ui::article('help_nid', 'nid', L('🪪 کد ملی', '🪪 National ID'), L('ml [کد ملی]', 'ml [national ID]'), Ui::guide('nid'), Ui::tryKeyboard('nid')),
             Ui::article('help_card', 'card', L('💳 شماره کارت', '💳 Card number'), L('cd [شماره کارت]', 'cd [card number]'), Ui::guide('card'), Ui::tryKeyboard('card')),
             Ui::article('help_sheba', 'sheba', L('🏧 شماره شبا', '🏧 IBAN (Sheba)'), L('sb [شماره شبا]', 'sb [IBAN]'), Ui::guide('sheba'), Ui::tryKeyboard('sheba')),
+            Ui::article('help_phone', 'phone', L('📞 شماره تلفن', '📞 Phone number'), L('ph [شماره تلفن]', 'ph [phone number]'), Ui::guide('phone'), Ui::tryKeyboard('phone')),
             Ui::article('help_linkcheck', 'linkcheck', L('🛡 ردیاب اشتراک', '🛡 Invite link tracker'), L('st [لینک اشتراک]', 'st [invite link]'), Ui::guide('linkcheck'), Ui::tryKeyboard('linkcheck')),
             Ui::article('help_funstat', 'funstat', L('🔍 استعلام کاربر', '🔍 User lookup'), L('id [آیدی عددی]', 'id [numeric ID]'), Ui::guide('funstat'), Ui::tryKeyboard('funstat')),
         ];
 
         $swMap = ['info' => 'userinfo', 'chess' => 'chess', 'ttt' => 'ttt', 'c4' => 'c4', 'rps' => 'rps', 'math' => 'math', 'calc' => 'calc', 'unit' => 'unit', 'rates' => 'rates', 'date' => 'date', 'pass' => 'password', 'coin' => 'coin', 'fal' => 'fal',
             'help_image' => 'image', 'help_whisper' => 'whisper', 'help_giveaway' => 'giveaway', 'help_like' => 'like', 'help_wiki' => 'wiki', 'help_gif' => 'gif', 'help_ai' => 'ai', 'help_translate' => 'translate', 'help_search' => 'search',
-            'help_font' => 'font', 'help_weather' => 'weather', 'help_qr' => 'qr', 'help_short' => 'short', 'help_roast' => 'roast', 'help_love' => 'love', 'help_nid' => 'nid', 'help_card' => 'card', 'help_sheba' => 'sheba', 'help_funstat' => 'funstat', 'help_linkcheck' => 'linkcheck'];
+            'help_font' => 'font', 'help_weather' => 'weather', 'help_qr' => 'qr', 'help_short' => 'short', 'help_roast' => 'roast', 'help_love' => 'love', 'help_nid' => 'nid', 'help_card' => 'card', 'help_sheba' => 'sheba', 'help_phone' => 'phone', 'help_funstat' => 'funstat', 'help_linkcheck' => 'linkcheck'];
         $items = array_values(array_filter($items, static fn($r) => !isset($swMap[$r['id']]) || Switches::on($swMap[$r['id']])));
 
         if ($filter !== '') {

@@ -26,6 +26,7 @@ final class Switches
         'nid'      => ['🪪 کد ملی', '🪪 National ID'],
         'card'     => ['💳 شماره کارت', '💳 Card number'],
         'sheba'    => ['🏧 شماره شبا', '🏧 IBAN (Sheba)'],
+        'phone'    => ['📞 شماره تلفن', '📞 Phone number'],
         'unit'     => ['⚖️ تبدیل واحد', '⚖️ Unit converter'],
         'userinfo' => ['👤 اطلاعات کاربر', '👤 User info'],
         'funstat'  => ['🔍 استعلام کاربر', '🔍 User lookup'],
