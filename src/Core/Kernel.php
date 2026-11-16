@@ -5,7 +5,7 @@ final class Kernel
     private const DAILY = ['whisper_pending', 'gw_draft', 'gw_wiz', 'like_txt', 'wiki_pending', 'pc_pending', 'linkcheck_inline'];
 
     private const TTL = [
-        'games'           => 7 * 86400,
+        'games'           => 10 * 86400,
         'calc'            => 7 * 86400,
         'unit'            => 7 * 86400,
         'owner'           => 14 * 86400,
@@ -33,7 +33,7 @@ final class Kernel
         'biz_pause'       => 30 * 86400,
         'biz_wait'        => 86400,
         'tidy'            => 2 * 86400,
-        'menuowner'       => 7 * 86400,
+        'menuowner'       => 10 * 86400,
         'bc_last'         => 2 * 86400,
         'gen_stop'        => 600,
     ];

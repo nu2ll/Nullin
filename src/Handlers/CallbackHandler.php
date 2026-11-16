@@ -21,6 +21,12 @@ final class CallbackHandler
         $imid = $cq['inline_message_id'] ?? null;
         $uid  = (int) ($cq['from']['id'] ?? 0);
 
+        // Games started with /games live in a normal chat message: give it a virtual inline id
+        // so the game classes (which are keyed by inline_message_id) work unchanged.
+        if (!$imid && isset(self::GAMES[strstr($data, ':', true) ?: $data]) && isset($cq['message']['chat']['id'], $cq['message']['message_id'])) {
+            $imid = GamesMenu::vid($cq['message']['chat']['id'], (int) $cq['message']['message_id']);
+        }
+
         // Display-only buttons. 'aiq:' / 'trq:' are the old AI/translate placeholder buttons that may
         // still sit on already-sent messages; new ones use plain 'noop'.
         if ($data === 'noop' || $data === 'love:noop' || $data === 'info:label' || preg_match('/^(?:ai|tr)q:\w+$/', $data)) {
@@ -85,6 +91,10 @@ final class CallbackHandler
             return;
         }
 
+        if (str_starts_with($data, GamesMenu::P . ':')) {
+            GamesMenu::onCallback($cq, $data);
+            return;
+        }
         if (str_starts_with($data, 'dl:')) {
             Downloader::onCallback($cq, $data);
             return;

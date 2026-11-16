@@ -32,6 +32,14 @@ final class Telegram
 
     public function call(string $method, array $params = [], int $timeout = 20): ?array
     {
+        // Virtual inline id of a plain chat message ("c:<chat_id>:<message_id>", see GamesMenu::vid):
+        // games started from /games are edited as normal chat messages.
+        if (isset($params['inline_message_id']) && is_string($params['inline_message_id'])
+            && preg_match('/^c:(-?\d+):(\d+)$/', $params['inline_message_id'], $vm) === 1) {
+            unset($params['inline_message_id']);
+            $params['chat_id']    = $vm[1];
+            $params['message_id'] = (int) $vm[2];
+        }
         $r      = $this->request($method, $params, $timeout);
         MessageHandler::tidySeen($method, $params, $r);
         return $r;

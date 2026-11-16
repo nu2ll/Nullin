@@ -665,6 +665,9 @@ final class Ui
             $c('ping', L('🏓 پینگ', '🏓 Ping')),
             $c('lang', '🌐 زبان / Language'),
         ];
+        if (GamesMenu::anyOn()) {
+            $base[] = $c('games', L('🎮 بازی‌ها', '🎮 Games'));
+        }
         foreach ([['image', L('🎨 ساخت عکس', '🎨 Create image')], ['translate', L('🌐 ترجمه', '🌐 Translate')], ['font', L('✨ فونت‌ساز', '✨ Font maker')], ['giveaway', L('🎁 قرعه‌کشی', '🎁 Giveaway')], ['wiki', L('📖 ویکی‌پدیا', '📖 Wikipedia')], ['gif', L('🎞 گیف', '🎞 GIF')], ['sharetrace', L('🛡 ردیاب اشتراک', '🛡 Invite link tracker')]] as [$cmd, $desc]) {
             if (Switches::on(Switches::COMMAND_SWITCH[$cmd])) {
                 $base[] = $c($cmd, $desc);
@@ -990,7 +993,8 @@ final class Ui
                 . L("• یا روی پیامی که لینک داره ریپلای کن و <code>/sharetrace</code> بزن", "• Or reply to a message that has a link and send <code>/sharetrace</code>"),
 
             'games' => L("<b>🎮 بازی‌ها</b>\n", "<b>🎮 Games</b>\n")
-                . L("همه از منوی اصلی در دسترسن؛\n", "All available from the main menu;\n")
+                . L("بدون اینلاین: دستور <code>/games</code> رو بزن،\nلیست بازی‌ها میاد و با کلیک روی هر بازی\nهمون پیام تبدیل به بازی می‌شه؛\nکسی که دستور رو زده سازنده‌ی بازیه.\n\n", "No inline needed: send <code>/games</code>,\ntap a game in the list and that same message\nturns into the game; whoever sent the command\nis the game's creator.\n\n")
+                . L("یا از اینلاین:\n", "Or inline:\n")
                 . "<code>{$b}</code>\n"
                 . L("با ربات یا با دوستات:\n\n", "with the bot or with your friends:\n\n")
                 . L("♟️ شطرنج (۳ سطح سختی)\n", "♟️ Chess (3 difficulty levels)\n")

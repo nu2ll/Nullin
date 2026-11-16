@@ -4,7 +4,7 @@ final class MessageHandler
 {
     private const TRIGGER = '(?:نالینی|نالین|nullini|nullin)';
     private const RATES_CMD = '/^(?:نرخ[\s\x{200C}]*(?:ارز|ارزها|ارز[\s\x{200C}]*و[\s\x{200C}]*طلا)|قیمت[\s\x{200C}]*ارز(?:ها)?|(?:(?:exchange|currency|gold|market|live)(?:\s*(?:&|and)\s*|\s+))*rates?)[\s؟?!.]*$/iu';
-    private const TIDY_SKIP = ['cookies', 'broadcast', 'giveaway', 'gif'];
+    private const TIDY_SKIP = ['cookies', 'broadcast', 'giveaway', 'gif', 'games', 'game'];
     private const TIDY_SEND = '/^send(Message|RichMessage|Photo|Video|Animation|Document|Audio|Voice|Sticker|Poll|Dice|MediaGroup)$/';
 
     private static ?array $tidy = null;
@@ -340,6 +340,11 @@ final class MessageHandler
                 $t0 = microtime(true);
                 $tg->call('getMe', [], 10);
                 Rich::replyWithButton($msg, Ui::ping((int) round((microtime(true) - $t0) * 1000)), 'Nullin', 'noop', null);
+                return true;
+
+            case 'games':
+            case 'game':
+                GamesMenu::command($msg, $private);
                 return true;
 
             case 'help':
