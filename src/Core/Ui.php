@@ -993,8 +993,8 @@ final class Ui
                 . L("• یا روی پیامی که لینک داره ریپلای کن و <code>/sharetrace</code> بزن", "• Or reply to a message that has a link and send <code>/sharetrace</code>"),
 
             'games' => L("<b>🎮 بازی‌ها</b>\n", "<b>🎮 Games</b>\n")
-                . L("بدون اینلاین: دستور <code>/games</code> رو بزن،\nلیست بازی‌ها میاد و با کلیک روی هر بازی\nهمون پیام تبدیل به بازی می‌شه؛\nکسی که دستور رو زده سازنده‌ی بازیه.\n\n", "No inline needed: send <code>/games</code>,\ntap a game in the list and that same message\nturns into the game; whoever sent the command\nis the game's creator.\n\n")
-                . L("یا از اینلاین:\n", "Or inline:\n")
+                . L("• دستور: <code>/games</code> رو بزن،\nلیست بازی‌ها میاد و با کلیک روی هر بازی\nهمون پیام تبدیل به بازی می‌شه؛\nکسی که دستور رو زده سازنده‌ی بازیه.\n\n", "• Command: send <code>/games</code>,\nthe games list appears and tapping a game\nturns that same message into the game;\nwhoever sent the command is the game's creator.\n\n")
+                . L("همه بازی‌ها از منوی اصلی هم در دسترسن؛\n", "All games are also available from the main menu;\n")
                 . "<code>{$b}</code>\n"
                 . L("با ربات یا با دوستات:\n\n", "with the bot or with your friends:\n\n")
                 . L("♟️ شطرنج (۳ سطح سختی)\n", "♟️ Chess (3 difficulty levels)\n")

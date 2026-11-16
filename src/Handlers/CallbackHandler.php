@@ -25,6 +25,7 @@ final class CallbackHandler
         // so the game classes (which are keyed by inline_message_id) work unchanged.
         if (!$imid && isset(self::GAMES[strstr($data, ':', true) ?: $data]) && isset($cq['message']['chat']['id'], $cq['message']['message_id'])) {
             $imid = GamesMenu::vid($cq['message']['chat']['id'], (int) $cq['message']['message_id']);
+            GameKit::$chat = true;
         }
 
         // Display-only buttons. 'aiq:' / 'trq:' are the old AI/translate placeholder buttons that may

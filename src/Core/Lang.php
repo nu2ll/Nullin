@@ -110,6 +110,10 @@ final class Lang
 
     public static function useUpdate(array $update): void
     {
+        // The poller process fills $memo at boot (Ui::pushAdminCommands) and every update is handled by a
+        // forked child that inherits it. Start each update with an empty memo so a language the user just
+        // changed is read from the store instead of the stale boot-time value.
+        self::$memo = [];
         $from = null;
         foreach (['message', 'edited_message', 'callback_query', 'inline_query', 'chosen_inline_result', 'guest_message', 'business_message', 'edited_business_message', 'my_chat_member'] as $k) {
             if (isset($update[$k]['from']) && is_array($update[$k]['from'])) {

@@ -67,10 +67,17 @@ final class GameKit
         return 0;
     }
 
+    /** True while handling a game that lives in a normal chat message (started with /games). */
+    public static bool $chat = false;
+
     public static function modeKeyboard(string $prefix, ?string $pvpLabel = null): array
     {
         $pvpLabel ??= L('👥 دو نفره', '👥 Two players');
-        return ikb([[btn(L('🤖 با ربات', '🤖 Vs bot'), "{$prefix}:mode:bot"), btn($pvpLabel, "{$prefix}:mode:pvp")]]);
+        $rows = [[btn(L('🤖 با ربات', '🤖 Vs bot'), "{$prefix}:mode:bot"), btn($pvpLabel, "{$prefix}:mode:pvp")]];
+        if (self::$chat) {
+            $rows[] = [btn(L('🔙 لیست بازی‌ها', '🔙 Games list'), GamesMenu::P . ':back', null)];
+        }
+        return ikb($rows);
     }
 
     public static function replayKeyboard(string $prefix): array

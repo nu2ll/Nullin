@@ -84,6 +84,10 @@ final class GamesMenu
         $chatId = $cq['message']['chat']['id'] ?? null;
         $mid    = (int) ($cq['message']['message_id'] ?? 0);
         $key    = substr($data, strlen(self::P) + 1);
+        if ($key === 'back') {
+            self::back($cq);
+            return;
+        }
         if ($chatId === null || $mid <= 0 || !isset(self::GAMES[$key])) {
             $tg->answer($cq);
             return;
@@ -98,7 +102,39 @@ final class GamesMenu
         Store::delete('menuowner', "{$chatId}:{$mid}");
         GameKit::save($vid, GameKit::fresh($key, GameKit::player($cq['from'])));
         $cls = self::GAMES[$key];
+        GameKit::$chat = true;
         Rich::editInline($vid, $cls::intro(), $cls::modeKeyboard());
+        $tg->answer($cq);
+    }
+
+    /** "🔙 Games list" under the mode screen: put the picker back on the same message. */
+    private static function back(array $cq): void
+    {
+        $tg     = App::tg();
+        $chatId = $cq['message']['chat']['id'] ?? null;
+        $mid    = (int) ($cq['message']['message_id'] ?? 0);
+        $uid    = (int) ($cq['from']['id'] ?? 0);
+        if ($chatId === null || $mid <= 0 || $uid <= 0) {
+            $tg->answer($cq);
+            return;
+        }
+        $vid = self::vid($chatId, $mid);
+        $s   = GameKit::load($vid);
+        if ($s !== null) {
+            if (($s['status'] ?? '') !== 'mode') {
+                $tg->answer($cq, L('⏳ بازی شروع شده', '⏳ The game has already started'));
+                return;
+            }
+            if (!GameKit::isCreator($s, $uid)) {
+                $tg->alert($cq, L('🔒 فقط سازنده می‌تونه برگرده به لیست.', '🔒 Only the creator can go back to the list.'));
+                return;
+            }
+        }
+        Store::delete(GameKit::NS, $vid);
+        if (in_array($cq['message']['chat']['type'] ?? '', ['group', 'supergroup'], true)) {
+            Store::set('menuowner', "{$chatId}:{$mid}", $uid);
+        }
+        Rich::editInline($vid, self::text($cq['from']), self::keyboard());
         $tg->answer($cq);
     }
 }
