@@ -62,6 +62,12 @@ final class GamesMenu
         return ikb($rows);
     }
 
+    /** منوی بازی‌ها برای حالت مهمان: [متن، کیبورد] */
+    public static function guestMenu(array $from): array
+    {
+        return [self::text($from), self::keyboard()];
+    }
+
     public static function command(array $msg, bool $private): void
     {
         $chatId = $msg['chat']['id'];
@@ -84,22 +90,31 @@ final class GamesMenu
         $chatId = $cq['message']['chat']['id'] ?? null;
         $mid    = (int) ($cq['message']['message_id'] ?? 0);
         $key    = substr($data, strlen(self::P) + 1);
+        $imid   = $cq['inline_message_id'] ?? null;
         if ($key === 'back') {
             self::back($cq);
             return;
         }
-        if ($chatId === null || $mid <= 0 || !isset(self::GAMES[$key])) {
+        if (($imid === null && ($chatId === null || $mid <= 0)) || !isset(self::GAMES[$key])) {
             $tg->answer($cq);
             return;
+        }
+        // منوی ساخته‌شده تو حالت مهمان: فقط صاحبش می‌تونه بازی رو انتخاب کنه
+        if ($imid !== null) {
+            $own = (int) Store::get('menuowner', 'i:' . $imid, 0);
+            if ($own > 0 && $own !== (int) ($cq['from']['id'] ?? 0)) {
+                $tg->alert($cq, L("این منو مال تو نیست؛\nخودت دستورش رو بزن 🙂", "This menu isn't yours;\nsend the command yourself 🙂"));
+                return;
+            }
         }
         if (!Switches::on($key)) {
             $tg->alert($cq, L('🎮 این بازی فعلاً خاموشه.', '🎮 This game is switched off right now.'));
             return;
         }
 
-        $vid = self::vid($chatId, $mid);
+        $vid = $imid ?? self::vid($chatId, $mid);
         // The list is no longer a private menu: from here on the opponent has to be able to tap it.
-        Store::delete('menuowner', "{$chatId}:{$mid}");
+        Store::delete('menuowner', $imid !== null ? 'i:' . $imid : "{$chatId}:{$mid}");
         GameKit::save($vid, GameKit::fresh($key, GameKit::player($cq['from'])));
         $cls = self::GAMES[$key];
         GameKit::$chat = true;
@@ -114,11 +129,12 @@ final class GamesMenu
         $chatId = $cq['message']['chat']['id'] ?? null;
         $mid    = (int) ($cq['message']['message_id'] ?? 0);
         $uid    = (int) ($cq['from']['id'] ?? 0);
-        if ($chatId === null || $mid <= 0 || $uid <= 0) {
+        $imid   = $cq['inline_message_id'] ?? null;
+        if (($imid === null && ($chatId === null || $mid <= 0)) || $uid <= 0) {
             $tg->answer($cq);
             return;
         }
-        $vid = self::vid($chatId, $mid);
+        $vid = $imid ?? self::vid($chatId, $mid);
         $s   = GameKit::load($vid);
         if ($s !== null) {
             if (($s['status'] ?? '') !== 'mode') {
@@ -131,7 +147,9 @@ final class GamesMenu
             }
         }
         Store::delete(GameKit::NS, $vid);
-        if (in_array($cq['message']['chat']['type'] ?? '', ['group', 'supergroup'], true)) {
+        if ($imid !== null) {
+            Store::set('menuowner', 'i:' . $imid, $uid);
+        } elseif (in_array($cq['message']['chat']['type'] ?? '', ['group', 'supergroup'], true)) {
             Store::set('menuowner', "{$chatId}:{$mid}", $uid);
         }
         Rich::editInline($vid, self::text($cq['from']), self::keyboard());

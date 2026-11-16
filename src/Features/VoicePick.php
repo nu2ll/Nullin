@@ -98,7 +98,9 @@ final class VoicePick
         $m   = $cq['message'] ?? null;
         $uid = (int) ($cq['from']['id'] ?? 0);
 
-        if (!is_array($m) || !isset($m['chat']['id'], $m['message_id']) || !preg_match('/^vc:(\d+):(p|s):(\w+)$/', $data, $x)) {
+        $imid = $cq['inline_message_id'] ?? null;
+
+        if (($imid === null && (!is_array($m) || !isset($m['chat']['id'], $m['message_id']))) || !preg_match('/^vc:(\d+):(p|s):(\w+)$/', $data, $x)) {
             $tg->answer($cq);
             return;
         }
@@ -122,6 +124,10 @@ final class VoicePick
         }
 
         [$text, $kb] = self::panel($uid, $page);
+        if ($imid !== null) {
+            Rich::editInline($imid, $text, $kb);
+            return;
+        }
         Rich::edit((int) $m['chat']['id'], (int) $m['message_id'], $text, $kb);
     }
 }

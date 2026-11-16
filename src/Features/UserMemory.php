@@ -167,7 +167,12 @@ final class UserMemory
         $m   = $cq['message'] ?? null;
         $uid = (int) ($cq['from']['id'] ?? 0);
 
-        if (!is_array($m) || !isset($m['chat']['id'], $m['message_id']) || !preg_match('/^mem:(\d+):(y|n)$/', $data, $x)) {
+        $imid = $cq['inline_message_id'] ?? null;
+        $show = static fn(string $t) => $imid !== null
+            ? Rich::editInline($imid, $t)
+            : Rich::edit((int) ($m['chat']['id'] ?? 0), (int) ($m['message_id'] ?? 0), $t);
+
+        if (($imid === null && (!is_array($m) || !isset($m['chat']['id'], $m['message_id']))) || !preg_match('/^mem:(\d+):(y|n)$/', $data, $x)) {
             $tg->answer($cq);
             return;
         }
@@ -179,10 +184,10 @@ final class UserMemory
         if ($x[2] === 'y') {
             self::clear($uid);
             $tg->answer($cq, L('✅ پاک شد', '✅ Cleared'));
-            Rich::edit((int) $m['chat']['id'], (int) $m['message_id'], L("✅ <b>پاک شد</b>\nحافظه‌م درباره‌ات خالی شد؛ از اول باهم آشنا می‌شیم 🙂", "✅ <b>Cleared</b>\nMy memory about you is empty; we'll get to know each other from scratch 🙂"));
+            $show(L("✅ <b>پاک شد</b>\nحافظه‌م درباره‌ات خالی شد؛ از اول باهم آشنا می‌شیم 🙂", "✅ <b>Cleared</b>\nMy memory about you is empty; we'll get to know each other from scratch 🙂"));
             return;
         }
         $tg->answer($cq);
-        Rich::edit((int) $m['chat']['id'], (int) $m['message_id'], L("👌 باشه، چیزی پاک نشد همه‌چی سر جاشه.", "👌 Okay, nothing was cleared, everything stays."));
+        $show(L("👌 باشه، چیزی پاک نشد همه‌چی سر جاشه.", "👌 Okay, nothing was cleared, everything stays."));
     }
 }

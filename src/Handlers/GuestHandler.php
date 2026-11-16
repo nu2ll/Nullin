@@ -48,6 +48,12 @@ final class GuestHandler
             return;
         }
 
+        // دستورهای اسلشی (/wiki ، /translate ، ...) مستقیم اجرا می‌شن و نمی‌رن سراغ هوش مصنوعی
+        if (preg_match('/^\/([a-zA-Z_]+)(?:@\w+)?(?:\s+(.*))?$/su', $q, $cm) === 1
+            && self::command($msg, $from, $qid, strtolower($cm[1]), trim($cm[2] ?? ''), $rt)) {
+            return;
+        }
+
         if (Downloader::isIgStory($q . ' ' . $rt)) {
             return;
         }
@@ -166,6 +172,184 @@ final class GuestHandler
             AnswerButtons::attachInline($imid, ['u' => (int) ($from['id'] ?? 0), 'q' => $body, 'a' => $answer, 'h' => '', 'f' => 1]);
         }
         self::edit($imid, $qid, $html, $answer, $kb);
+    }
+
+    private const CMD_SWITCH  = ['wiki' => 'wiki', 'translate' => 'translate', 'font' => 'font', 'gif' => 'gif', 'giveaway' => 'giveaway', 'image' => 'image', 'sharetrace' => 'linkcheck'];
+    // دستورهایی که تو گست معنی ندارن؛ بی‌صدا نادیده گرفته می‌شن (نه این‌که برن سراغ AI)
+    private const CMD_IGNORED = ['start', 'secretary', 'stats', 'ai', 'quota', 'backup', 'cookies', 'tools', 'ban', 'unban', 'banned', 'broadcast'];
+
+    /** true یعنی دستور رسیدگی شد (یا عمداً نادیده گرفته شد)؛ false یعنی دستور ناشناسه و مثل قبل می‌ره سراغ AI */
+    private static function command(array $msg, array $from, string $qid, string $cmd, string $args, string $rt): bool
+    {
+        $uid = (int) ($from['id'] ?? 0);
+        if ($cmd === 'help') {
+            Users::hit('cmd:help');
+            $imid = self::send($qid, Ui::helpText(), Ui::helpMenu(false, 1, false));
+            if ($imid !== null && $uid > 0) {
+                Store::set('menuowner', 'i:' . $imid, $uid);
+            }
+            return true;
+        }
+        if (in_array($cmd, self::CMD_IGNORED, true)) {
+            return true;
+        }
+        if (self::panelCommand($cmd, $from, $qid)) {
+            return true;
+        }
+        if (!isset(self::CMD_SWITCH[$cmd])) {
+            return false;
+        }
+        if (!Switches::on(self::CMD_SWITCH[$cmd])) {
+            return true;
+        }
+        Users::hit("cmd:{$cmd}");
+        Users::hit('guest:cmd');
+        $m  = ['from' => $from] + $msg;
+        $rt = mb_substr(trim($rt), 0, 300);
+
+        switch ($cmd) {
+            case 'wiki':
+            case 'font':
+                $arg = mb_substr($args !== '' ? $args : $rt, 0, 300);
+                if ($arg === '') {
+                    self::send($qid, Ui::guide($cmd));
+                    return true;
+                }
+                if ($cmd === 'font') {
+                    self::send($qid, Fonts::listText($arg));
+                    return true;
+                }
+                $imid = self::send($qid, L('📖 دارم تو ویکی‌پدیا می‌گردم…', '📖 Searching Wikipedia…'));
+                $o    = Intent::output($m, 'wiki', $arg, true, $imid);
+                if ($o !== null) {
+                    self::show($imid, $qid, $o);
+                }
+                return true;
+
+            case 'translate':
+                $src = $args !== '' ? $args : $rt;
+                if ($src === '') {
+                    self::send($qid, Ui::guide('translate'));
+                    return true;
+                }
+                $imid = self::send($qid, L('🌐 دارم ترجمه می‌کنم…', '🌐 Translating…'));
+                $out  = AI::translateFast($src, 'auto');
+                $o    = $out
+                    ? ['text' => L("🌐 <b>ترجمه:</b>\n\n", "🌐 <b>Translation:</b>\n\n") . h($out)]
+                    : Intent::output($m, 'translate', 'auto | ' . $src, true, $imid);
+                if ($o !== null) {
+                    self::show($imid, $qid, $o);
+                }
+                return true;
+
+            case 'gif':
+                if ($args === '') {
+                    self::send($qid, Ui::guide('gif'));
+                    return true;
+                }
+                $imid = self::send($qid, L('🎞 دارم گیف میارم…', '🎞 Getting the GIF…'));
+                $o    = Intent::output($m, 'gif', mb_substr($args, 0, 300), true, $imid);
+                if ($o !== null) {
+                    self::show($imid, $qid, $o);
+                }
+                return true;
+
+            case 'giveaway':
+                $o = Intent::output($m, 'giveaway', '', true);
+                if ($o !== null) {
+                    self::send($qid, $o['text'], $o['kb'] ?? null);
+                }
+                return true;
+
+            case 'image':
+                if ($args === '') {
+                    self::send($qid, Ui::guide('image'));
+                    return true;
+                }
+                $imid = self::send($qid, (Lang::is('en') ? LiveReply::DRAWING_EN : LiveReply::DRAWING));
+                $en   = AI::googleTranslate($args, 'English');
+                if ($en === null) {
+                    $plan = AI::imagePrompt($args);
+                    $en   = $plan['prompt'] ?? null;
+                }
+                if ($en === null) {
+                    self::edit($imid, $qid, L('😕 الان نتونستم درخواستت رو بفهمم؛', '😕 I couldn\'t understand your request just now;') . "\n" . L('یه‌کم دیگه دوباره بگو.', 'say it again in a bit.'));
+                    return true;
+                }
+                self::image($imid, $qid, $en, $uid);
+                return true;
+
+            case 'sharetrace':
+                $imid = self::send($qid, L('🛡 دارم لینک رو بررسی می‌کنم…', '🛡 Checking the link…'));
+                $res  = LinkCheck::respondFull($args, LinkCheck::replyText($msg), $uid);
+                $o    = ['text' => $res['text'], 'rich' => !empty($res['rich'])];
+                if (empty($res['rich']) && !empty($res['avatar'])) {
+                    $bytes = LinkCheck::avatarBytes((string) $res['avatar']);
+                    $fid   = $bytes !== null ? ImageGen::fileId($bytes) : null;
+                    if ($fid !== null) {
+                        $o['photo'] = $fid;
+                    }
+                }
+                self::show($imid, $qid, $o);
+                return true;
+        }
+        return false;
+    }
+
+    /** ping / voice / lang / forget / games: پنل‌هایی که دکمه دارن و روی پیام اینلاینِ مهمان کار می‌کنن */
+    private static function panelCommand(string $cmd, array $from, string $qid): bool
+    {
+        $uid = (int) ($from['id'] ?? 0);
+        switch ($cmd) {
+            case 'ping':
+                Users::hit("cmd:{$cmd}");
+                $t0 = microtime(true);
+                App::tg()->call('getMe', [], 10);
+                self::send($qid, Ui::ping((int) round((microtime(true) - $t0) * 1000)), ikb([[btn('Nullin', 'noop', null)]]));
+                return true;
+
+            case 'voice':
+                Users::hit("cmd:{$cmd}");
+                [$vt, $vk] = VoicePick::panel($uid);
+                self::send($qid, $vt, $vk);
+                return true;
+
+            case 'lang':
+                Users::hit("cmd:{$cmd}");
+                self::send($qid, L('🌐 زبان ربات رو انتخاب کن:', '🌐 Choose the bot language:'), Lang::toggleKeyboard());
+                return true;
+
+            case 'forget':
+                Users::hit("cmd:{$cmd}");
+                $count = count(UserMemory::all($uid));
+                if ($count === 0) {
+                    self::send($qid, L('هنوز چیزی ازت تو حافظه‌م نیست 🤷', 'I don\'t have anything stored about you yet 🤷'));
+                    return true;
+                }
+                self::send($qid, L("🧹 <b>پاک کردن حافظه</b>\n\n", "🧹 <b>Clear memory</b>\n\n")
+                    . L("الان <b>", "I currently remember <b>") . fa((string) $count) . L(" مورد</b> درباره‌ات یادمه؛\n", " items</b> about you;\n")
+                    . L("اگه پاکشون کنم، از اول باهم آشنا می‌شیم.\n\n", "If I clear them, we'll get to know each other from scratch.\n\n")
+                    . L("⚠️ <i>این کار برگشت نداره.</i> مطمئنی؟", "⚠️ <i>This can't be undone.</i> Are you sure?"), ikb([[
+                    btn(L('🗑 آره، پاک کن', '🗑 Yes, clear it'), 'mem:' . $uid . ':y', 'danger'),
+                    btn(L('↩️ نه، بمونه', '↩️ No, keep it'), 'mem:' . $uid . ':n', 'success'),
+                ]]));
+                return true;
+
+            case 'games':
+            case 'game':
+                Users::hit("cmd:{$cmd}");
+                if (!GamesMenu::anyOn()) {
+                    self::send($qid, L('🎮 بازی‌ها فعلاً خاموشن.', '🎮 Games are switched off right now.'), null, true);
+                    return true;
+                }
+                [$gt, $gk] = GamesMenu::guestMenu($from);
+                $imid = self::send($qid, $gt, $gk);
+                if ($imid !== null && $uid > 0) {
+                    Store::set('menuowner', 'i:' . $imid, $uid);
+                }
+                return true;
+        }
+        return false;
     }
 
     private static function voice(string $qid, string $answer, int $uid = 0): bool

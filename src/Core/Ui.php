@@ -1033,7 +1033,7 @@ final class Ui
         return $next ? btn(L('➡️ صفحه‌ی بعد', '➡️ Next page'), $data, 'primary') : btn(L('صفحه‌ی قبل ⬅️', 'Previous page ⬅️'), $data, 'primary');
     }
 
-    public static function helpMenu(bool $private = true, int $page = 1): array
+    public static function helpMenu(bool $private = true, int $page = 1, bool $back = true): array
     {
         $page = $page === 2 ? 2 : 1;
         $rows = [];
@@ -1047,7 +1047,9 @@ final class Ui
             $rows[] = $row;
         }
         $rows[] = [self::navButton($page === 1, $page === 1 ? 'help:p2' : 'help:p1')];
-        $rows[] = [btn(L('🔙 برگشت', '🔙 Back'), 'home', null)];
+        if ($back) {
+            $rows[] = [btn(L('🔙 برگشت', '🔙 Back'), 'home', null)];
+        }
         return ikb($rows);
     }
 

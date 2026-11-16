@@ -88,6 +88,9 @@ final class CallbackHandler
                     Ui::show($lc, $lm, Ui::startText($cq['from']), Ui::startKeyboard());
                 }
             }
+            if ($imid !== null && $data !== 'lang:menu') {
+                Rich::editInline($imid, L('🌐 زبان ربات رو انتخاب کن:', '🌐 Choose the bot language:'), Lang::toggleKeyboard());
+            }
             $tg->answer($cq, $data === 'lang:menu' ? null : L('✅ زبان فارسی شد', '✅ Language set to English'));
             return;
         }
@@ -185,6 +188,22 @@ final class CallbackHandler
         }
         if (str_starts_with($data, 'wh:')) {
             Whisper::onCallback($cq, $data, $imid);
+            return;
+        }
+        // راهنمای حالت مهمان (/help): صفحه‌ها و راهنمای هر ابزار روی همون پیام اینلاین
+        if ($data === 'help:menu' || $data === 'help:p1' || $data === 'help:p2' || (str_starts_with($data, 'help:') && isset(Ui::GUIDES[substr($data, 5)]))) {
+            $own = (int) Store::get('menuowner', 'i:' . $imid, 0);
+            if ($own > 0 && $own !== $uid) {
+                $tg->alert($cq, L("این منو مال تو نیست؛\nخودت دستورش رو بزن 🙂", "This menu isn't yours;\nsend the command yourself 🙂"));
+                return;
+            }
+            if (isset(Ui::GUIDES[substr($data, 5)])) {
+                Rich::editInline($imid, Ui::guide(substr($data, 5)), Ui::guideKeyboard(substr($data, 5), false));
+            } else {
+                $page = $data === 'help:p2' ? 2 : 1;
+                Rich::editInline($imid, Ui::helpText($page), Ui::helpMenu(false, $page, false));
+            }
+            $tg->answer($cq);
             return;
         }
         $owner = Store::get('owner', $imid);
