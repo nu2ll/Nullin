@@ -4,7 +4,7 @@ import os
 import sys
 import time
 
-from telethon import TelegramClient, types, utils
+from telethon import TelegramClient, types, utils, functions
 from telethon.sessions import StringSession
 
 
@@ -39,6 +39,26 @@ async def main():
         if now - last[0] >= 3 or done >= total:
             last[0] = now
             emit({'p': done, 't': total})
+
+    if a.get('items'):
+        media = []
+        for it in a['items']:
+            fh = await client.upload_file(it['file'], part_size_kb=512, file_name=it['name'])
+            th = await client.upload_file(it['thumb']) if it.get('thumb') else None
+            m = types.InputMediaUploadedDocument(
+                file=fh, mime_type='audio/mpeg', thumb=th,
+                attributes=[types.DocumentAttributeFilename(it['name']),
+                            types.DocumentAttributeAudio(duration=int(it.get('duration') or 0),
+                                                         title=it.get('title') or None, performer=it.get('performer') or None)])
+            up = await client(functions.messages.UploadMediaRequest(peer=peer, media=m))
+            media.append(types.InputSingleMedia(media=utils.get_input_media(up.document), message='',
+                                                random_id=int.from_bytes(os.urandom(8), 'big', signed=True)))
+        reply = types.InputReplyToMessage(reply_to_msg_id=int(a['reply_to'])) if a.get('reply_to') else None
+        res = await client(functions.messages.SendMultiMediaRequest(peer=peer, multi_media=media, reply_to=reply))
+        rid = {u.random_id: u.id for u in getattr(res, 'updates', []) if isinstance(u, types.UpdateMessageID)}
+        emit({'ok': True, 'msg_ids': [rid.get(m.random_id) for m in media]})
+        await client.disconnect()
+        return
 
     attrs = [types.DocumentAttributeFilename(a['name'])]
     if a['kind'] == 'video':

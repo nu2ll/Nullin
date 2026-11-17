@@ -595,7 +595,14 @@ final class Downloader
                 }
             }
             $bigOk = 0;
-            foreach ($big as $b) {
+            $fresh = array_values(array_filter($big, static fn($b) => $b['file'] !== null && empty($b['copy'])));
+            $rest  = array_values(array_filter($big, static fn($b) => $b['file'] === null || !empty($b['copy'])));
+            if ($fresh && self::sendAlbumMt($job, $fresh)) {
+                $bigOk += count($fresh);
+            } else {
+                $rest = array_merge($fresh, $rest);
+            }
+            foreach ($rest as $b) {
                 if (self::sendTrackMt($job, $b)) {
                     $bigOk++;
                 } else {
@@ -761,6 +768,51 @@ final class Downloader
             }
         }
         return ['full' => $full, 'thumb' => null];
+    }
+
+    private static function sendAlbumMt(array $job, array $items): bool
+    {
+        $tg    = App::tg();
+        $files = [];
+        foreach ($items as $b) {
+            $files[] = [
+                'file'      => $b['file'],
+                'name'      => preg_replace('/[^\w\- ]+/u', '', $b['name']) . '.mp3',
+                'thumb'     => !empty($b['thumb']) && is_file($b['thumb']) ? $b['thumb'] : '',
+                'duration'  => (int) $b['duration'],
+                'title'     => $b['title'],
+                'performer' => $b['performer'],
+            ];
+        }
+        $job2 = [
+            'session_file' => NULLINI_DATA . '/mtproto' . (App::botIndex() === 0 ? '' : (string) App::botIndex()) . '.session',
+            'api_id'       => self::apiId(),
+            'api_hash'     => self::apiHash(),
+            'bot_token'    => $tg->token(),
+            'test'         => App::botIndex() === 2 ? ['dc' => (int) env('TEST_DC_ID', 2), 'ip' => (string) env('TEST_DC_IP', '149.154.167.40'), 'port' => (int) env('TEST_DC_PORT', 443)] : null,
+            'chat'         => (int) $job['chat'],
+            'reply_to'     => (int) $job['reply_to'],
+            'items'        => $files,
+        ];
+        $out = null;
+        $res = self::run(['python3', NULLINI_ROOT . '/bin/mtup.py'], 1500, static function (string $line) use (&$out): void {
+            $j = json_decode($line, true);
+            if (is_array($j) && isset($j['ok'])) {
+                $out = $j;
+            }
+        }, ['NL_JOB' => json_encode($job2, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
+        $ids = array_values((array) ($out['msg_ids'] ?? []));
+        if (empty($out['ok']) || count($ids) !== count($items)) {
+            logError('dl', 'mtproto album failed (exit ' . $res['code'] . '): ' . (string) ($out['error'] ?? self::lastLine($res['err'])));
+            return false;
+        }
+        foreach ($items as $k => $b) {
+            if (!empty($ids[$k])) {
+                Store::set('dl_files', $b['key'], ['type' => 'copy', 'chat' => $job['chat'], 'msg' => (int) $ids[$k]]);
+            }
+            Users::hit('dl:spotify');
+        }
+        return true;
     }
 
     private static function sendTrackMt(array $job, array $b): bool
