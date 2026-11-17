@@ -574,12 +574,37 @@ final class Downloader
             if (!$batch) {
                 return;
             }
-            if (self::flushSet($job, $batch)) {
-                $ok += count($batch);
-            } else {
-                foreach ($batch as $b) {
+            $small = [];
+            $big   = [];
+            foreach ($batch as $b) {
+                if (!empty($b['copy']) || ($b['file'] !== null && filesize($b['file']) > self::BOT_API_BYTES)) {
+                    $big[] = $b;
+                } else {
+                    $small[] = $b;
+                }
+            }
+            $charged = false;
+            if ($small) {
+                if (self::flushSet($job, $small)) {
+                    $ok += count($small);
+                    $charged = true;
+                } else {
+                    foreach ($small as $b) {
+                        $failed[] = $b['name'];
+                    }
+                }
+            }
+            $bigOk = 0;
+            foreach ($big as $b) {
+                if (self::sendTrackMt($job, $b)) {
+                    $bigOk++;
+                } else {
                     $failed[] = $b['name'];
                 }
+            }
+            $ok += $bigOk;
+            if ($bigOk > 0 && !$charged) {
+                self::charge((int) $job['owner']);
             }
             $batch = [];
             self::rmrf($dir);
@@ -673,17 +698,21 @@ final class Downloader
             $item['id'] = (string) $c['file_id'];
             return $item;
         }
+        if (is_array($c) && ($c['type'] ?? '') === 'copy' && !empty($c['msg']) && isset($c['chat'])) {
+            $item['copy'] = ['chat' => $c['chat'], 'msg' => (int) $c['msg']];
+            return $item;
+        }
         $sp    = Spotify::track('https://open.spotify.com/track/' . $tr['id']);
         $cover = !isset($sp['error']) && !empty($sp['cover']) ? self::setCover(Spotify::hires((string) $sp['cover']), $dir . "/c{$i}") : null;
         $out = $dir . '/t' . $i;
         @mkdir($out, 0775, true);
         self::run(array_merge([self::bin()], self::commonArgs(), self::formatArgs('mp3', true), [
             '--no-playlist', '--no-warnings', '--no-mtime', '--restrict-filenames',
-            '--socket-timeout', '20', '--retries', '3', '--fragment-retries', '3', '--max-filesize', '49M',
+            '--socket-timeout', '20', '--retries', '3', '--fragment-retries', '3', '--max-filesize', (string) ((int) (self::maxBytes() / 1048576) - 1) . 'M',
             '-o', $out . '/%(id).40s.%(ext)s',
         ], [], [$yt]), 240);
         $file = self::pickFile($out);
-        if ($file === null || filesize($file) > self::BOT_API_BYTES) {
+        if ($file === null || filesize($file) > self::maxBytes()) {
             self::rmrf($out);
             return null;
         }
@@ -691,7 +720,7 @@ final class Downloader
             $tmp = $out . '/withcover.mp3';
             self::run(['ffmpeg', '-y', '-v', 'error', '-i', $file, '-i', $cover['full'], '-map', '0:a', '-map', '1:v', '-c', 'copy', '-id3v2_version', '3',
                 '-metadata:s:v', 'title=Cover', '-metadata:s:v', 'comment=Cover (front)', $tmp], 60);
-            if (is_file($tmp) && filesize($tmp) > 0 && filesize($tmp) <= self::BOT_API_BYTES) {
+            if (is_file($tmp) && filesize($tmp) > 0 && filesize($tmp) <= self::maxBytes()) {
                 @rename($tmp, $file);
             } else {
                 @unlink($tmp);
@@ -732,6 +761,62 @@ final class Downloader
             }
         }
         return ['full' => $full, 'thumb' => null];
+    }
+
+    private static function sendTrackMt(array $job, array $b): bool
+    {
+        $tg    = App::tg();
+        $reply = $job['reply_to'] ? ['message_id' => (int) $job['reply_to'], 'allow_sending_without_reply' => true] : null;
+        if (!empty($b['copy'])) {
+            $r = $tg->call('copyMessage', ['chat_id' => $job['chat'], 'from_chat_id' => $b['copy']['chat'], 'message_id' => (int) $b['copy']['msg'], 'reply_parameters' => $reply], 60);
+            if (empty($r['ok'])) {
+                logWarn('dl', 'set copy send failed: ' . (string) ($r['description'] ?? ''));
+                return false;
+            }
+            Users::hit('dl:spotify');
+            return true;
+        }
+        if ($b['file'] === null) {
+            $r = $tg->call('sendAudio', ['chat_id' => $job['chat'], 'audio' => $b['id'], 'reply_parameters' => $reply], 60);
+            if (empty($r['ok'])) {
+                logWarn('dl', 'set cached send failed: ' . (string) ($r['description'] ?? ''));
+                return false;
+            }
+            Users::hit('dl:spotify');
+            return true;
+        }
+        $job2 = [
+            'session_file' => NULLINI_DATA . '/mtproto' . (App::botIndex() === 0 ? '' : (string) App::botIndex()) . '.session',
+            'api_id'       => self::apiId(),
+            'api_hash'     => self::apiHash(),
+            'bot_token'    => $tg->token(),
+            'test'         => App::botIndex() === 2 ? ['dc' => (int) env('TEST_DC_ID', 2), 'ip' => (string) env('TEST_DC_IP', '149.154.167.40'), 'port' => (int) env('TEST_DC_PORT', 443)] : null,
+            'chat'         => (int) $job['chat'],
+            'reply_to'     => (int) $job['reply_to'],
+            'file'         => $b['file'],
+            'name'         => preg_replace('/[^\w\- ]+/u', '', $b['name']) . '.mp3',
+            'kind'         => 'audio',
+            'mime'         => 'audio/mpeg',
+            'thumb'        => !empty($b['thumb']) && is_file($b['thumb']) ? $b['thumb'] : '',
+            'caption'      => '',
+            'duration'     => (int) $b['duration'],
+            'title'        => $b['title'],
+            'performer'    => $b['performer'],
+        ];
+        $out = null;
+        $res = self::run(['python3', NULLINI_ROOT . '/bin/mtup.py'], 900, static function (string $line) use (&$out): void {
+            $j = json_decode($line, true);
+            if (is_array($j) && isset($j['ok'])) {
+                $out = $j;
+            }
+        }, ['NL_JOB' => json_encode($job2, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
+        if (empty($out['ok']) || empty($out['msg_id'])) {
+            logError('dl', 'mtproto set upload failed (exit ' . $res['code'] . '): ' . (string) ($out['error'] ?? self::lastLine($res['err'])));
+            return false;
+        }
+        Store::set('dl_files', $b['key'], ['type' => 'copy', 'chat' => $job['chat'], 'msg' => (int) $out['msg_id']]);
+        Users::hit('dl:spotify');
+        return true;
     }
 
     private static function flushSet(array $job, array $batch): bool
