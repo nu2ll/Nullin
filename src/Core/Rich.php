@@ -169,6 +169,9 @@ final class Rich
     public static function editHtml(int|string $chatId, int $mid, string $html, ?array $kb = null, ?string $img = null, ?bool $rtl = null): bool
     {
         $r = App::tg()->call('editMessageText', ['chat_id' => $chatId, 'message_id' => $mid, 'rich_message' => self::payload($html, $kb, $img, $rtl)], 10);
+        if (empty($r['ok']) && $img !== null && $img !== '' && stripos((string) ($r['description'] ?? ''), 'not modified') === false) {
+            $r = App::tg()->call('editMessageText', ['chat_id' => $chatId, 'message_id' => $mid, 'rich_message' => self::payload($html, $kb, null, $rtl)], 10);
+        }
         return !empty($r['ok']) || stripos((string) ($r['description'] ?? ''), 'not modified') !== false;
     }
 
