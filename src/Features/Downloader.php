@@ -577,7 +577,7 @@ final class Downloader
             $small = [];
             $big   = [];
             foreach ($batch as $b) {
-                if (!empty($b['copy']) || ($b['file'] !== null && filesize($b['file']) > self::BOT_API_BYTES)) {
+                if (self::mtproto() || !empty($b['copy']) || ($b['file'] !== null && filesize($b['file']) > self::BOT_API_BYTES)) {
                     $big[] = $b;
                 } else {
                     $small[] = $b;
