@@ -959,7 +959,7 @@ final class Downloader
         $job['auto'] = $fmt;
         Store::set('dl', $token, $job);
         $cmd = '(sleep ' . self::AUTO_DELAY . '; timeout -k 10 ' . self::jobTime() . ' ' . escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(NULLINI_ROOT . '/bot.php')
-            . ' --autodl ' . escapeshellarg($token) . ' ' . App::botIndex() . ') > /dev/null 2>&1 &';
+            . ' --autodl ' . escapeshellarg($token) . ' ' . App::botIndex() . ') >> /proc/1/fd/1 2>&1 &';
         exec($cmd, $o, $code);
         return $code === 0;
     }
@@ -1376,7 +1376,7 @@ final class Downloader
             return false;
         }
         $cmd = 'timeout -k 10 ' . self::jobTime() . ' ' . escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(NULLINI_ROOT . '/bot.php')
-            . ' --download ' . escapeshellarg($token) . ' ' . escapeshellarg($fmt) . ' ' . App::botIndex() . ' > /dev/null 2>&1 &';
+            . ' --download ' . escapeshellarg($token) . ' ' . escapeshellarg($fmt) . ' ' . App::botIndex() . ' >> /proc/1/fd/1 2>&1 &';
         exec($cmd, $o, $code);
         return $code === 0;
     }

@@ -927,7 +927,7 @@ final class GetFile
             return false;
         }
         $cmd = 'timeout -k 10 ' . self::jobTime() . ' ' . escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(NULLINI_ROOT . '/bot.php')
-            . ' --getfile ' . escapeshellarg($token) . ' ' . (int) $pick . ' ' . App::botIndex() . ' > /dev/null 2>&1 &';
+            . ' --getfile ' . escapeshellarg($token) . ' ' . (int) $pick . ' ' . App::botIndex() . ' >> /proc/1/fd/1 2>&1 &';
         exec($cmd, $o, $code);
         return $code === 0;
     }
