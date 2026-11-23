@@ -62,7 +62,17 @@ final class Cobalt
                 break;
             }
         }
+        $pg = self::page($url);
+        if ($thumb === '') {
+            $thumb = $pg['thumb'];
+        }
         $info = ['webpage_url' => $url, 'thumbnail' => $thumb, 'count' => count($kinds), 'kinds' => $kinds];
+        if ($pg['title'] !== '') {
+            $info['title'] = $pg['title'];
+        }
+        if ($pg['uploader'] !== '') {
+            $info['uploader'] = $pg['uploader'];
+        }
         if (in_array('v', $kinds, true)) {
             $info['vcodec'] = 'h264';
         }
@@ -73,7 +83,7 @@ final class Cobalt
     public static function download(string $url, string $fmt, string $dir, int $limit): bool
     {
         $audio = $fmt === 'mp3';
-        $q     = ['sd' => '360', 'hd' => '720', 'fhd' => '1080'][$fmt] ?? (preg_match('/^v(\d{3,4})$/', $fmt, $m) ? $m[1] : '720');
+        $q     = ['sd' => '360', 'hd' => '1080', 'fhd' => '1080'][$fmt] ?? (preg_match('/^v(\d{3,4})$/', $fmt, $m) ? $m[1] : '720');
         $items = self::resolve($url, $audio ? 'audio' : 'auto', $q);
         if ($items === null || count($items) !== 1) {
             return false;
@@ -177,6 +187,56 @@ final class Cobalt
         }
         logWarn('dl', 'cobalt: status=' . $status . ' code=' . (string) ($j['error']['code'] ?? '-') . ' http=' . $r['code']);
         return null;
+    }
+
+    private static function page(string $url): array
+    {
+        $out  = ['thumb' => '', 'title' => '', 'uploader' => ''];
+        $r    = Http::request('GET', $url, [
+            'timeout'         => 10,
+            'connect_timeout' => 5,
+            'max_bytes'       => 800000,
+            'headers'         => ['User-Agent: facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)', 'Accept: text/html'],
+        ]);
+        $html = (string) ($r['body'] ?? '');
+        if ($r['code'] !== 200 || $html === '') {
+            return $out;
+        }
+        $m = self::metas($html);
+        $u = (string) ($m['og:image'] ?? '');
+        if (str_starts_with($u, 'https://')) {
+            $out['thumb'] = $u;
+        }
+        $t = trim((string) ($m['og:title'] ?? ''));
+        if (preg_match('/^(.+?) on Instagram:\s*["\x{201C}](.*)["\x{201D}]\s*$/us', $t, $x)) {
+            $cap = trim((string) preg_replace('/\s+/u', ' ', $x[2]));
+            $out['uploader'] = mb_substr(trim($x[1]), 0, 80);
+            $out['title']    = mb_strlen($cap) > 200 ? mb_substr($cap, 0, 200) . '…' : $cap;
+        }
+        logInfo('dl', 'cobalt page: cover=' . ($out['thumb'] !== '' ? '1' : '0') . ' title=' . ($out['title'] !== '' ? '1' : '0'));
+        return $out;
+    }
+
+    private static function metas(string $html): array
+    {
+        $out = [];
+        if (!preg_match_all('#<meta\s[^>]*>#i', $html, $tags)) {
+            return $out;
+        }
+        foreach ($tags[0] as $tag) {
+            if (!preg_match_all('#([\w:-]+)\s*=\s*(["\'])(.*?)\2#s', $tag, $attrs, PREG_SET_ORDER)) {
+                continue;
+            }
+            $a = [];
+            foreach ($attrs as $x) {
+                $a[strtolower($x[1])] = $x[3];
+            }
+            $k = (string) ($a['property'] ?? $a['name'] ?? '');
+            if ($k !== '' && isset($a['content']) && !isset($out[$k])) {
+                $out[$k] = html_entity_decode($a['content'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            }
+        }
+        return $out;
     }
 
     private static function kindOf(string $name, string $type): string
