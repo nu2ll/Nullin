@@ -808,7 +808,7 @@ final class Downloader
         }, ['NL_JOB' => json_encode($job2, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
         $ids = array_values((array) ($out['msg_ids'] ?? []));
         if (empty($out['ok']) || count($ids) !== count($items)) {
-            logError('dl', 'mtproto album failed (exit ' . $res['code'] . '): ' . (string) ($out['error'] ?? self::lastLine($res['err'])));
+            logError('dl', 'mtproto album failed (exit ' . $res['code'] . '): ' . (string) ($out['error'] ?? self::lastLine($res['err'])) . ' | ' . self::tailErr($res['err']));
             return false;
         }
         foreach ($items as $k => $b) {
@@ -868,7 +868,7 @@ final class Downloader
             }
         }, ['NL_JOB' => json_encode($job2, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
         if (empty($out['ok']) || empty($out['msg_id'])) {
-            logError('dl', 'mtproto set upload failed (exit ' . $res['code'] . '): ' . (string) ($out['error'] ?? self::lastLine($res['err'])));
+            logError('dl', 'mtproto set upload failed (exit ' . $res['code'] . '): ' . (string) ($out['error'] ?? self::lastLine($res['err'])) . ' | ' . self::tailErr($res['err']));
             return false;
         }
         Store::set('dl_files', $b['key'], ['type' => 'copy', 'chat' => $job['chat'], 'msg' => (int) $out['msg_id']]);
@@ -2046,7 +2046,7 @@ final class Downloader
             }
         }, ['NL_JOB' => json_encode($job2, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
         if (empty($out['ok']) || empty($out['msg_id'])) {
-            logError('dl', 'mtproto upload failed (exit ' . $res['code'] . '): ' . (string) ($out['error'] ?? self::lastLine($res['err'])));
+            logError('dl', 'mtproto upload failed (exit ' . $res['code'] . '): ' . (string) ($out['error'] ?? self::lastLine($res['err'])) . ' | ' . self::tailErr($res['err']));
             return null;
         }
         if ($viaStore !== '') {
@@ -2341,6 +2341,12 @@ final class Downloader
     private static function usedToday(int $uid): int
     {
         return (int) Store::get('dl_quota', self::quotaKey($uid), 0);
+    }
+
+    private static function tailErr(string $err, int $n = 4): string
+    {
+        $lines = array_values(array_filter(array_map('trim', explode("\n", $err)), static fn($l) => $l !== ''));
+        return mb_substr(implode(' ¦ ', array_slice($lines, -$n)), 0, 380);
     }
 
     private static function lastLine(string $err): string
