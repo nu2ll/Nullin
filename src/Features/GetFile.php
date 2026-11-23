@@ -16,6 +16,8 @@ final class GetFile
     private const EXEC_EXT = ['apk', 'xapk', 'apks', 'aab', 'exe', 'msi', 'dmg', 'pkg', 'deb', 'rpm', 'appimage', 'ipa', 'zip', 'rar', '7z', 'iso'];
     private const SOFT_HINTS = ['', 'apk', 'win', 'mac', 'linux', 'ios', 'source', 'zip', 'exe', 'msi', 'dmg', 'deb', 'rpm', 'appimage', 'ipa', 'tar', 'gz'];
 
+    private static string $err = '';
+
     private const MIME_EXT = [
         'application/pdf' => 'pdf', 'application/zip' => 'zip', 'application/vnd.android.package-archive' => 'apk',
         'image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif',
@@ -193,7 +195,8 @@ final class GetFile
             $cap  = self::caption($c, $name, $size, in_array($ext, self::EXEC_EXT, true));
 
             if (!self::send($job, $path, $name, $cap, $size)) {
-                self::fail($job, L('😕 فایل دانلود شد ولی ارسالش به تلگرام نشد.', '😕 The file was downloaded but sending it to Telegram failed.'));
+                $why = App::isAdmin((int) $job['owner']) && self::$err !== '' ? "\n<code>" . h(mb_substr(self::$err, 0, 400)) . '</code>' : '';
+                self::fail($job, L('😕 فایل دانلود شد ولی ارسالش به تلگرام نشد.', '😕 The file was downloaded but sending it to Telegram failed.') . $why);
                 return;
             }
             App::tg()->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => (int) $job['mid']], 8);
@@ -261,7 +264,7 @@ final class GetFile
             if ($nr === '') {
                 continue;
             }
-            if ($nr === $nq || (strlen($nr) >= 3 && str_contains($nq, $nr)) || (strlen($nq) >= 4 && str_contains($nr, $nq))) {
+            if ($nr === $nq || (strlen($nr) >= 3 && str_contains($nq, $nr))) {
                 return [(string) $it['owner']['login'], (string) $it['name']];
             }
         }
@@ -433,7 +436,7 @@ final class GetFile
                 if (!preg_match('#^https?://#i', $u)) {
                     continue;
                 }
-                if (self::looksFile($u, $re)) {
+                if (self::looksFile($u, $re, $hint)) {
                     $add($u, (string) ($it['title'] ?? ''));
                 } else {
                     $pages[] = [$u, (string) ($it['title'] ?? '')];
@@ -446,7 +449,7 @@ final class GetFile
                 }
                 foreach ($mm[1] as $lnk) {
                     $abs = self::absUrl((string) ($r['url'] ?: $pu), html_entity_decode($lnk));
-                    if ($abs !== null && self::looksFile($abs, $re)) {
+                    if ($abs !== null && self::looksFile($abs, $re, $hint)) {
                         $add($abs, $pt);
                     }
                 }
@@ -473,13 +476,18 @@ final class GetFile
         return ['urls' => $cands];
     }
 
-    private static function looksFile(string $url, ?string $re): bool
+    private static function looksFile(string $url, ?string $re, string $hint = ''): bool
     {
         $path = rawurldecode((string) parse_url($url, PHP_URL_PATH));
-        if (!preg_match('/\.(' . self::FILE_EXT . ')$/i', $path)) {
-            return false;
+        if (preg_match('/\.(' . self::FILE_EXT . ')$/i', $path)) {
+            return $re === null || preg_match($re, $path) === 1;
         }
-        return $re === null || preg_match($re, $path) === 1;
+        // لینک‌های دانلود بدون پسوند، مثل telegram.org/dl/android/apk: آخرین بخش آدرس خودش نوع فایله
+        $last = strtolower(basename($path));
+        if ($last !== '' && preg_match('/^(' . self::FILE_EXT . ')$/i', $last)) {
+            return $hint === '' || $last === $hint || self::canonHint($last) === $hint;
+        }
+        return false;
     }
 
     private static function absUrl(string $base, string $href): ?string
@@ -713,6 +721,7 @@ final class GetFile
     private static function sendMt(array $job, string $file, string $name, string $caption): bool
     {
         if (!Downloader::mtproto()) {
+            self::$err = 'MTProto is off: API_ID / API_HASH are not set';
             return false;
         }
         $tg   = App::tg();
@@ -754,7 +763,8 @@ final class GetFile
             }
         });
         if (empty($out['ok']) || empty($out['msg_id'])) {
-            logError('gf', 'mtproto upload failed (exit ' . $res['code'] . '): ' . (string) ($out['error'] ?? mb_substr($res['err'], -200)));
+            self::$err = 'exit ' . $res['code'] . ': ' . trim((string) ($out['error'] ?? mb_substr(trim($res['err']), -300)));
+            logError('gf', 'mtproto upload failed (' . self::$err . ')');
             return false;
         }
         return true;
