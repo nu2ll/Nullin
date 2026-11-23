@@ -435,7 +435,8 @@ final class Downloader
             && ($msg !== null ? Photos::deliver($msg, $link, (int) $t['card'], $expect) : Photos::inline($link, (string) $t['imid'], $t['chat'], $uid));
 
         $multi = $sp === null && empty($t['imid']) && in_array($link['site'], self::MULTI, true);
-        $ks    = $sp === null && GalleryDl::supports($link['site']) ? GalleryDl::kinds($link['url']) : [];
+        $api   = $sp === null && Cobalt::enabled($link['site']) ? Cobalt::probe($link['url']) : null;
+        $ks    = $api !== null ? $api['kinds'] : ($sp === null && GalleryDl::supports($link['site']) ? GalleryDl::kinds($link['url']) : []);
         $vurls = [];
         $pin   = $link['url'];
         if ($link['site'] === 'pinterest' && in_array('v', $ks, true)) {
@@ -450,7 +451,7 @@ final class Downloader
         }
         $p     = $sp !== null
             ? ['info' => ['title' => $sp['title'], 'uploader' => $sp['artist'], 'channel' => $sp['artist'], 'duration' => (int) $sp['duration'], 'thumbnail' => $sp['cover'], 'webpage_url' => $link['url'], 'formats' => []]]
-            : self::probe($link['url'], $multi);
+            : ($api !== null ? ['info' => $api['info']] : self::probe($link['url'], $multi));
         if (isset($p['error']) && count($ks) > 1 && in_array('v', $ks, true)) {
             $p = ['info' => ['count' => count($ks), 'kinds' => $ks, 'title' => '', 'webpage_url' => $link['url']]];
         }
@@ -485,6 +486,10 @@ final class Downloader
         }
         $expect = $multi && $count > 1 ? min($count, self::ALBUM_MAX) : 0;
         if (!$vid && $sp === null && Photos::supports($link['site']) && $photos($expect)) {
+            return;
+        }
+        if ($api !== null && !$vid) {
+            self::show($t, self::genericError());
             return;
         }
         if ($expect > 1) {
@@ -1421,7 +1426,8 @@ final class Downloader
             $limit = self::limit($job);
             $last  = 0.0;
             $stage = '';
-            $res   = self::run(array_merge([self::bin()], self::commonArgs(), self::formatArgs($fmt, $limit <= self::BOT_API_BYTES, self::isVertical($job)), [
+            $viaApi = Cobalt::enabled((string) $job['site']) && Cobalt::download((string) $job['url'], $fmt, $dir, $limit);
+            $res   = $viaApi ? ['code' => 0, 'out' => '', 'err' => ''] : self::run(array_merge([self::bin()], self::commonArgs(), self::formatArgs($fmt, $limit <= self::BOT_API_BYTES, self::isVertical($job)), [
                 '--no-playlist', '--newline', '--no-warnings', '--no-mtime', '--restrict-filenames',
                 '--socket-timeout', '20', '--retries', '3', '--fragment-retries', '3', '--concurrent-fragments', '4',
                 '--max-filesize', (int) ($limit / 1048576) . 'M',
@@ -1593,7 +1599,8 @@ final class Downloader
         $url   = self::cleanUrl((string) $job['url'], (string) $job['site']);
         $kinds = (array) ($job['kinds'] ?? []);
         $res   = ['code' => 1, 'out' => '', 'err' => ''];
-        if (GalleryDl::supports((string) $job['site'])) {
+        $viaApi = Cobalt::enabled((string) $job['site']) && Cobalt::album($url, $dir, $limit, self::ALBUM_MAX);
+        if (!$viaApi && GalleryDl::supports((string) $job['site'])) {
             if ($kinds === [] || in_array('p', $kinds, true)) {
                 $pp = [];
                 foreach (array_values($kinds) as $i => $k) {

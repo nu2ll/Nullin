@@ -15,6 +15,15 @@ RUN apt-get update \
  && yt-dlp --version && gallery-dl --version | head -1 && deno --version | head -1 && ffmpeg -version | head -1 \
  && rm -rf /var/lib/apt/lists/* /root/.cache
 
+RUN ( curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+      && apt-get install -y --no-install-recommends nodejs git \
+      && corepack enable \
+      && git clone --depth 1 https://github.com/imputnet/cobalt /opt/cobalt-src \
+      && cd /opt/cobalt-src && pnpm install --frozen-lockfile --filter=@imput/cobalt-api --prod \
+      && test -f /opt/cobalt-src/api/src/cobalt.js && node --version ) \
+ || ( echo 'cobalt install skipped' && rm -rf /opt/cobalt-src ); \
+    rm -rf /var/lib/apt/lists/* /root/.cache
+
 RUN ARCH="$(uname -m)" && case "$ARCH" in aarch64|arm64) N=arm64 ;; *) N=amd64 ;; esac \
  && curl -fsSL -o /tmp/ngrok.tgz "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-${N}.tgz" \
  && tar -xzf /tmp/ngrok.tgz -C /usr/local/bin ngrok && chmod +x /usr/local/bin/ngrok \

@@ -97,6 +97,18 @@ final class Photos
 
     private static function collect(string $site, string $url, int $max): array
     {
+        if (Cobalt::enabled($site)) {
+            $got = Cobalt::photos($url, $max);
+            $out = [];
+            foreach ($got['files'] as $f) {
+                if (($ok = self::prepared((string) $f)) !== null) {
+                    $out[] = $ok;
+                }
+            }
+            if ($out !== []) {
+                return ['files' => $out, 'total' => $got['total']];
+            }
+        }
         if (GalleryDl::supports($site)) {
             $got = GalleryDl::photos($url, $max);
             $out = [];

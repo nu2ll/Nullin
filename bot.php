@@ -485,6 +485,7 @@ if (env('WEB_SERVER', '1') !== '0' && !disabled('exec') && is_file(NULLINI_ROOT 
     out("port {$port}" . ($pub !== '' ? " · {$pub}" : ' · ngrok off'), 'web');
     exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(__FILE__) . ' --warm > /dev/null 2>&1 &');
 }
+Cobalt::ensure();
 App::tg()->call('setChatMenuButton', ['menu_button' => ['type' => 'commands']], 10);
 $extra = bootExtraBots($pcfg);
 
@@ -527,6 +528,7 @@ $lastGw      = 0;
 $gwPid       = -1;
 $lastPoller  = 0;
 $lastNg      = time();
+$lastCb      = time();
 $ngPid       = -1;
 
 while ($running) {
@@ -563,7 +565,11 @@ while ($running) {
             Db::disconnect();
         }
     }
-    if ($ngrokPort > 0 && time() - $lastNg >= 30 && !isset($children[$ngPid])) {
+    if (time() - $lastCb >= 60) {
+        $lastCb = time();
+        Cobalt::ensure();
+    }
+    if ($ngrokPort > 0 && time() - $lastNg >= 60 && !isset($children[$ngPid])) {
         $lastNg = time();
         $ngPid  = background(static function () use ($ngrokPort) {
             $cur = ngrokCurrent();
