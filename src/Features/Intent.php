@@ -2,9 +2,9 @@
 
 final class Intent
 {
-    public const NAMES = ['translate', 'download', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'short', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'card', 'sheba', 'love', 'roast', 'userinfo', 'giveaway', 'gif'];
+    public const NAMES = ['translate', 'download', 'getfile', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'short', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'card', 'sheba', 'love', 'roast', 'userinfo', 'giveaway', 'gif'];
 
-    public static function prompt(): string
+    public static function prompt(string $chatType = 'private'): string
     {
         return 'You have access to Nullin’s tools. Work out what the user means from their whole message, not from individual words. If they really are asking for one of these things, then instead of answering, write a single line that sits entirely inside double square brackets: “[[<name> | <input>]]”, and write nothing else before or after it:'
             . "\n- translate | <target language in English, or auto> | <the text to translate; leave empty if they mean the message they replied to>: translation."
@@ -21,6 +21,7 @@ final class Intent
             . "\n- giveaway: create a giveaway."
             . "\n- gif | <search query in English, one to four words>: send a GIF that matches what they want to see or express."
             . "\n- download | <full link; leave empty if the link is in the message they replied to>: download the video, photo or audio of a link."
+            . ($chatType === 'private' ? "\n- getfile | <app name, search words or a direct file link> | <type: apk, windows, mac, linux, ios, pdf, zip, image, mp3, source (the source code of a GitHub repository), or empty> | <version number, or empty>: find a file, app, installer, image or GitHub repository on the internet and send it to the user. Use it when they ask you to fetch/send/download an app, a file or a picture from the internet, e.g. “send me v2rayNG for Android” → “[[getfile | v2rayNG | apk | ]]”. Write only the app’s own name in the first field. Don’t use it for video, photo or audio links of social sites (use download for those)." : '')
             . "\n- calc | <math expression with + - * / ^ and parentheses>: numeric calculation."
             . "\n- nid | <national ID code>: check whether an Iranian national ID is valid."
             . "\n- card | <card number>: check whether an Iranian bank card number is valid and which bank issued it."
@@ -54,6 +55,10 @@ final class Intent
             return true;
         }
         Users::hit('intent:' . $name);
+
+        if ($name === 'getfile') {
+            return $private ? GetFile::start($msg, $arg) : false;
+        }
 
         if ($name === 'download') {
             $link = Downloader::match($arg) ?? Downloader::find($arg . ' ' . (string) ($msg['reply_to_message']['text'] ?? $msg['reply_to_message']['caption'] ?? ''));

@@ -103,6 +103,10 @@ final class CallbackHandler
             Downloader::onCallback($cq, $data);
             return;
         }
+        if (str_starts_with($data, 'gf:')) {
+            GetFile::onCallback($cq, $data);
+            return;
+        }
         if (str_starts_with($data, 'ck:')) {
             Cookies::onCallback($cq, $data);
             return;

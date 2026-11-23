@@ -56,7 +56,13 @@ final class WebSearch
         return trim($out);
     }
 
-    private static function fetch(string $q, float $deadline): ?array
+    /** نتیجه‌ی خام Tavily برای ابزار دریافت فایل (لینک‌ها و عکس‌ها) */
+    public static function files(string $q, bool $images = false): ?array
+    {
+        return self::fetch($q, microtime(true) + 14, $images ? ['include_images' => true] : []);
+    }
+
+    private static function fetch(string $q, float $deadline, array $extra = []): ?array
     {
         $keys = self::keys();
         $n    = count($keys);
@@ -75,12 +81,13 @@ final class WebSearch
                 'search_depth'   => 'basic',
                 'max_results'    => 10,
                 'include_answer' => true,
-            ], ['Authorization: Bearer ' . $key], (int) max(3, min($left, 10)));
+            ] + $extra, ['Authorization: Bearer ' . $key], (int) max(3, min($left, 10)));
 
             if ($r['code'] === 200 && is_array($r['data'])) {
                 return [
                     'answer'  => (string) ($r['data']['answer'] ?? ''),
                     'results' => array_values((array) ($r['data']['results'] ?? [])),
+                    'images'  => array_values((array) ($r['data']['images'] ?? [])),
                 ];
             }
             logWarn('search', "tavily key{$i} HTTP {$r['code']}: " . mb_substr((string) ($r['data']['detail']['error'] ?? $r['raw']), 0, 160));
