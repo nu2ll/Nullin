@@ -478,7 +478,7 @@ final class Downloader
         }
         $count = (int) ($info['count'] ?? 1);
         $vid   = $ks !== [] ? in_array('v', $ks, true) : self::hasVideo($info);
-        logInfo('dl', "probe {$link['site']}: count={$count} kinds=" . implode('', (array) ($info['kinds'] ?? [])) . ' video=' . ($vid ? '1' : '0') . ' multi=' . ($multi ? '1' : '0') . ' src=' . ($ks !== [] ? 'gallery-dl' : 'yt-dlp'));
+        logInfo('dl', "probe {$link['site']}: count={$count} kinds=" . implode('', (array) ($info['kinds'] ?? [])) . ' video=' . ($vid ? '1' : '0') . ' multi=' . ($multi ? '1' : '0') . ' src=' . ($api !== null ? 'cobalt' : ($ks !== [] ? 'gallery-dl' : 'yt-dlp')));
         if ($multi && $count > 1 && (in_array('v', (array) ($info['kinds'] ?? []), true) || !Photos::supports($link['site']))) {
             $token = self::newJob($link, $info, $uid, $t['chat'], (int) $t['card'], $replyTo, null, $count);
             self::show($t, self::albumText($info, $link, $count), self::albumKeyboard($token, $count), self::preview($info));

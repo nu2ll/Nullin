@@ -213,6 +213,19 @@ final class Cobalt
             $out['uploader'] = mb_substr(trim($x[1]), 0, 80);
             $out['title']    = mb_strlen($cap) > 200 ? mb_substr($cap, 0, 200) . '…' : $cap;
         }
+        if ($out['title'] === '') {
+            $d = trim((string) ($m['og:description'] ?? $m['description'] ?? ''));
+            if (preg_match('/^.*?\s-\s(.+?)\s+on\s+[^:]{3,40}:\s*[\"\x{201C}](.*)[\"\x{201D}]\.?\s*$/us', $d, $x)) {
+                $cap = trim((string) preg_replace('/\s+/u', ' ', $x[2]));
+                if ($out['uploader'] === '') {
+                    $out['uploader'] = mb_substr(trim($x[1]), 0, 80);
+                }
+                $out['title'] = mb_strlen($cap) > 200 ? mb_substr($cap, 0, 200) . '…' : $cap;
+            }
+        }
+        if ($out['uploader'] === '' && preg_match('/^(.+?)\s+on\s+Instagram\b/u', $t, $x)) {
+            $out['uploader'] = mb_substr(trim($x[1]), 0, 80);
+        }
         logInfo('dl', 'cobalt page: cover=' . ($out['thumb'] !== '' ? '1' : '0') . ' title=' . ($out['title'] !== '' ? '1' : '0'));
         return $out;
     }
