@@ -813,7 +813,7 @@ final class AI
         }
 
         if (!in_array($ctx['chat_type'] ?? '', ['inline', 'miniapp'], true) && empty($ctx['no_action'])) {
-            $l[] = Intent::prompt((string) ($ctx['chat_type'] ?? 'private'));
+            $l[] = Intent::prompt();
             $l[] = "For real-time information such as prices, weather, time and date, or exact calculations, use the relevant tool and never guess numbers or prices yourself.";
         }
 

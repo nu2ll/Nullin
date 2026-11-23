@@ -12,7 +12,6 @@ final class Switches
         'weather'  => ['🌦 آب‌وهوا', '🌦 Weather'],
         'rates'    => ['💱 نرخ ارز و طلا', '💱 Exchange rates & gold'],
         'download' => ['⬇️ دانلودر', '⬇️ Downloader'],
-        'getfile'  => ['📥 دریافت فایل', '📥 File fetch'],
         'linkcheck' => ['🛡 ردیاب اشتراک', '🛡 Invite link tracker'],
         'business' => ['🤝 منشی هوشمند', '🤝 Smart secretary'],
         'whisper'  => ['🤫 نجوا', '🤫 Whisper'],

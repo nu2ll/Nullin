@@ -1,15 +1,11 @@
 import asyncio
 import json
-import logging
 import os
 import sys
 import time
 
 from telethon import TelegramClient, types, utils, functions
 from telethon.sessions import StringSession
-
-
-logging.basicConfig(level=logging.INFO, stream=sys.stderr, format='%(levelname)s %(name)s: %(message)s')
 
 
 def emit(obj):
@@ -20,11 +16,8 @@ async def main():
     a = json.loads(os.environ['NL_JOB'])
     path = a['session_file']
     saved = open(path).read().strip() if os.path.exists(path) else ''
-    kw = dict(connection_retries=3, request_retries=3, flood_sleep_threshold=90)
-    try:
-        client = TelegramClient(StringSession(saved), int(a['api_id']), a['api_hash'], raise_last_call_error=True, **kw)
-    except TypeError:
-        client = TelegramClient(StringSession(saved), int(a['api_id']), a['api_hash'], **kw)
+    client = TelegramClient(StringSession(saved), int(a['api_id']), a['api_hash'],
+                            connection_retries=3, request_retries=3, flood_sleep_threshold=90)
     t = a.get('test')
     if t:
         client.session.set_dc(int(t['dc']), t['ip'], int(t['port']))
@@ -92,7 +85,5 @@ async def main():
 try:
     asyncio.run(main())
 except Exception as e:
-    import traceback
-    traceback.print_exc(file=sys.stderr)
     emit({'ok': False, 'error': type(e).__name__ + ': ' + str(e)[:300]})
     sys.exit(1)
