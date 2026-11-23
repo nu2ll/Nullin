@@ -67,6 +67,9 @@ final class ChosenHandler
         if (str_starts_with($id, 'gif_')) {
             Gif::onChosen(substr($id, 4), $imid, (int) $from['id'], (string) ($c['query'] ?? ''));
         }
+        if (str_starts_with($id, 'ss_')) {
+            Screenshot::onChosen(substr($id, 3), $imid);
+        }
         if (str_starts_with($id, 'wh_')) {
             Whisper::bind(substr($id, 3), $imid);
         }

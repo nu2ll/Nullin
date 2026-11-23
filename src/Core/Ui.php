@@ -43,6 +43,7 @@ final class Ui
         'gift'     => ['Wrapped gift', 'wrapped_gift'],
         'wiki'     => ['Books', 'books'],
         'gif'      => ['Film frames', 'film_frames'],
+        'screenshot' => ['Camera', 'camera'],
         'group'    => ['Busts in silhouette', 'busts_in_silhouette'],
         'linkcheck' => ['Shield', 'shield'],
         'short'    => ['Link', 'link'],
@@ -77,7 +78,7 @@ final class Ui
             unset($r['input_message_content']['parse_mode']);
         }
         if (Rich::usable($markup)) {
-            $keep = preg_match('/^(?:(?:fal|unit|calc|coin|pass|chess|ttt|c4|rps|math)$|(?:ai|tr)q_|rs_|st_|lv_|gwi_|wk_|pc_|gif_)/', $id) === 1;
+            $keep = preg_match('/^(?:(?:fal|unit|calc|coin|pass|chess|ttt|c4|rps|math)$|(?:ai|tr)q_|rs_|st_|lv_|gwi_|wk_|pc_|gif_|ss_)/', $id) === 1;
             $r['input_message_content'] = Rich::inlineContent($html ? $text : h($text), $markup, $img);
             if ($keep) {
                 $r['reply_markup'] = ikb([[btn('Nullin', 'noop', null)]]);
@@ -668,7 +669,7 @@ final class Ui
         if (GamesMenu::anyOn()) {
             $base[] = $c('games', L('🎮 بازی‌ها', '🎮 Games'));
         }
-        foreach ([['image', L('🎨 ساخت عکس', '🎨 Create image')], ['translate', L('🌐 ترجمه', '🌐 Translate')], ['font', L('✨ فونت‌ساز', '✨ Font maker')], ['giveaway', L('🎁 قرعه‌کشی', '🎁 Giveaway')], ['wiki', L('📖 ویکی‌پدیا', '📖 Wikipedia')], ['gif', L('🎞 گیف', '🎞 GIF')], ['sharetrace', L('🛡 ردیاب اشتراک', '🛡 Invite link tracker')]] as [$cmd, $desc]) {
+        foreach ([['image', L('🎨 ساخت عکس', '🎨 Create image')], ['translate', L('🌐 ترجمه', '🌐 Translate')], ['font', L('✨ فونت‌ساز', '✨ Font maker')], ['giveaway', L('🎁 قرعه‌کشی', '🎁 Giveaway')], ['wiki', L('📖 ویکی‌پدیا', '📖 Wikipedia')], ['gif', L('🎞 گیف', '🎞 GIF')], ['screenshot', L('📸 اسکرین‌شات سایت', '📸 Website screenshot')], ['sharetrace', L('🛡 ردیاب اشتراک', '🛡 Invite link tracker')]] as [$cmd, $desc]) {
             if (Switches::on(Switches::COMMAND_SWITCH[$cmd])) {
                 $base[] = $c($cmd, $desc);
             }
@@ -746,6 +747,7 @@ final class Ui
         'like'      => '❤️ لایک‌ساز',
         'wiki'      => '📖 ویکی‌پدیا',
         'gif'       => '🎞 گیف',
+        'screenshot' => '📸 اسکرین‌شات',
         'whisper'   => '🤫 نجوا',
         'weather'   => '🌦 آب‌وهوا',
         'calc'      => '🧮 محاسبه سریع',
@@ -773,6 +775,7 @@ final class Ui
         'like'      => '❤️ Like maker',
         'wiki'      => '📖 Wikipedia',
         'gif'       => '🎞 GIF',
+        'screenshot' => '📸 Screenshot',
         'whisper'   => '🤫 Whisper',
         'weather'   => '🌦 Weather',
         'calc'      => '🧮 Quick calc',
@@ -895,6 +898,14 @@ final class Ui
                 . L("💡 زیر هر گیف دکمه‌ی «🔄» هست تا یکی دیگه بگیری؛\n", "💡 Every GIF has a \"🔄\" button for another one;\n")
                 . L("«🔎» هم گیف‌های بیشتر همین جستجو رو نشونت می‌ده.", "\"🔎\" shows you more GIFs from the same search."),
 
+            'screenshot' => L("<b>📸 اسکرین‌شات سایت</b>\n", "<b>📸 Website screenshot</b>\n")
+                . L("ببین هر سایتی\n", "See how any website\n")
+                . L("الان چه شکلیه.\n\n", "looks right now.\n\n")
+                . "• " . $c(L('ss digikala.com', 'ss example.com')) . "\n"
+                . L("• پیوی یا گروه:\n<code>نالین از سایت گوگل اسکرین‌شات بگیر</code>\n", "• Private or group:\n<code>Nullin take a screenshot of google.com</code>\n")
+                . L("• دستور:\n<code>/screenshot example.com</code>\n\n", "• Command:\n<code>/screenshot example.com</code>\n\n")
+                . L("💡 یا روی پیامی که لینک داره ریپلای کن و <code>/screenshot</code> بزن.", "💡 Or reply to a message that has a link and send <code>/screenshot</code>."),
+
             'whisper' => L("<b>🤫 نجوا</b>\n", "<b>🤫 Whisper</b>\n")
                 . L("پیام مخفی وسط هر چتی\n", "A secret message in the middle of any chat\n")
                 . L("که فقط گیرنده می‌تونه بخونه.\n\n", "that only the recipient can read.\n\n")
@@ -1015,7 +1026,7 @@ final class Ui
 
     private const HELP_LAYOUT = [
         1 => [['ai', 'image', 'translate'], ['search', 'wiki'], ['whisper', 'linkcheck', 'font'], ['download', 'giveaway'], ['gif', 'like', 'roast']],
-        2 => [['weather', 'calc'], ['qr', 'short', 'unit'], ['love', 'group'], ['nid', 'card', 'sheba'], ['funstat', 'games']],
+        2 => [['weather', 'calc', 'screenshot'], ['qr', 'short', 'unit'], ['love', 'group'], ['nid', 'card', 'sheba'], ['funstat', 'games']],
     ];
 
     public static function helpPage(string $key): int
@@ -1054,9 +1065,9 @@ final class Ui
     }
 
     private const TRY_PREFIX = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'lv ', 'like' => 'lk ', 'roast' => 'rs ', 'date' => 'dt ',
-        'nid' => 'ml ', 'card' => 'cd ', 'sheba' => 'sb ', 'unit' => 'unit', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
+        'nid' => 'ml ', 'card' => 'cd ', 'sheba' => 'sb ', 'unit' => 'unit', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'screenshot' => 'ss ', 'calc' => '2+2', 'linkcheck' => 'st '];
     const TRY_PREFIX_EN = ['ai' => 'ai ', 'translate' => 'tr ', 'search' => 'g ', 'font' => 'ft ', 'whisper' => 'nj ', 'weather' => 'hv ', 'qr' => 'qr ', 'short' => 'sh ', 'love' => 'lv ', 'like' => 'lk ', 'roast' => 'rs ', 'date' => 'dt ',
-        'nid' => 'ml ', 'card' => 'cd ', 'sheba' => 'sb ', 'unit' => 'convert', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'calc' => '2+2', 'linkcheck' => 'st '];
+        'nid' => 'ml ', 'card' => 'cd ', 'sheba' => 'sb ', 'unit' => 'convert', 'funstat' => 'id ', 'giveaway' => 'gw ', 'wiki' => 'wk ', 'gif' => 'gif ', 'screenshot' => 'ss ', 'calc' => '2+2', 'linkcheck' => 'st '];
 
     private static function tryButton(string $key): array
     {

@@ -19,6 +19,7 @@ final class InlineHandler
         'font'    => ['ft'],
         'wiki'    => ['wk'],
         'gif'     => ['gif'],
+        'screenshot' => ['ss'],
         'gw'      => ['gw'],
         'linkcheck' => ['st'],
         'like'    => ['lk'],
@@ -79,6 +80,7 @@ final class InlineHandler
                         'gw'      => self::giveaway($rest),
                         'wiki'    => self::wiki($rest),
                         'gif'     => self::gif($rest),
+                        'screenshot' => self::screenshot($rest),
                         'linkcheck' => self::linkcheck($rest),
                         'like'    => self::like($rest),
                         'date'    => self::date($rest),
@@ -186,6 +188,20 @@ final class InlineHandler
             return;
         }
         self::answer($page['results'], 300, false, $page['next']);
+    }
+
+    private static function screenshot(string $q): void
+    {
+        if ($q === '') {
+            self::guide('screenshot', 'screenshot', L('📸 اسکرین‌شات سایت', '📸 Website screenshot'), L('بعد از ss آدرس سایت رو بنویس', 'Type the website address after ss'));
+            return;
+        }
+        $p = Screenshot::parse($q);
+        if ($p === null) {
+            self::fail('shot_bad', L('📸 آدرس سایت نامعتبره', '📸 Invalid website address'), L('آدرس کامل سایت رو بنویس', 'Write the full website address'), Screenshot::notice('url'));
+            return;
+        }
+        self::answer([Screenshot::inline($p)], 0);
     }
 
     private static function like(string $text): void
@@ -702,6 +718,7 @@ final class InlineHandler
             Ui::article('help_giveaway', 'gift', L('🎁 قرعه‌کشی', '🎁 Giveaway'), L('gw [تعداد] [زمان] [جایزه]', 'gw [count] [time] [prize]'), Ui::guide('giveaway'), Ui::tryKeyboard('giveaway')),
             Ui::article('help_wiki', 'wiki', L('📖 ویکی‌پدیا', '📖 Wikipedia'), L('wk [موضوع]', 'wk [topic]'), Ui::guide('wiki'), Ui::tryKeyboard('wiki')),
             Ui::article('help_gif', 'gif', L('🎞 گیف', '🎞 GIF'), L('gif [هر چی بخوای]', 'gif [anything you want]'), Ui::guide('gif'), Ui::tryKeyboard('gif')),
+            Ui::article('help_screenshot', 'screenshot', L('📸 اسکرین‌شات سایت', '📸 Website screenshot'), L('ss [آدرس سایت]', 'ss [website address]'), Ui::guide('screenshot'), Ui::tryKeyboard('screenshot')),
             Ui::article('help_ai', 'ai', L('🧠 هوش مصنوعی', '🧠 AI'), L('ai [سؤالت]', 'ai [your question]'), Ui::guide('ai'), Ui::tryKeyboard('ai')),
             Ui::article('help_translate', 'translate', L('🌐 ترجمه', '🌐 Translate'), L('tr [متن]', 'tr [text]'), Ui::guide('translate'), Ui::tryKeyboard('translate')),
             Ui::article('help_search', 'search', L('🔍 سرچ گوگل', '🔍 Google search'), L('g [هر چی بخوای]', 'g [anything you want]'), Ui::guide('search'), Ui::tryKeyboard('search')),
@@ -719,7 +736,7 @@ final class InlineHandler
         ];
 
         $swMap = ['info' => 'userinfo', 'chess' => 'chess', 'ttt' => 'ttt', 'c4' => 'c4', 'rps' => 'rps', 'math' => 'math', 'calc' => 'calc', 'unit' => 'unit', 'rates' => 'rates', 'date' => 'date', 'pass' => 'password', 'coin' => 'coin', 'fal' => 'fal',
-            'help_image' => 'image', 'help_whisper' => 'whisper', 'help_giveaway' => 'giveaway', 'help_like' => 'like', 'help_wiki' => 'wiki', 'help_gif' => 'gif', 'help_ai' => 'ai', 'help_translate' => 'translate', 'help_search' => 'search',
+            'help_image' => 'image', 'help_whisper' => 'whisper', 'help_giveaway' => 'giveaway', 'help_like' => 'like', 'help_wiki' => 'wiki', 'help_gif' => 'gif', 'help_screenshot' => 'screenshot', 'help_ai' => 'ai', 'help_translate' => 'translate', 'help_search' => 'search',
             'help_font' => 'font', 'help_weather' => 'weather', 'help_qr' => 'qr', 'help_short' => 'short', 'help_roast' => 'roast', 'help_love' => 'love', 'help_nid' => 'nid', 'help_card' => 'card', 'help_sheba' => 'sheba', 'help_funstat' => 'funstat', 'help_linkcheck' => 'linkcheck'];
         $items = array_values(array_filter($items, static fn($r) => !isset($swMap[$r['id']]) || Switches::on($swMap[$r['id']])));
 

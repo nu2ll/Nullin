@@ -123,9 +123,9 @@ final class AI
         return null;
     }
 
-    public static function noteKey(string $prov, string $key, int $code): void
+    public static function noteKey(string $prov, string $key, int $code, string $err = ''): void
     {
-        Store::set('ai', 'keystat_' . $prov . '_' . substr(md5($key), 0, 10), ['code' => $code, 'at' => time()]);
+        Store::set('ai', 'keystat_' . $prov . '_' . substr(md5($key), 0, 10), ['code' => $code, 'at' => time()] + ($err !== '' ? ['err' => $err] : []));
     }
 
     public static function markMsg($chatId, $messageId): void
@@ -701,7 +701,8 @@ final class AI
             . L("\n🔎 سرچ: ", "\n🔎 Search: ") . (self::searchOn() ? L('روشن', 'on') : L('خاموش', 'off'))
             . L("\n\n🔑 <b>وضعیت کلیدها</b> (ریست: ", "\n\n🔑 <b>Key status</b> (reset: ") . Jalali::time(self::quotaResetAt()) . ")\n"
             . self::keyReport('gemini', 'Gemini', self::keys(), $all) . "\n" . self::keyReport('groq', 'Groq', FreeAI::keys('groq'), array_map(static fn($e) => 'groq:' . $e['id'], FreeAI::models('groq')))
-            . "\n" . self::keyReport('giphy', 'GIPHY', Gif::keys(), ['giphy']);
+            . "\n" . self::keyReport('giphy', 'GIPHY', Gif::keys(), ['giphy'])
+            . "\n" . self::keyReport('screenshot', 'Microlink', Screenshot::keys(), ['screenshot']);
     }
 
     private const WHY_EN = [
@@ -729,11 +730,12 @@ final class AI
         foreach ($keys as $i => $key) {
             $st   = Store::get('ai', 'keystat_' . $prov . '_' . substr(md5($key), 0, 10));
             $code = is_array($st) ? (int) ($st['code'] ?? -1) : -1;
+            $err  = is_array($st) ? (string) ($st['err'] ?? '') : '';
             $icon = match (true) {
                 $code === -1                         => '▫️',
                 $code === 200                        => '✅',
-                $code === 429                        => '⏸',
-                in_array($code, [401, 402, 403], true) => '⛔',
+                $code === 429 || in_array($err, ['ERATE', 'ECONCURRENCY'], true) => '⏸',
+                in_array($code, [401, 402, 403], true) || in_array($err, ['EAUTH', 'EPRO'], true) => '⛔',
                 default                              => '⚠️',
             };
             $cool = 0;
@@ -742,9 +744,9 @@ final class AI
                     $cool++;
                 }
             }
-            $what = $code === -1 ? L('هنوز استفاده نشده', 'not used yet') : ($code === 200 ? L('سالم', 'healthy') : L('خطای ', 'error ') . fa((string) $code));
+            $what = $code === -1 ? L('هنوز استفاده نشده', 'not used yet') : ($code === 200 ? L('سالم', 'healthy') : L('خطای ', 'error ') . fa((string) $code) . ($err !== '' ? ' · <code>' . h($err) . '</code>' : ''));
             $rows[] = "{$icon} {$name} " . fa((string) ($i + 1)) . " (…" . h(substr($key, -4)) . "): {$what}"
-                . ($cool > 0 ? ' · ' . ($prov === 'giphy' ? L('در استراحت', 'cooling down') : fa((string) $cool) . L(' مدل در استراحت', ' models cooling down')) : '')
+                . ($cool > 0 ? ' · ' . (in_array($prov, ['giphy', 'screenshot'], true) ? L('در استراحت', 'cooling down') : fa((string) $cool) . L(' مدل در استراحت', ' models cooling down')) : '')
                 . (is_array($st) ? ' · ' . Jalali::time((int) $st['at']) : '');
         }
         return implode("\n", $rows);
@@ -782,7 +784,7 @@ final class AI
         $l[] = "Where you work: 1) Private chat: every message, photo, voice message or file gets a direct reply. 2) Groups: people call you by writing “نالین” or “Nullin” at the start or middle of a message, by tagging {$bot}, or by replying to one of my messages; I also answer posts of a linked channel automatically; if I'm not a group admin, some messages never reach me. 3) Any chat, even one you're not a member of: typing {$bot} (inline) opens the tools menu, and I also answer when tagged.";
         $l[] = ('Memory: I remember the last 20 messages of each chat, and every night at 12 this short-term memory starts over'
             . '. I understand: text, photos, voice messages, music, files, location, contacts, polls, dice and emoji games (darts, basketball, football, bowling, slots); from animated stickers, GIFs and videos only one frame. Text inside [The user ...] is a system note about something the user sent, not their own words; use it to understand but never repeat it.');
-        $l[] = "Tools (by asking normally, or from the inline menu with a prefix): translation (tr, /translate); image creation (/image); Persian and English Wikipedia (wk, /wiki); GIF search from GIPHY (gif, /gif); current weather and a two-day forecast (hv); exchange rates, gold, coins and crypto; calculator; Persian and English font maker (ft, /font); QR code (qr); link shortener (sh); Hafez fortune; strong password; date and time (dt; Jalali calendar in Persian, Gregorian in English); coin flip; Iranian national ID structure check (ml; check digit only, not the civil registry); love percentage for two people (lv; just for fun); roast (rs; once a minute per person); the user's Telegram account info; user stats by numeric ID (id); whisper: a secret message in any chat that only the recipient can read (nj, max 200 characters); giveaways for a channel, group or any chat (gw, /giveaway; in a channel I must be an admin, and in a group an admin has to start it).";
+        $l[] = "Tools (by asking normally, or from the inline menu with a prefix): translation (tr, /translate); image creation (/image); Persian and English Wikipedia (wk, /wiki); GIF search from GIPHY (gif, /gif); website screenshot (ss, /screenshot); current weather and a two-day forecast (hv); exchange rates, gold, coins and crypto; calculator; Persian and English font maker (ft, /font); QR code (qr); link shortener (sh); Hafez fortune; strong password; date and time (dt; Jalali calendar in Persian, Gregorian in English); coin flip; Iranian national ID structure check (ml; check digit only, not the civil registry); love percentage for two people (lv; just for fun); roast (rs; once a minute per person); the user's Telegram account info; user stats by numeric ID (id); whisper: a secret message in any chat that only the recipient can read (nj, max 200 characters); giveaways for a channel, group or any chat (gw, /giveaway; in a channel I must be an admin, and in a group an admin has to start it).";
         $l[] = "Downloader: links from YouTube, Instagram, TikTok, Twitter, Facebook, Reddit, Pinterest, Snapchat, SoundCloud and single Spotify tracks (not albums or playlists); from photo posts on Instagram, Pinterest, Twitter and Reddit I send the photos; for long videos there's a “low size” or “audio only” option. Games from the main menu, against the bot or with friends: chess (3 difficulty levels), tic-tac-toe, Connect Four, rock-paper-scissors and math duel. Commands: /start /help /image /translate /font /giveaway /wiki.";
 
         $name = trim(preg_replace('/[\x{2066}-\x{2069}]/u', '', (string) ($ctx['user_name'] ?? '')));

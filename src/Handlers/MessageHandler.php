@@ -4,7 +4,7 @@ final class MessageHandler
 {
     private const TRIGGER = '(?:نالینی|نالین|nullini|nullin)';
     private const RATES_CMD = '/^(?:نرخ[\s\x{200C}]*(?:ارز|ارزها|ارز[\s\x{200C}]*و[\s\x{200C}]*طلا)|قیمت[\s\x{200C}]*ارز(?:ها)?|(?:(?:exchange|currency|gold|market|live)(?:\s*(?:&|and)\s*|\s+))*rates?)[\s؟?!.]*$/iu';
-    private const TIDY_SKIP = ['cookies', 'broadcast', 'giveaway', 'gif', 'games', 'game'];
+    private const TIDY_SKIP = ['cookies', 'broadcast', 'giveaway', 'gif', 'screenshot', 'games', 'game'];
     private const TIDY_SEND = '/^send(Message|RichMessage|Photo|Video|Animation|Document|Audio|Voice|Sticker|Poll|Dice|MediaGroup)$/';
 
     private static ?array $tidy = null;
@@ -278,7 +278,7 @@ final class MessageHandler
         }
         Users::hit("cmd:{$cmd}");
 
-        $gate = ['wiki' => 'wiki', 'giveaway' => 'giveaway', 'image' => 'image', 'font' => 'font', 'translate' => 'translate', 'gif' => 'gif', 'sharetrace' => 'linkcheck', 'secretary' => 'business'][$cmd] ?? null;
+        $gate = ['wiki' => 'wiki', 'giveaway' => 'giveaway', 'image' => 'image', 'font' => 'font', 'translate' => 'translate', 'gif' => 'gif', 'screenshot' => 'screenshot', 'sharetrace' => 'linkcheck', 'secretary' => 'business'][$cmd] ?? null;
         if ($gate !== null && !Switches::guard($gate)) {
             return true;
         }
@@ -366,6 +366,10 @@ final class MessageHandler
 
             case 'gif':
                 Gif::send($msg, $args);
+                return true;
+
+            case 'screenshot':
+                Screenshot::send($msg, $args);
                 return true;
 
             case 'image':

@@ -2,7 +2,7 @@
 
 final class Kernel
 {
-    private const DAILY = ['whisper_pending', 'gw_draft', 'gw_wiz', 'like_txt', 'wiki_pending', 'pc_pending', 'linkcheck_inline'];
+    private const DAILY = ['whisper_pending', 'gw_draft', 'gw_wiz', 'like_txt', 'wiki_pending', 'pc_pending', 'linkcheck_inline', 'ss_pending'];
 
     private const TTL = [
         'games'           => 10 * 86400,

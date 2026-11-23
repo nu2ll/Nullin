@@ -174,7 +174,7 @@ final class GuestHandler
         self::edit($imid, $qid, $html, $answer, $kb);
     }
 
-    private const CMD_SWITCH  = ['wiki' => 'wiki', 'translate' => 'translate', 'font' => 'font', 'gif' => 'gif', 'giveaway' => 'giveaway', 'image' => 'image', 'sharetrace' => 'linkcheck'];
+    private const CMD_SWITCH  = ['wiki' => 'wiki', 'translate' => 'translate', 'font' => 'font', 'gif' => 'gif', 'screenshot' => 'screenshot', 'giveaway' => 'giveaway', 'image' => 'image', 'sharetrace' => 'linkcheck'];
     // دستورهایی که تو گست معنی ندارن؛ بی‌صدا نادیده گرفته می‌شن (نه این‌که برن سراغ AI)
     private const CMD_IGNORED = ['start', 'secretary', 'stats', 'ai', 'quota', 'backup', 'cookies', 'tools', 'ban', 'unban', 'banned', 'broadcast'];
 
@@ -249,6 +249,19 @@ final class GuestHandler
                 }
                 $imid = self::send($qid, L('🎞 دارم گیف میارم…', '🎞 Getting the GIF…'));
                 $o    = Intent::output($m, 'gif', mb_substr($args, 0, 300), true, $imid);
+                if ($o !== null) {
+                    self::show($imid, $qid, $o);
+                }
+                return true;
+
+            case 'screenshot':
+                $arg = mb_substr($args !== '' ? $args : $rt, 0, 300);
+                if (Screenshot::parse($arg) === null) {
+                    self::send($qid, $arg === '' ? Ui::guide('screenshot') : Screenshot::notice('url'));
+                    return true;
+                }
+                $imid = self::send($qid, Screenshot::wait());
+                $o    = Intent::output($m, 'screenshot', $arg, true, $imid);
                 if ($o !== null) {
                     self::show($imid, $qid, $o);
                 }

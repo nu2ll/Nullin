@@ -93,6 +93,16 @@ final class Http
             $set[CURLOPT_CUSTOMREQUEST] = $method;
             $set[CURLOPT_POSTFIELDS]    = $opt['body'] ?? '';
         }
+        $respHeaders = [];
+        if (!empty($opt['want_headers'])) {
+            $set[CURLOPT_HEADERFUNCTION] = static function ($ch, string $line) use (&$respHeaders): int {
+                if (str_contains($line, ':')) {
+                    [$name, $value] = explode(':', $line, 2);
+                    $respHeaders[strtolower(trim($name))] = trim($value);
+                }
+                return strlen($line);
+            };
+        }
         $buf = null;
         if (isset($opt['max_bytes'])) {
             $buf = '';
@@ -118,7 +128,7 @@ final class Http
             $body = $buf;
         }
 
-        return ['code' => $code, 'body' => $body === false ? null : (string) $body, 'error' => $error, 'redirect' => $redirect, 'url' => $effective];
+        return ['code' => $code, 'body' => $body === false ? null : (string) $body, 'error' => $error, 'redirect' => $redirect, 'url' => $effective, 'headers' => $respHeaders];
     }
 
     public static function getJson(string $url, array $headers = [], int $timeout = 12): ?array

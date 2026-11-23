@@ -9,6 +9,7 @@ final class Switches
         'search'   => ['🔍 سرچ گوگل', '🔍 Google search'],
         'wiki'     => ['📖 ویکی‌پدیا', '📖 Wikipedia'],
         'gif'      => ['🎞 گیف', '🎞 GIF'],
+        'screenshot' => ['📸 اسکرین‌شات سایت', '📸 Website screenshot'],
         'weather'  => ['🌦 آب‌وهوا', '🌦 Weather'],
         'rates'    => ['💱 نرخ ارز و طلا', '💱 Exchange rates & gold'],
         'download' => ['⬇️ دانلودر', '⬇️ Downloader'],
@@ -47,6 +48,7 @@ final class Switches
         'giveaway'  => 'giveaway',
         'wiki'      => 'wiki',
         'gif'       => 'gif',
+        'screenshot' => 'screenshot',
         'sharetrace' => 'linkcheck',
         'secretary' => 'business',
     ];

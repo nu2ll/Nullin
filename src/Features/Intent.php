@@ -2,7 +2,7 @@
 
 final class Intent
 {
-    public const NAMES = ['translate', 'download', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'short', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'card', 'sheba', 'love', 'roast', 'userinfo', 'giveaway', 'gif'];
+    public const NAMES = ['translate', 'download', 'wiki', 'search', 'weather', 'rates', 'font', 'qr', 'short', 'fal', 'password', 'date', 'coin', 'calc', 'nid', 'card', 'sheba', 'love', 'roast', 'userinfo', 'giveaway', 'gif', 'screenshot'];
 
     public static function prompt(): string
     {
@@ -20,6 +20,7 @@ final class Intent
             . "\n- coin: heads or tails."
             . "\n- giveaway: create a giveaway."
             . "\n- gif | <search query in English, one to four words>: send a GIF that matches what they want to see or express."
+            . "\n- screenshot | <website address; leave empty if the link is in the message they replied to>: send a screenshot of a website."
             . "\n- download | <full link; leave empty if the link is in the message they replied to>: download the video, photo or audio of a link."
             . "\n- calc | <math expression with + - * / ^ and parentheses>: numeric calculation."
             . "\n- nid | <national ID code>: check whether an Iranian national ID is valid."
@@ -70,6 +71,9 @@ final class Intent
         }
         if ($name === 'gif') {
             return Gif::send($msg, $arg);
+        }
+        if ($name === 'screenshot') {
+            return Screenshot::send($msg, $arg);
         }
         if (in_array($name, ['translate', 'rates', 'weather', 'wiki', 'search', 'love', 'roast'], true)) {
             $tg->action($chat, 'typing');
@@ -261,6 +265,9 @@ final class Intent
 
             case 'gif':
                 return Gif::output($arg, (int) ($msg['from']['id'] ?? 0));
+
+            case 'screenshot':
+                return Screenshot::output($arg, $imid);
 
             case 'giveaway':
                 return $guest ? ['text' => L("🎁 قرعه‌کشی رو تو پیوی من بساز 👇", "🎁 Create the giveaway in my private chat 👇"), 'kb' => ikb([[urlBtn(L('🎁 ساخت قرعه‌کشی', '🎁 Create giveaway'), "https://t.me/{$bot}?start=giveaway", 'success')]])] : null;

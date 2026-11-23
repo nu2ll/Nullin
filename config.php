@@ -53,6 +53,8 @@ return [
     'giphy_keys'    => array_values(array_unique(array_merge(envList('GIPHY_API_KEYS'), envList('GIPHY_API_KEY')))),
     'giphy_caption' => env('GIPHY_CAPTION', '1') !== '0',
 
+    'screenshot_keys' => array_values(array_unique(array_merge(envList('MICROLINK_API_KEYS'), envList('MICROLINK_API_KEY')))),
+
     'backup' => [
         'token'  => env('GITHUB_TOKEN', ''),
         'repo'   => env('GITHUB_REPO', ''),
