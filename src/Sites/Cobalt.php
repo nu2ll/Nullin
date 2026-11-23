@@ -208,15 +208,14 @@ final class Cobalt
             $out['thumb'] = $u;
         }
         $t = trim((string) ($m['og:title'] ?? ''));
-        if (preg_match('/^(.+?) on Instagram:\s*["\x{201C}](.*)["\x{201D}]\s*$/us', $t, $x)) {
+        if (preg_match('/^(.+?) on Instagram:\s*["\x{201C}](.*)["\x{201D}][\s\p{Cf}.]*$/us', $t, $x)) {
             $cap = trim((string) preg_replace('/\s+/u', ' ', $x[2]));
             $out['uploader'] = mb_substr(trim($x[1]), 0, 80);
             $out['title']    = mb_strlen($cap) > 200 ? mb_substr($cap, 0, 200) . '…' : $cap;
         }
-        logInfo('dl', 'cobalt meta: og:title=' . mb_substr(str_replace(["\n", "\r"], ' ', (string) ($m['og:title'] ?? '-')), 0, 300) . ' | og:description=' . mb_substr(str_replace(["\n", "\r"], ' ', (string) ($m['og:description'] ?? $m['description'] ?? '-')), 0, 400));
         if ($out['title'] === '') {
             $d = trim((string) ($m['og:description'] ?? $m['description'] ?? ''));
-            if (preg_match('/^.*?\s-\s(.+?)\s+on\s+[^:]{3,40}:\s*[\"\x{201C}](.*)[\"\x{201D}]\.?\s*$/us', $d, $x)) {
+            if (preg_match('/^.*?\s-\s(.+?)\s+on\s+[^:]{3,40}:\s*[\"\x{201C}](.*)[\"\x{201D}][\s\p{Cf}.]*$/us', $d, $x)) {
                 $cap = trim((string) preg_replace('/\s+/u', ' ', $x[2]));
                 if ($out['uploader'] === '') {
                     $out['uploader'] = mb_substr(trim($x[1]), 0, 80);

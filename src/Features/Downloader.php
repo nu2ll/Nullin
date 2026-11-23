@@ -153,12 +153,12 @@ final class Downloader
                 $prev = $b;
             }
             $name   = [2160 => '4K', 1440 => '2K'][$h] ?? fa($h) . 'p';
-            $opts[] = ['v' . $h, '🎬 ' . $name . self::sizeHint($info, $h, $b)];
+            $opts[] = ['v' . $h, '🎬 ' . $name];
         }
         if (!$opts) {
             $opts[] = ['hd', L('🎬 دانلود ویدیو', '🎬 Download video')];
         }
-        $opts[] = ['mp3', L('🎵 فقط صدا (MP3)', '🎵 Audio only (MP3)') . self::mp3Hint($info)];
+        $opts[] = ['mp3', L('🎵 فقط صدا (MP3)', '🎵 Audio only (MP3)')];
         return $opts;
     }
 
@@ -970,6 +970,7 @@ final class Downloader
         if (!is_array($job) || empty($job['auto'])) {
             return;
         }
+        Lang::useFrom(['id' => (int) ($job['owner'] ?? 0)]);
         if (Store::update('dl_claim', $token, static fn($v) => $v ? null : time()) === null) {
             return;
         }
@@ -1155,19 +1156,6 @@ final class Downloader
             [btn(L('📥 دانلود همه (', '📥 Download all (') . fa((string) $count) . L(' تا)', ' files)'), "dl:{$token}:all", 'success')],
             [btn(L('✖️ بیخیال', '✖️ Cancel'), "dl:{$token}:x", null)],
         ]);
-    }
-
-    private static function sizeHint(array $info, int $h, ?int $bytes = null): string
-    {
-        $b = $bytes ?? self::estimate($info, $h);
-        return $b >= 1048576 ? ' (~' . self::mb((float) $b) . ')' : '';
-    }
-
-    private static function mp3Hint(array $info): string
-    {
-        $dur = (int) ($info['duration'] ?? 0);
-        $b   = $dur * 16500;
-        return $b >= 1048576 ? ' (~' . self::mb((float) $b) . ')' : '';
     }
 
     private static function isVertical(array $a): bool
@@ -1400,6 +1388,7 @@ final class Downloader
         if (!is_array($job)) {
             return;
         }
+        Lang::useFrom(['id' => (int) ($job['owner'] ?? 0)]);
         if ($fmt === 'all' && !empty($job['sp_tracks'])) {
             self::workSet($job, $token);
             return;
