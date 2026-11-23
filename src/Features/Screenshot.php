@@ -245,14 +245,11 @@ final class Screenshot
         return true;
     }
 
-    public static function output(string $q, ?string $imid = null): ?array
+    public static function output(string $q): ?array
     {
         $p = self::parse($q);
         if ($p === null) {
             return ['text' => self::notice('url')];
-        }
-        if ($imid !== null) {
-            Rich::editInlineRich($imid, self::wait());
         }
         $fid = self::shot($p['url']);
         if ($fid === null) {

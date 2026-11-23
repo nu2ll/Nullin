@@ -267,7 +267,7 @@ final class Intent
                 return Gif::output($arg, (int) ($msg['from']['id'] ?? 0));
 
             case 'screenshot':
-                return Screenshot::output($arg, $imid);
+                return Screenshot::output($arg);
 
             case 'giveaway':
                 return $guest ? ['text' => L("🎁 قرعه‌کشی رو تو پیوی من بساز 👇", "🎁 Create the giveaway in my private chat 👇"), 'kb' => ikb([[urlBtn(L('🎁 ساخت قرعه‌کشی', '🎁 Create giveaway'), "https://t.me/{$bot}?start=giveaway", 'success')]])] : null;
