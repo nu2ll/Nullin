@@ -107,6 +107,44 @@ final class Downloader
         return trim((string) (env('API_HASH') ?: env('TG_API_HASH', '')));
     }
 
+    public static ?string $preset = null;
+
+    public static function quotaLeft(int $uid): bool
+    {
+        return App::isAdmin($uid) || self::usedToday($uid) < self::DAILY;
+    }
+
+    public static function mtSendFile(int|string $chat, int $replyTo, string $file, string $name, string $kind, string $mime): bool
+    {
+        $job = [
+            'session_file' => NULLINI_DATA . '/mtproto' . (App::botIndex() === 0 ? '' : (string) App::botIndex()) . '.session',
+            'api_id'       => self::apiId(),
+            'api_hash'     => self::apiHash(),
+            'bot_token'    => App::tg()->token(),
+            'test'         => App::botIndex() === 2 ? ['dc' => (int) env('TEST_DC_ID', 2), 'ip' => (string) env('TEST_DC_IP', '149.154.167.40'), 'port' => (int) env('TEST_DC_PORT', 443)] : null,
+            'chat'         => (int) $chat,
+            'reply_to'     => $replyTo,
+            'file'         => $file,
+            'name'         => $name,
+            'kind'         => $kind,
+            'mime'         => $mime,
+            'thumb'        => '',
+            'caption'      => '',
+        ];
+        $out = null;
+        $res = self::run(['python3', NULLINI_ROOT . '/bin/mtup.py'], 5000, static function (string $line) use (&$out): void {
+            $j = json_decode($line, true);
+            if (is_array($j) && isset($j['ok'])) {
+                $out = $j;
+            }
+        }, ['NL_JOB' => json_encode($job, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
+        if (empty($out['ok']) || empty($out['msg_id'])) {
+            logError('dl', 'mtproto direct upload failed (exit ' . $res['code'] . '): ' . (string) ($out['error'] ?? self::lastLine($res['err'])));
+            return false;
+        }
+        return true;
+    }
+
     public static function maxBytes(): int
     {
         return self::mtproto() ? max(50, min(2000, (int) env('DL_MAX_MB', 2000))) * 1048576 : self::BOT_API_BYTES;
@@ -514,6 +552,16 @@ final class Downloader
 
         $hasVideo = self::SITES[$link['site']][2] && (self::hasVideo($info) || $vurls !== []);
         $token    = self::newJob($link, $info, $uid, $t['chat'], (int) $t['card'], $replyTo, $t['imid']);
+        if (self::$preset !== null && $sp === null) {
+            $want = self::$preset;
+            self::$preset = null;
+            $pf = $want === 'mp3' ? 'mp3' : (self::options($link['site'], $info, true, self::limit($t))[0][0] ?? 'hd');
+            $pr = self::begin($token, $pf, $uid);
+            if (isset($pr['error']) && $pr['error'] !== '') {
+                self::show($t, $pr['error']);
+            }
+            return;
+        }
         $auto     = $hasVideo && $sp === null && !empty($t['group']) && empty($t['imid']) && (int) ($info['count'] ?? 1) <= 1
             ? self::armAuto($token, self::options($link['site'], $info, true, self::limit($t))[0][0] ?? 'hd')
             : false;

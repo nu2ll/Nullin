@@ -16,6 +16,50 @@ final class WebSearch
         return self::keys() !== [];
     }
 
+    public static function links(string $q): array
+    {
+        $out     = [];
+        $queries = [$q, $q . ' download'];
+        if (preg_match('/github|repo|ریپو|گیت/iu', $q)) {
+            $queries[] = $q . ' github repository';
+        }
+        foreach ($queries as $query) {
+            foreach (self::keys() as $key) {
+                $r = Http::postJson(self::URL, ['query' => mb_substr($query, 0, 200), 'search_depth' => 'basic', 'max_results' => 10], ['Authorization: Bearer ' . $key], 12);
+                if ($r['code'] === 200 && is_array($r['data'])) {
+                    foreach ((array) ($r['data']['results'] ?? []) as $x) {
+                        $u = (string) ($x['url'] ?? '');
+                        if (preg_match('#^https?://#i', $u)) {
+                            $out[] = $u;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        return array_values(array_unique($out));
+    }
+
+    public static function images(string $q): array
+    {
+        $out = [];
+        foreach ([$q, $q . ' photo'] as $query) {
+            foreach (self::keys() as $key) {
+                $r = Http::postJson(self::URL, ['query' => mb_substr($query, 0, 200), 'search_depth' => 'basic', 'max_results' => 8, 'include_images' => true], ['Authorization: Bearer ' . $key], 12);
+                if ($r['code'] === 200 && is_array($r['data'])) {
+                    foreach ((array) ($r['data']['images'] ?? []) as $im) {
+                        $u = is_array($im) ? (string) ($im['url'] ?? '') : (string) $im;
+                        if (str_starts_with($u, 'https://') || str_starts_with($u, 'http://')) {
+                            $out[] = $u;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        return array_values(array_unique($out));
+    }
+
     public static function declaration(): array
     {
         return [
