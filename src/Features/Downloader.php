@@ -114,7 +114,7 @@ final class Downloader
         return App::isAdmin($uid) || self::usedToday($uid) < self::DAILY;
     }
 
-    public static function mtSendFile(int|string $chat, int $replyTo, string $file, string $name, string $kind, string $mime): bool
+    public static function mtSendFile(int|string $chat, int $replyTo, string $file, string $name, string $kind, string $mime, string $caption = ''): bool
     {
         $job = [
             'session_file' => NULLINI_DATA . '/mtproto' . (App::botIndex() === 0 ? '' : (string) App::botIndex()) . '.session',
@@ -129,7 +129,7 @@ final class Downloader
             'kind'         => $kind,
             'mime'         => $mime,
             'thumb'        => '',
-            'caption'      => '',
+            'caption'      => $caption,
         ];
         $out = null;
         $res = self::run(['python3', NULLINI_ROOT . '/bin/mtup.py'], 5000, static function (string $line) use (&$out): void {
@@ -994,6 +994,7 @@ final class Downloader
             'count'    => $count,
             'kinds'    => array_values((array) ($info['kinds'] ?? [])),
             'vurls'    => array_values((array) ($info['vurls'] ?? [])),
+            'src'      => self::$preset !== null,
         ]);
         return $token;
     }
@@ -2346,7 +2347,10 @@ final class Downloader
         $d    = dirMark($job['title']);
         $head = $d . '🎬 <b>' . h(mb_substr($job['title'], 0, $long ? 3500 : 800)) . "</b>\n"
             . ($job['uploader'] !== '' ? $d . '👤 ' . bidi(h($job['uploader'])) . "\n" : '');
-        return $head . "\n" . $d . "📥 <a href=\"https://t.me/{$bot}\">@{$bot}</a>";
+        $src  = !empty($job['src']) && !empty($job['url'])
+            ? $d . '🔗 <a href="' . h((string) $job['url']) . '">' . h(preg_replace('/^www\./', '', (string) parse_url((string) $job['url'], PHP_URL_HOST))) . "</a>\n"
+            : '';
+        return $head . "\n" . $src . $d . "📥 <a href=\"https://t.me/{$bot}\">@{$bot}</a>";
     }
 
     private static function fileName(array $job, string $ext): string

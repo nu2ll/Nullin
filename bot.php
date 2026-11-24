@@ -319,6 +319,11 @@ switch ($arg) {
         Downloader::work((string) ($argv[2] ?? ''), (string) ($argv[3] ?? 'hd'));
         exit(0);
 
+    case '--getfile':
+        App::useBot((int) ($argv[4] ?? 0));
+        Fetch::work((string) ($argv[2] ?? ''), (int) ($argv[3] ?? -1));
+        exit(0);
+
     case '--autodl':
         App::useBot((int) ($argv[3] ?? 0));
         Downloader::auto((string) ($argv[2] ?? ''));
@@ -420,6 +425,7 @@ try {
 }
 
 Downloader::cleanupTmp();
+Fetch::cleanupTmp();
 if (Downloader::bin() !== null && env('DL_UPDATE', '1') !== '0' && !disabled('exec')) {
     exec('timeout 240 python3 -m pip install -U -q --no-cache-dir --break-system-packages "yt-dlp[default,curl-cffi]" > /dev/null 2>&1 &');
     out('ready · ' . (Downloader::mtproto() ? 'mtproto, up to ' . (int) (Downloader::maxBytes() / 1048576) . ' MB' : 'bot api, up to 50 MB') . ' · updating yt-dlp', 'dl');

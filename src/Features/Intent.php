@@ -21,8 +21,8 @@ final class Intent
             . "\n- giveaway: create a giveaway."
             . "\n- gif | <search query in English, one to four words>: send a GIF that matches what they want to see or express."
             . "\n- screenshot | <website address; leave empty if the link is in the message they replied to>: send a screenshot of a website."
-            . "\n- download | <full link; leave empty if the link is in the message they replied to>: download the video, photo, audio or any file from a link (including a direct file link or a GitHub repository link)."
-            . "\n- fetch | <video, audio, image or file> | <what to search for, in the user's own words>: search the whole internet and send them a video, a song, pictures, or any downloadable file (apk, pdf, zip, software, document, a GitHub repository by name...) they asked for by name (not when they gave a link)."
+            . "\n- download | <full link; leave empty if the link is in the message they replied to>: download the video, photo or audio of a link."
+            . "\n- fetch | <video, audio, image or file> | <what to search for, in the user's own words> | <only for file: type: apk, windows, mac, linux, ios, pdf, zip, image, mp3, source (the source code of a GitHub repository), or empty> | <only for file: version number, or empty>: search the internet and send them a video, a song, pictures, or a file (an app, installer, document, GitHub repository...) they asked for by name or by link. For an app, write only the app’s own name, e.g. “send me v2rayNG for Android” → “[[fetch | file | v2rayNG | apk | ]]”. Don’t use it for video, photo or audio links of social sites (use download for those)."
             . "\n- calc | <math expression with + - * / ^ and parentheses>: numeric calculation."
             . "\n- nid | <national ID code>: check whether an Iranian national ID is valid."
             . "\n- card | <card number>: check whether an Iranian bank card number is valid and which bank issued it."
@@ -60,7 +60,7 @@ final class Intent
         if ($name === 'download') {
             $link = Downloader::match($arg) ?? Downloader::find($arg . ' ' . (string) ($msg['reply_to_message']['text'] ?? $msg['reply_to_message']['caption'] ?? ''));
             if ($link === null && preg_match('#https?://\S+#i', $arg . ' ' . (string) ($msg['reply_to_message']['text'] ?? $msg['reply_to_message']['caption'] ?? ''), $um)) {
-                return Fetch::direct($msg, rtrim($um[0], '.,،!؟?)»"\''));
+                return Fetch::start($msg, rtrim($um[0], '.,،!؟?)»"\''));
             }
             if ($link === null) {
                 Downloader::dislike($msg);

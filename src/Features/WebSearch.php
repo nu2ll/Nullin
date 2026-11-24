@@ -16,30 +16,6 @@ final class WebSearch
         return self::keys() !== [];
     }
 
-    public static function links(string $q): array
-    {
-        $out     = [];
-        $queries = [$q, $q . ' download'];
-        if (preg_match('/github|repo|ریپو|گیت/iu', $q)) {
-            $queries[] = $q . ' github repository';
-        }
-        foreach ($queries as $query) {
-            foreach (self::keys() as $key) {
-                $r = Http::postJson(self::URL, ['query' => mb_substr($query, 0, 200), 'search_depth' => 'basic', 'max_results' => 10], ['Authorization: Bearer ' . $key], 12);
-                if ($r['code'] === 200 && is_array($r['data'])) {
-                    foreach ((array) ($r['data']['results'] ?? []) as $x) {
-                        $u = (string) ($x['url'] ?? '');
-                        if (preg_match('#^https?://#i', $u)) {
-                            $out[] = $u;
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-        return array_values(array_unique($out));
-    }
-
     public static function images(string $q): array
     {
         $out = [];
@@ -100,7 +76,13 @@ final class WebSearch
         return trim($out);
     }
 
-    private static function fetch(string $q, float $deadline): ?array
+    /** نتیجه‌ی خام Tavily برای ابزار دریافت فایل (لینک‌ها و عکس‌ها) */
+    public static function files(string $q, bool $images = false): ?array
+    {
+        return self::fetch($q, microtime(true) + 14, $images ? ['include_images' => true] : []);
+    }
+
+    private static function fetch(string $q, float $deadline, array $extra = []): ?array
     {
         $keys = self::keys();
         $n    = count($keys);
@@ -119,12 +101,13 @@ final class WebSearch
                 'search_depth'   => 'basic',
                 'max_results'    => 10,
                 'include_answer' => true,
-            ], ['Authorization: Bearer ' . $key], (int) max(3, min($left, 10)));
+            ] + $extra, ['Authorization: Bearer ' . $key], (int) max(3, min($left, 10)));
 
             if ($r['code'] === 200 && is_array($r['data'])) {
                 return [
                     'answer'  => (string) ($r['data']['answer'] ?? ''),
                     'results' => array_values((array) ($r['data']['results'] ?? [])),
+                    'images'  => array_values((array) ($r['data']['images'] ?? [])),
                 ];
             }
             logWarn('search', "tavily key{$i} HTTP {$r['code']}: " . mb_substr((string) ($r['data']['detail']['error'] ?? $r['raw']), 0, 160));
