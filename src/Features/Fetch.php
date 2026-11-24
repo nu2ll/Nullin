@@ -51,11 +51,117 @@ final class Fetch
             return true;
         }
         $token = bin2hex(random_bytes(6));
-        Store::set('fetch', $token, [
+        $job   = [
             'owner' => $uid, 'chat' => $chat, 'ctype' => (string) ($msg['chat']['type'] ?? 'private'),
             'reply' => (int) $msg['message_id'], 'kind' => $kind, 'q' => $q, 'off' => 0, 'items' => $items, 'seen' => self::keys($items),
+            'b'     => App::botIndex(),
+        ];
+        Store::set('fetch', $token, $job);
+        $sent = Rich::sendHtml($chat, self::listText($q, $kind, 0, count($items)), (int) $msg['message_id'], self::listKeyboard($token, $items, $kind));
+        $mid  = (int) ($sent['result']['message_id'] ?? 0);
+        if ($mid > 0) {
+            $job['mid'] = $mid;
+            Store::set('fetch', $token, $job);
+        }
+        return true;
+    }
+
+    /**
+     * Guest / inline version of run(): the answer lives in an inline message ($imid).
+     * No pick list: video/audio use the first match, images send one photo, files go to the user's private chat.
+     */
+    public static function guest(array $from, string $arg, string $imid): bool
+    {
+        $uid = (int) ($from['id'] ?? 0);
+        if (!Switches::on('ai')) {
+            return false;
+        }
+        $parts = preg_split('/\s*[|｜]\s*/u', $arg) ?: [$arg];
+        $kind  = strtolower(trim((string) ($parts[0] ?? '')));
+        if (!in_array($kind, ['video', 'audio', 'image', 'file'], true)) {
+            $kind  = 'video';
+            $parts = [$arg];
+        } else {
+            array_shift($parts);
+        }
+        $q = mbTrim((string) ($parts[0] ?? ''));
+        if ($q === '') {
+            Rich::editInline($imid, L('🤔 چی رو دنبالش بگردم؟ اسمش رو بگو 🙂', '🤔 What should I look for? Tell me its name 🙂'));
+            return true;
+        }
+        if (!Downloader::quotaLeft($uid)) {
+            Rich::editInline($imid, Downloader::quotaText());
+            return true;
+        }
+        if (preg_match('#^https?://\S+$#i', $q)) {
+            if (($link = Downloader::match($q)) !== null) {
+                Downloader::guest($from, $link, $imid);
+                return true;
+            }
+            $kind = 'file';
+        }
+        if ($kind === 'file') {
+            return self::guestFile($uid, implode(' | ', $parts), $imid);
+        }
+        if ($kind === 'image') {
+            return self::guestImage($uid, $q, $imid);
+        }
+        $items = self::search($q, 0, $kind, []);
+        if (!$items) {
+            Rich::editInline($imid, self::nothing());
+            return true;
+        }
+        $token = bin2hex(random_bytes(6));
+        Store::set('fetch', $token, [
+            'owner' => $uid, 'chat' => null, 'ctype' => 'inline', 'reply' => 0, 'kind' => $kind, 'q' => $q, 'off' => 0,
+            'items' => $items, 'seen' => self::keys($items), 'b' => App::botIndex(), 'imid' => $imid, 'from' => $from,
         ]);
-        Rich::sendHtml($chat, self::listText($q, $kind, 0, count($items)), (int) $msg['message_id'], self::listKeyboard($token, $items, $kind));
+        Rich::editInline($imid, self::listText($q, $kind, 0, count($items)), self::listKeyboard($token, $items, $kind));
+        return true;
+    }
+
+    private static function guestImage(int $uid, string $q, string $imid): bool
+    {
+        $store = self::imgStore($uid);
+        if ($store === null) {
+            Rich::editInline($imid, L('⚠️ اول ربات رو تو چت خصوصی استارت کن 🙂', '⚠️ Start the bot in a private chat first 🙂'));
+            return true;
+        }
+        foreach (self::grab(array_slice(WebSearch::images($q), 0, 12)) as [$bytes, $from]) {
+            $id = App::tg()->photoFileId($store, $bytes);
+            if ($id === null) {
+                continue;
+            }
+            Rich::editInline($imid, '🖼 ' . h(mb_substr($q, 0, 100)) . "\n" . self::src($from), null, $id);
+            Downloader::charge($uid);
+            return true;
+        }
+        Rich::editInline($imid, self::nothing());
+        return true;
+    }
+
+    private static function guestFile(int $uid, string $arg, string $imid): bool
+    {
+        $req = self::parseArg($arg);
+        if (!App::isAdmin($uid) && (int) Store::get('gf_busy', (string) $uid, 0) > time() - 1800) {
+            Rich::editInline($imid, L('⏳ یه دانلود دیگه‌ت در جریانه؛', '⏳ You already have another download in progress;') . "\n" . L('صبر کن اون تموم شه.', 'wait for it to finish.'));
+            return true;
+        }
+        $store = Downloader::storeChat($uid);
+        if ($store === null) {
+            Rich::editInline($imid, L('⚠️ اول ربات رو تو چت خصوصی استارت کن 🙂', '⚠️ Start the bot in a private chat first 🙂'));
+            return true;
+        }
+        $token = bin2hex(random_bytes(6));
+        $job   = ['owner' => $uid, 'chat' => $store, 'mid' => 0, 'imid' => $imid, 'reply_to' => 0,
+                  'q' => $req['q'], 'hint' => $req['hint'], 'ver' => $req['ver'], 'cands' => []];
+        Store::set('gf', $token, $job);
+        Store::set('gf_busy', (string) $uid, time());
+        Rich::editInline($imid, L('🔎 دارم دنبال فایل می‌گردم...', '🔎 Looking for the file...'));
+        if (!self::spawn($token, -1)) {
+            Store::delete('gf_busy', (string) $uid);
+            self::fail($job, L('😮‍💨 سرور الان خیلی شلوغه؛', '😮‍💨 The server is very busy right now;') . "\n" . L('چند دقیقه دیگه دوباره امتحان کن.', 'try again in a few minutes.'));
+        }
         return true;
     }
 
@@ -205,6 +311,35 @@ final class Fetch
         return array_slice($out, 0, self::PICK);
     }
 
+    /** At 00:00 (Tehran) every pick list from a previous day loses its buttons, then its record is deleted. */
+    public static function sweep(int $budget = 100): int
+    {
+        $end  = microtime(true) + $budget;
+        $done = 0;
+        $keys = Db::run('SELECT k FROM kv WHERE ns = ? AND updated_at < ? LIMIT 3000', ['fetch', Store::dayStart()])->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($keys as $k) {
+            if (microtime(true) > $end) {
+                break;
+            }
+            $job = Store::get('fetch', (string) $k);
+            $r   = null;
+            if (is_array($job) && !empty($job['chat']) && !empty($job['mid'])) {
+                $r = App::tgFor((int) ($job['b'] ?? 0))->call('editMessageReplyMarkup', [
+                    'chat_id'      => $job['chat'],
+                    'message_id'   => (int) $job['mid'],
+                    'reply_markup' => ['inline_keyboard' => []],
+                ], 5);
+            }
+            if ((int) ($r['error_code'] ?? 0) === 429) {
+                break;
+            }
+            Store::delete('fetch', (string) $k);
+            $done++;
+            usleep(60000);
+        }
+        return $done;
+    }
+
     public static function onCallback(array $cq, string $data): void
     {
         $tg = App::tg();
@@ -213,7 +348,7 @@ final class Fetch
             return;
         }
         $uid = (int) $cq['from']['id'];
-        $job = Store::get('fetch', $m[1]);
+        $job = Store::getToday('fetch', $m[1]);
         if (!is_array($job)) {
             $tg->alert($cq, L('⌛️ منقضی شده؛', '⌛️ Expired;') . "\n" . L('دوباره درخواست بده.', 'ask again.'));
             return;
@@ -223,9 +358,10 @@ final class Fetch
             return;
         }
         $chat = $job['chat'];
+        $imid = (string) ($job['imid'] ?? '');
         $mid  = (int) ($cq['message']['message_id'] ?? 0);
         if ($m[2] === 'x') {
-            $tg->call('deleteMessage', ['chat_id' => $chat, 'message_id' => $mid], 8);
+            $imid !== '' ? Rich::editInline($imid, L('✖️ بیخیال شدی.', '✖️ You cancelled.')) : $tg->call('deleteMessage', ['chat_id' => $chat, 'message_id' => $mid], 8);
             Store::delete('fetch', $m[1]);
             $tg->answer($cq, L('باشه 👌', 'OK 👌'));
             return;
@@ -242,7 +378,9 @@ final class Fetch
             $job['items'] = $items;
             $job['seen'] = array_values(array_unique(array_merge($seen, self::keys($items))));
             Store::set('fetch', $m[1], $job);
-            Rich::editHtml($chat, $mid, self::listText((string) $job['q'], (string) $job['kind'], $off, count($items)), self::listKeyboard($m[1], $items, (string) $job['kind']), null);
+            $lt = self::listText((string) $job['q'], (string) $job['kind'], $off, count($items));
+            $lk = self::listKeyboard($m[1], $items, (string) $job['kind']);
+            $imid !== '' ? Rich::editInline($imid, $lt, $lk) : Rich::editHtml($chat, $mid, $lt, $lk, null);
             $tg->answer($cq);
             return;
         }
@@ -252,8 +390,27 @@ final class Fetch
             return;
         }
         $tg->answer($cq, L('⏳ شروع شد', '⏳ Started'));
-        $tg->call('deleteMessage', ['chat_id' => $chat, 'message_id' => $mid], 8);
+        if ($imid === '') {
+            $tg->call('deleteMessage', ['chat_id' => $chat, 'message_id' => $mid], 8);
+        }
         Store::delete('fetch', $m[1]);
+        if ($imid !== '') {
+            $kindArg = $job['kind'] === 'audio' ? 'mp3' : 'mp4';
+            if (($e['site'] ?? '') === 'web' && isset($e['url'])) {
+                self::guestFile($uid, (string) $e['url'] . ' | ' . $kindArg, $imid);
+                return;
+            }
+            $link = isset($e['url'])
+                ? ['url' => (string) $e['url'], 'site' => (string) $e['site'], 'name' => (string) $e['name']]
+                : ['url' => 'https://www.youtube.com/watch?v=' . $e['id'], 'site' => 'youtube', 'name' => 'YouTube'];
+            Downloader::$preset = $job['kind'] === 'audio' ? 'mp3' : 'video';
+            try {
+                Downloader::guest((array) ($job['from'] ?? ['id' => $uid]), $link, $imid);
+            } finally {
+                Downloader::$preset = null;
+            }
+            return;
+        }
         $msg = ['chat' => ['id' => $chat, 'type' => $job['ctype']], 'from' => ['id' => (int) $job['owner']], 'message_id' => (int) $job['reply']];
         if (($e['site'] ?? '') === 'web' && isset($e['url'])) {
             self::start($msg, (string) $e['url'] . ' | ' . ($job['kind'] === 'audio' ? 'mp3' : 'mp4'));
@@ -587,7 +744,7 @@ final class Fetch
             return;
         }
         if ($m[2] === 'x') {
-            $tg->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => (int) $job['mid']], 8);
+            !empty($job['imid']) ? Rich::editInline((string) $job['imid'], L('✖️ بیخیال شدی.', '✖️ You cancelled.')) : $tg->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => (int) $job['mid']], 8);
             Store::delete('gf', $token);
             $tg->answer($cq, L('باشه 👌', 'OK 👌'));
             return;
@@ -692,7 +849,11 @@ final class Fetch
                 self::fail($job, L('❌ دانلود شد ولی نتونستم بفرستمش 😕', '❌ It downloaded but I couldn’t send it 😕') . "\n" . L('یه‌کم دیگه دوباره امتحان کن.', 'please try again in a bit.') . $why);
                 return;
             }
-            App::tg()->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => (int) $job['mid']], 8);
+            if (!empty($job['imid'])) {
+                self::show($job, L('✅ فایل رو تو چت خصوصی‌ت با ربات فرستادم 📥', '✅ I sent the file to your private chat with the bot 📥'));
+            } else {
+                App::tg()->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => (int) $job['mid']], 8);
+            }
             Downloader::charge((int) $job['owner']);
             Store::delete('gf', $token);
             logInfo('gf', 'sent ' . $name . ' (' . $size . ' bytes) to ' . $job['owner']);
@@ -1470,6 +1631,10 @@ final class Fetch
 
     private static function show(array $job, string $html, ?array $kb = null): void
     {
+        if (!empty($job['imid'])) {
+            Rich::editInline((string) $job['imid'], $html, $kb);
+            return;
+        }
         Rich::editHtml($job['chat'], (int) $job['mid'], $html, $kb);
     }
 

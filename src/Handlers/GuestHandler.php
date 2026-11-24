@@ -144,6 +144,9 @@ final class GuestHandler
                 Downloader::guest($from, $dl, $imid);
                 return;
             }
+            if ($act === 'fetch' && $imid !== null && Fetch::guest($from, $arg, $imid)) {
+                return;
+            }
             $o = Intent::output(['from' => $from] + $msg, $act, $arg, true, $imid);
             if ($o !== null) {
                 self::show($imid, $qid, $o);

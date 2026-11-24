@@ -500,7 +500,7 @@ final class Downloader
             $p = ['info' => ['count' => count($ks), 'kinds' => $ks, 'title' => '', 'webpage_url' => $link['url']]];
         }
         if (isset($p['error'])) {
-            if (!$photos()) {
+            if (!empty($p['fatal']) || !$photos()) {
                 self::show($t, $p['error']);
             }
             return;
@@ -1001,8 +1001,42 @@ final class Downloader
             'kinds'    => array_values((array) ($info['kinds'] ?? [])),
             'vurls'    => array_values((array) ($info['vurls'] ?? [])),
             'src'      => self::$preset !== null,
+            'b'        => App::botIndex(),
         ]);
         return $token;
+    }
+
+    /** At 00:00 (Tehran) ending the 2nd day (today + tomorrow), untouched download cards lose their buttons (the message stays), then the job record is deleted. */
+    public static function sweep(int $budget = 100): int
+    {
+        $end  = microtime(true) + $budget;
+        $done = 0;
+        $keys = Db::run('SELECT k FROM kv WHERE ns = ? AND updated_at < ? LIMIT 3000', ['dl', Store::dayStart() - 86400])->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($keys as $k) {
+            if (microtime(true) > $end) {
+                break;
+            }
+            $job   = Store::get('dl', (string) $k);
+            $r     = null;
+            $where = null;
+            if (is_array($job)) {
+                if (!empty($job['imid'])) {
+                    $where = ['inline_message_id' => (string) $job['imid']];
+                } elseif (!empty($job['chat']) && (int) ($job['card'] ?? 0) > 0) {
+                    $where = ['chat_id' => $job['chat'], 'message_id' => (int) $job['card']];
+                }
+            }
+            if ($where !== null) {
+                $r = App::tgFor((int) ($job['b'] ?? 0))->call('editMessageReplyMarkup', $where + ['reply_markup' => ['inline_keyboard' => []]], 5);
+            }
+            if ((int) ($r['error_code'] ?? 0) === 429) {
+                break;
+            }
+            Store::delete('dl', (string) $k);
+            $done++;
+            usleep(60000);
+        }
+        return $done;
     }
 
     private static function armAuto(string $token, string $fmt): bool
@@ -2382,7 +2416,7 @@ final class Downloader
             $ckPath = self::cookiesPath();
             $ck     = is_file($ckPath) ? self::normalizeCookies((string) file_get_contents($ckPath)) : ['count' => 0, 'insta' => false];
             logWarn('dl', 'cookies at probe: file=' . (is_file($ckPath) ? $ckPath : 'none') . ' count=' . $ck['count'] . ' sessionid=' . ($ck['insta'] ? '1' : '0'));
-            return ['error' => self::explain($res['err'], $res['code'])];
+            return ['error' => self::explain($res['err'], $res['code']), 'fatal' => self::fatal($res['err'], $res['code'])];
         }
         if (($info['_type'] ?? '') === 'playlist') {
             $entries = array_values(array_filter((array) ($info['entries'] ?? []), 'is_array'));
@@ -2486,23 +2520,114 @@ final class Downloader
         return ['code' => $code, 'out' => $out, 'err' => $err];
     }
 
+    /**
+     * Official error phrases per service, copied from the extractors' source
+     * (yt-dlp: yt_dlp/extractor/*.py, gallery-dl: gallery_dl/exception.py + extractor/*.py).
+     * Each list is checked in order: [kind, regex]. Nothing generic is matched here, so unrelated text never gets a wrong label.
+     * The service is read from the "[Name]" tag that yt-dlp / gallery-dl put in front of every error.
+     */
+    private const ERRORS = [
+        'instagram' => [
+            ['rate',    '/exceeded the rate-limit/'],                                  // "redirected to the login page. You have exceeded the rate-limit..."
+            ['private', '/registered users who follow this account|restricted video|empty media response|content is unreachable|need to log in to access this content|authenticated cookies needed|http redirect to (login|challenge) page/'],   // last two: gallery-dl
+            ['empty',   '/there is no video in this post/'],
+            ['gone',    '/requested (user|story|post) could not be found/'],
+        ],
+        'tiktok' => [
+            ['geo',     '/ip address is blocked from accessing this post/'],
+            ['private', '/permission to view this post|requiring login for access|may not be comfortable for some audiences|account is (likely either )?private/'],
+            ['empty',   '/this account does not have any videos posted/'],
+            ['gone',    '/video not available, status code|this livestream has ended/'],
+        ],
+        'twitter' => [
+            // "Twitter API says: <text>": the <text> is Twitter's own API error message (documented API error codes), not yt-dlp's, so each one is matched by its own wording.
+            ['private', '/nsfw tweet requires authentication|not authorized to view this protected tweet|twitter api says:.*sorry, you are not authorized to see this status/'],   // API code 179
+            ['rate',    '/twitter api says:.*rate limit exceeded/'],                                                                   // API code 88
+            ['empty',   '/no video could be found in this tweet|is not a video|space ended|space not started yet/'],
+            ['gone',    '/twitter space not found|requested tweet is unavailable|broadcast is no longer available|video #\d+ is unavailable|twitter api says:.*(no status found with that id|user has been suspended|sorry, that page does not exist)/'],   // API codes 144, 63, 34
+        ],
+        'reddit' => [
+            ['private', '/account authentication is required|quarantined subreddit|private subreddit|http error 403 forbidden/'],
+            ['geo',     '/your ip address is unable to access the reddit api/'],
+            ['empty',   '/no media found|this video is processing/'],
+        ],
+        'facebook' => [
+            ['age',     '/age-restricted and requires authentication/'],
+            ['gone',    '/the video is not available, facebook said/'],
+            ['empty',   '/no video found/'],
+        ],
+        'pinterest' => [
+            ['gone',    '/requested (pin|user|board) could not be found|http error 404/'],   // yt-dlp has no custom errors here; gallery-dl NotFoundError
+        ],
+        'snapchat' => [
+            ['gone',    '/http error 404/'],                                           // yt-dlp has no custom errors here, only the core HTTP ones
+        ],
+        'youtube' => [
+            ['bot',     '/sign in to confirm you.{0,3}re not a bot|captcha challenge|your ip is likely being blocked by youtube/'],
+            ['age',     '/sign in to confirm your age|age-restricted/'],
+            ['geo',     '/uploader has not made this video available in your country/'],
+            ['rate',    '/this content isn.t available, try again later/'],
+            ['private', '/private video|sign in if you.ve been granted access|login details are needed to download this content/'],
+            ['gone',    '/video unavailable|this video (is not available|has been removed|is no longer available)/'],
+        ],
+        'soundcloud' => [
+            ['rate',    '/reached the api rate limit/'],
+        ],
+    ];
+
+    /** yt-dlp core / gallery-dl messages that every service can produce. */
+    private const CORE_ERRORS = [
+        ['size',    '/larger than max-filesize/'],
+        ['geo',     '/not available from your location due to geo restriction|geo[- ]restricted/'],
+        ['rate',    '/http error 429|too many requests/'],
+        ['private', '/only available for registered users|http error 40[13]|authentication required|account credentials required|insufficient privileges/'],
+        ['gone',    '/http error 404|could not be found/'],
+        ['empty',   '/no video formats found/'],
+    ];
+
+    private static function kindOfError(string $err, int $code = 1): string
+    {
+        if ($code === 124 || $code === 137) {
+            return 'timeout';
+        }
+        $e = strtolower($err);
+        $site = '';
+        if (preg_match_all('/\[([a-z0-9]+)(?::[a-z0-9_]+)?\]/', $e, $m)) {
+            foreach ($m[1] as $tag) {
+                $tag = $tag === 'x' ? 'twitter' : $tag;
+                if (isset(self::ERRORS[$tag])) {
+                    $site = $tag;
+                    break;
+                }
+            }
+        }
+        foreach (array_merge(self::ERRORS[$site] ?? [], self::CORE_ERRORS) as [$kind, $re]) {
+            if (preg_match($re, $e) === 1) {
+                return $kind;
+            }
+        }
+        return 'other';
+    }
+
+    /** Definitive failures: no point in trying other (photo) fallbacks, which only burn requests and risk rate limits. */
+    public static function fatal(string $err, int $code = 1): bool
+    {
+        return in_array(self::kindOfError($err, $code), ['timeout', 'bot', 'age', 'private', 'rate', 'gone', 'geo'], true);
+    }
+
     public static function explain(string $err, int $code = 1): string
     {
-        $e = strtolower($err);
-        return match (true) {
-            $code === 124 || $code === 137                                         => L('⌛️ سایت دیر جواب داد؛', '⌛️ The site took too long to respond;') . "\n" . L('یه‌کم دیگه دوباره امتحان کن.', 'please try again in a bit.'),
-            str_contains($e, 'confirm you') && str_contains($e, 'bot')              => L("🤖 یوتیوب سرور رو ربات حساب کرد و اجازه نداد 😕\nیه‌کم دیگه دوباره امتحان کن.", "🤖 YouTube treated the server as a bot and blocked it 😕\nplease try again in a bit."),
-            str_contains($e, 'larger than max-filesize') || str_contains($e, 'file is larger') => L('📦 حجمش از سقف ', '📦 Its size is over the ') . self::limitText() . L(" بیشتره 😕\n💡 «کم‌حجم» یا «فقط صدا» رو امتحان کن.", " limit 😕\n💡 Try “Low size” or “Audio only”."),
-            str_contains($e, 'private') || str_contains($e, 'login') || str_contains($e, 'log in')
-                || str_contains($e, 'sign in') || str_contains($e, 'cookies')            => L('🔒 این پست خصوصیه یا برای دیدنش باید لاگین کرد.', '🔒 This post is private or you need to log in to view it.'),
-            str_contains($e, 'age') && str_contains($e, 'restrict')                 => L("🔞 این ویدیو محدودیت سنی داره و\nبدون لاگین باز نمی‌شه.", "🔞 This video is age-restricted and\ncan’t be opened without logging in."),
-            str_contains($e, 'no video formats') || str_contains($e, 'no media')
-                || str_contains($e, 'there is no video')                             => L("🖼 این پست ویدیو یا صدا نداره\n(احتمالاً فقط عکسه).", "🖼 This post has no video or audio\n(probably photos only)."),
-            str_contains($e, 'unavailable') || str_contains($e, '404') || str_contains($e, 'not found')
-                || str_contains($e, 'removed') || str_contains($e, 'deleted')        => L('🚫 این محتوا در دسترس نیست یا پاک شده.', '🚫 This content is unavailable or has been deleted.'),
-            str_contains($e, 'geo') || str_contains($e, 'country')                  => L('🌍 این محتوا تو منطقه‌ی سرور در دسترس نیست.', '🌍 This content isn’t available in the server’s region.'),
-            str_contains($e, 'rate') && str_contains($e, 'limit') || str_contains($e, '429') => L('🐢 سایت گفت زیادی درخواست دادیم؛', '🐢 The site said we sent too many requests;') . "\n" . L('چند دقیقه دیگه امتحان کن.', 'try again in a few minutes.'),
-            default                                                                => self::genericError(),
+        return match (self::kindOfError($err, $code)) {
+            'timeout' => L('⌛️ سایت دیر جواب داد؛', '⌛️ The site took too long to respond;') . "\n" . L('یه‌کم دیگه دوباره امتحان کن.', 'please try again in a bit.'),
+            'bot'     => L("🤖 یوتیوب سرور رو ربات حساب کرد و اجازه نداد 😕\nیه‌کم دیگه دوباره امتحان کن.", "🤖 YouTube treated the server as a bot and blocked it 😕\nplease try again in a bit."),
+            'size'    => L('📦 حجمش از سقف ', '📦 Its size is over the ') . self::limitText() . L(" بیشتره 😕\n💡 «کم‌حجم» یا «فقط صدا» رو امتحان کن.", " limit 😕\n💡 Try “Low size” or “Audio only”."),
+            'age'     => L("🔞 این ویدیو محدودیت سنی داره و\nبدون لاگین باز نمی‌شه.", "🔞 This video is age-restricted and\ncan’t be opened without logging in."),
+            'private' => L("🔒 این پست خصوصیه یا برای دیدنش باید لاگین کرد.", "🔒 This post is private or you need to log in to view it."),
+            'rate'    => L('🐢 سایت گفت زیادی درخواست دادیم؛', '🐢 The site said we sent too many requests;') . "\n" . L('چند دقیقه دیگه امتحان کن.', 'try again in a few minutes.'),
+            'gone'    => L('🚫 این محتوا در دسترس نیست یا پاک شده.', '🚫 This content is unavailable or has been deleted.'),
+            'geo'     => L('🌍 این محتوا تو منطقه‌ی سرور در دسترس نیست.', '🌍 This content isn’t available in the server’s region.'),
+            'empty'   => L("🤷 چیزی برای دانلود توی این لینک پیدا نکردم.", "🤷 I couldn’t find anything to download in this link."),
+            default   => self::genericError(),
         };
     }
 

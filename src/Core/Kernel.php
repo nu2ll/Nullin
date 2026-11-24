@@ -15,7 +15,6 @@ final class Kernel
         'cache'           => 2 * 86400,
         'join'            => 86400,
         'inline_ai'       => 86400,
-        'dl'              => 2 * 86400,
         'dl_claim'        => 2 * 86400,
         'rl'              => 3600,
         'spam'            => 3600,
@@ -23,7 +22,6 @@ final class Kernel
         'guest_last'      => 2 * 3600,
         'dl_busy'         => 86400,
         'dl_quota'        => 2 * 86400,
-        'fetch'           => 86400,
         'gf'              => 2 * 86400,
         'gf_busy'         => 86400,
         'ai_quota'        => 2 * 86400,
@@ -106,7 +104,7 @@ final class Kernel
     public static function dailyCleanup(): void
     {
         try {
-            $removed = Store::cleanupDaily(self::DAILY) + AnswerButtons::sweep(120) + Gif::sweep(60);
+            $removed = Store::cleanupDaily(self::DAILY) + AnswerButtons::sweep(120) + Gif::sweep(60) + Fetch::sweep(60) + Downloader::sweep(60);
         } catch (\Throwable $e) {
             logError('daily', $e->getMessage());
             return;
@@ -123,6 +121,8 @@ final class Kernel
             Users::cleanupStats();
             $removed += AnswerButtons::sweep(600);
             $removed += Gif::sweep(120);
+            $removed += Fetch::sweep(120);
+            $removed += Downloader::sweep(120);
         } catch (\Throwable $e) {
             logError('janitor', $e->getMessage());
             return;

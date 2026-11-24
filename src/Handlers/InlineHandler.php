@@ -269,6 +269,9 @@ final class InlineHandler
                 Downloader::guest($from, $dl, $imid);
                 return true;
             }
+            if ($act === 'fetch' && Fetch::guest($from, $arg, $imid)) {
+                return true;
+            }
             $o = Intent::output(['from' => $from, 'chat' => ['type' => 'inline'], 'message_id' => 0], $act, $arg, true, $imid);
             if ($o !== null) {
                 GuestHandler::show($imid, '', $o);
