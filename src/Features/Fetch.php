@@ -26,14 +26,14 @@ final class Fetch
             $q    = mbTrim($arg);
         }
         if ($q === '') {
-            Rich::notice($msg, L('🤔 چی رو دنبالش بگردم؟ اسمش رو بگو.', '🤔 What should I look for? Tell me its name.'));
+            Rich::notice($msg, L('🤔 چی رو دنبالش بگردم؟ اسمش رو بگو 🙂', '🤔 What should I look for? Tell me its name 🙂'));
             return true;
         }
         if (preg_match('#^https?://\S+$#i', $q)) {
             return self::start($msg, $q);
         }
         if (!Downloader::quotaLeft($uid)) {
-            Rich::notice($msg, L('فردا دوباره بیا 🙂', 'Come back tomorrow 🙂') . "\n" . L('✋ امروز سهمیه‌ی دانلودت تموم شده.', '✋ You’ve used up today’s download quota.'));
+            Rich::notice($msg, Downloader::quotaText());
             return true;
         }
         if ($kind === 'image') {
@@ -79,7 +79,7 @@ final class Fetch
 
     private static function nothing(): string
     {
-        return L('🤷 چیزی پیدا نکردم؛ یه‌جور دیگه اسمش رو بگو.', '🤷 I found nothing; try describing it differently.');
+        return L('🤷 چیزی پیدا نکردم 😕', '🤷 I found nothing 😕') . "\n" . L('یه‌جور دیگه اسمش رو بگو.', 'try describing it differently.');
     }
 
     private static function listText(string $q, string $kind, int $off = 0, int $count = 0): string
@@ -128,18 +128,52 @@ final class Fetch
         if ($off === 0 && WebSearch::available()) {
             $web  = [];
             $seen = [];
+            $rows = [];
+            $hint = $kind === 'audio' ? 'mp3' : 'mp4';
             $hits = WebSearch::files($q . ($kind === 'audio' ? ' song music' : ' video'));
             foreach ((array) ($hits['results'] ?? []) as $r) {
                 $url = (string) ($r['url'] ?? '');
                 if (!preg_match('#^https?://#i', $url)) {
                     continue;
                 }
-                $link = Downloader::match($url) ?? ['url' => $url, 'site' => 'web', 'name' => self::host($url)];
+                $known = Downloader::match($url);
+                $link  = $known ?? ['url' => $url, 'site' => 'web', 'name' => self::host($url)];
                 if ($link['site'] === 'youtube' || isset($seen[$link['url']])) {
                     continue;
                 }
                 $seen[$link['url']] = true;
-                $web[] = ['url' => $link['url'], 'site' => $link['site'], 'name' => $link['name'], 'title' => (string) (($r['title'] ?? '') !== '' ? $r['title'] : $link['name']), 'd' => 0];
+                $rows[] = ['site' => $link['site'], 'url' => $link['url'], 'name' => $link['name'], 'check' => $known === null,
+                           'title' => (string) (($r['title'] ?? '') !== '' ? $r['title'] : $link['name'])];
+            }
+            // pages the downloader doesn't know: keep only those that really hold a direct file
+            $good  = [];
+            $pages = [];
+            foreach ($rows as $row) {
+                if (!$row['check']) {
+                    continue;
+                }
+                if (self::looksFile($row['url'], self::mediaRe($hint), $hint)) {
+                    $good[$row['url']] = true;
+                } else {
+                    $pages[] = $row['url'];
+                }
+            }
+            if ($pages) {
+                [$htmls, $direct] = self::readPages(array_slice($pages, 0, 10));
+                foreach ($direct as $du) {
+                    $good[$du] = true;
+                }
+                foreach ($htmls as $pu => $html) {
+                    if (self::pageMedia((string) $pu, $html, $hint)) {
+                        $good[$pu] = true;
+                    }
+                }
+            }
+            foreach ($rows as $row) {
+                if ($row['check'] && !isset($good[$row['url']])) {
+                    continue;
+                }
+                $web[] = ['url' => $row['url'], 'site' => $row['site'], 'name' => $row['name'], 'title' => $row['title'], 'd' => 0];
             }
         }
         $out = [];
@@ -164,11 +198,11 @@ final class Fetch
         $uid = (int) $cq['from']['id'];
         $job = Store::get('fetch', $m[1]);
         if (!is_array($job)) {
-            $tg->alert($cq, L('⌛️ این لیست منقضی شده؛ دوباره درخواست بده.', '⌛️ This list has expired; ask again.'));
+            $tg->alert($cq, L('⌛️ منقضی شده؛', '⌛️ Expired;') . "\n" . L('دوباره درخواست بده.', 'ask again.'));
             return;
         }
         if ($uid !== (int) $job['owner'] && !App::isAdmin($uid)) {
-            $tg->alert($cq, L('🙅 این دکمه مال کسیه که درخواست داده.', '🙅 This button belongs to whoever asked.'));
+            $tg->alert($cq, L("🙅 این دکمه مال کسیه که\nدرخواست داده؛", "🙅 This button belongs to whoever\nasked;") . "\n" . L('خودت درخواست بده 🙂', 'ask for your own 🙂'));
             return;
         }
         $chat = $job['chat'];
@@ -184,7 +218,7 @@ final class Fetch
             $web   = (array) ($job['web'] ?? []);
             $items = self::search((string) $job['q'], $off, (string) $job['kind'], $web);
             if (!$items) {
-                $tg->alert($cq, L('نتیجه‌ی بیشتری نیست.', 'No more results.'));
+                $tg->alert($cq, L('🏁 نتیجه‌ی بیشتری نیست؛', '🏁 There are no more results;') . "\n" . L('یه کلمه‌ی دیگه امتحان کن.', 'try another word.'));
                 return;
             }
             $job['off'] = $off;
@@ -427,8 +461,9 @@ final class Fetch
     private const TMP   = '/tmp/nullini-gf';
     private const FILE_UA    = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
-    private const FILE_EXT = 'pdf|zip|rar|7z|tar|gz|tgz|xz|apk|xapk|apks|aab|exe|msi|dmg|pkg|deb|rpm|appimage|ipa|iso|mp3|m4a|flac|ogg|wav|mp4|mkv|webm|mov|avi|epub|mobi|docx?|xlsx?|pptx?|csv|jpe?g|png|gif|webp|bmp|ttf|otf|torrent';
-    private const EXEC_EXT = ['apk', 'xapk', 'apks', 'aab', 'exe', 'msi', 'dmg', 'pkg', 'deb', 'rpm', 'appimage', 'ipa', 'zip', 'rar', '7z', 'iso'];
+    private const AUDIO_EXT = 'mp3|m4a|m4b|aac|ogg|oga|opus|flac|wav|wma|aiff|aif|amr|mka|ac3|weba';
+    private const VIDEO_EXT = 'mp4|m4v|mkv|webm|mov|avi|wmv|flv|mpg|mpeg|3gp|ogv|mts|m2ts|vob';
+    private const FILE_EXT = 'pdf|zip|rar|7z|tar|gz|tgz|xz|apk|xapk|apks|aab|exe|msi|dmg|pkg|deb|rpm|appimage|ipa|iso|mp3|m4a|m4b|aac|ogg|oga|opus|flac|wav|wma|aiff|aif|amr|mka|ac3|weba|mp4|m4v|mkv|webm|mov|avi|wmv|flv|mpg|mpeg|3gp|ogv|mts|m2ts|vob|epub|mobi|docx?|xlsx?|pptx?|csv|jpe?g|png|gif|webp|bmp|ttf|otf|torrent';
     private const SOFT_HINTS = ['', 'apk', 'win', 'mac', 'linux', 'ios', 'source', 'zip', 'exe', 'msi', 'dmg', 'deb', 'rpm', 'appimage', 'ipa', 'tar', 'gz'];
 
     private static string $err = '';
@@ -457,11 +492,11 @@ final class Fetch
             return true;
         }
         if (!Downloader::quotaLeft($uid)) {
-            Rich::notice($msg, L('فردا دوباره بیا 🙂', 'Come back tomorrow 🙂') . "\n" . L('✋ امروز سهمیه‌ی دانلودت تموم شده.', '✋ You’ve used up today’s download quota.'));
+            Rich::notice($msg, Downloader::quotaText());
             return true;
         }
         if (!$isAdmin && (int) Store::get('gf_busy', (string) $uid, 0) > time() - 1800) {
-            Rich::notice($msg, L('⏳ فایل قبلیت هنوز در حال دانلوده؛ صبر کن تموم بشه 🙂', '⏳ Your previous file is still downloading; wait for it to finish 🙂'));
+            Rich::notice($msg, L('⏳ یه دانلود دیگه‌ت در جریانه؛', '⏳ You already have another download in progress;') . "\n" . L('صبر کن اون تموم شه.', 'wait for it to finish.'));
             return true;
         }
 
@@ -485,7 +520,7 @@ final class Fetch
         Store::set('gf_busy', (string) $uid, time());
         if (!self::spawn($token, -1)) {
             Store::delete('gf_busy', (string) $uid);
-            self::fail($job, L('😕 الان نمی‌تونم این کار رو انجام بدم؛ بعداً دوباره امتحان کن.', '😕 I can’t do this right now; please try again later.'));
+            self::fail($job, L('😮‍💨 سرور الان خیلی شلوغه؛', '😮‍💨 The server is very busy right now;') . "\n" . L('چند دقیقه دیگه دوباره امتحان کن.', 'try again in a few minutes.'));
         }
         return true;
     }
@@ -501,11 +536,11 @@ final class Fetch
         $uid   = (int) ($cq['from']['id'] ?? 0);
         $job   = Store::get('gf', $token);
         if (!is_array($job)) {
-            $tg->alert($cq, L('⌛️ این درخواست منقضی شده؛', '⌛️ This request has expired;') . "\n" . L('دوباره بخواهش.', 'ask again.'));
+            $tg->alert($cq, L('⌛️ منقضی شده؛', '⌛️ Expired;') . "\n" . L('دوباره درخواست بده.', 'ask again.'));
             return;
         }
         if ($uid !== (int) $job['owner'] && !App::isAdmin($uid)) {
-            $tg->alert($cq, L('🙅 این دکمه مال کسیه که فایل رو خواسته.', '🙅 This button belongs to whoever asked for the file.'));
+            $tg->alert($cq, L("🙅 این دکمه مال کسیه که\nفایل رو خواسته؛", "🙅 This button belongs to whoever\nasked for the file;") . "\n" . L('خودت درخواست بده 🙂', 'ask for your own 🙂'));
             return;
         }
         if ($m[2] === 'x') {
@@ -520,17 +555,17 @@ final class Fetch
             return;
         }
         if (!Downloader::quotaLeft((int) $job['owner'])) {
-            $tg->alert($cq, L('✋ امروز سهمیه‌ات تموم شده؛ فردا دوباره بیا.', '✋ Today’s quota is used up; come back tomorrow.'));
+            $tg->alert($cq, Downloader::quotaText());
             return;
         }
         $job['picked'] = true;
         Store::set('gf', $token, $job);
         Store::set('gf_busy', (string) $job['owner'], time());
         $tg->answer($cq, L('باشه 👌', 'OK 👌'));
-        self::show($job, L('⏳ آماده‌سازی دانلود...', '⏳ Preparing the download...'));
+        self::show($job, L('⏳ آماده‌ی دانلود...', '⏳ Getting ready to download...'));
         if (!self::spawn($token, $i)) {
             Store::delete('gf_busy', (string) $job['owner']);
-            self::fail($job, L('😕 الان نمی‌تونم این کار رو انجام بدم؛ بعداً دوباره امتحان کن.', '😕 I can’t do this right now; please try again later.'));
+            self::fail($job, L('😮‍💨 سرور الان خیلی شلوغه؛', '😮‍💨 The server is very busy right now;') . "\n" . L('چند دقیقه دیگه دوباره امتحان کن.', 'try again in a few minutes.'));
         }
     }
 
@@ -560,7 +595,7 @@ final class Fetch
             self::download($job, $token, $dir, (array) ($res['urls'] ?? []));
         } catch (\Throwable $e) {
             logError('gf', $e->getMessage());
-            self::fail($job, L('😕 یه مشکل پیش اومد؛ دوباره امتحان کن.', '😕 Something went wrong; please try again.'));
+            self::fail($job, L('❌ یه مشکلی پیش اومد 😕', '❌ Something went wrong 😕') . "\n" . L('یه‌کم دیگه دوباره امتحان کن.', 'please try again in a bit.'));
         } finally {
             Store::delete('gf_busy', (string) ($job['owner'] ?? 0));
             self::rmrf($dir);
@@ -591,7 +626,7 @@ final class Fetch
                     : '📦 ' . Downloader::mb((float) $now);
                 self::show($job, '⬇️ <b>' . h(mb_substr($label, 0, 80)) . "</b>\n" . $line);
             };
-            self::show($job, '⬇️ ' . L('دارم دانلود می‌کنم: ', 'Downloading: ') . '<b>' . h(mb_substr($label, 0, 80)) . '</b>' . (!empty($c['size']) ? ' · ' . Downloader::mb((float) $c['size']) : ''));
+            self::show($job, '⬇️ <b>' . h(mb_substr($label, 0, 80)) . "</b>\n" . L('⏳ دارم دانلودش می‌کنم...', '⏳ Downloading it...') . (!empty($c['size']) ? ' (' . Downloader::mb((float) $c['size']) . ')' : ''));
 
             $r = self::pullFile((string) $c['url'], $file, $max, $tick, $hint);
             if (empty($r['ok'])) {
@@ -607,11 +642,11 @@ final class Fetch
             }
             $size = (int) @filesize($path);
             $ext  = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-            $cap  = self::caption($c, $name, $size, in_array($ext, self::EXEC_EXT, true));
+            $cap  = self::caption($c, $name, $size);
 
             if (!self::send($job, $path, $name, $cap, $size, (string) $r['mime'])) {
                 $why = App::isAdmin((int) $job['owner']) && self::$err !== '' ? "\n<code>" . h(mb_substr(self::$err, 0, 400)) . '</code>' : '';
-                self::fail($job, L('😕 فایل دانلود شد ولی ارسالش به تلگرام نشد.', '😕 The file was downloaded but sending it to Telegram failed.') . $why);
+                self::fail($job, L('❌ دانلود شد ولی نتونستم بفرستمش 😕', '❌ It downloaded but I couldn’t send it 😕') . "\n" . L('یه‌کم دیگه دوباره امتحان کن.', 'please try again in a bit.') . $why);
                 return;
             }
             App::tg()->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => (int) $job['mid']], 8);
@@ -648,7 +683,6 @@ final class Fetch
             }
             if (in_array($hint, ['mp3', 'mp4'], true) && !self::looksFile($q, null, '')) {
                 [$htmls, $direct] = self::readPages([$q]);
-                $re   = $hint === 'mp3' ? '/\.(mp3|m4a|flac|ogg|wav)$/i' : '/\.(mp4|webm|mkv|mov|avi|m4v)$/i';
                 $c    = [];
                 $seen = [];
                 $add  = static function (string $u) use (&$c, &$seen, $q): void {
@@ -662,19 +696,14 @@ final class Fetch
                     $add($du);
                 }
                 foreach ($htmls as $pu => $html) {
-                    if (preg_match_all('/(?:href|src)\s*=\s*["\']([^"\'#<>\s]+)["\']/i', $html, $mm)) {
-                        foreach ($mm[1] as $lnk) {
-                            $abs = self::absUrl((string) $pu, html_entity_decode($lnk));
-                            if ($abs !== null && self::looksFile($abs, $re, $hint)) {
-                                $add($abs);
-                            }
-                        }
+                    foreach (self::pageMedia((string) $pu, $html, $hint) as $lnk) {
+                        $add($lnk);
                     }
                 }
                 if ($c) {
                     return ['urls' => $c];
                 }
-                return ['error' => L('😕 توی این صفحه لینک مستقیم فایل پیدا نکردم؛ یه نتیجه‌ی دیگه رو امتحان کن.', '😕 I couldn’t find a direct file link on that page; try another result.')];
+                return ['error' => L('🤷 توی این صفحه لینک مستقیم فایل پیدا نکردم 😕', '🤷 I couldn’t find a direct file link on that page 😕') . "\n" . L('یه نتیجه‌ی دیگه رو امتحان کن.', 'try another result.')];
             }
             return ['urls' => [['url' => $q, 'name' => '', 'size' => 0, 'src' => self::hostOf($q), 'srcUrl' => $q]]];
         }
@@ -734,7 +763,7 @@ final class Fetch
             if ($hint === '' && $ver === '') {
                 return self::sourceZip($o, $r, $src, $srcUrl);
             }
-            return ['error' => L('😕 برای این پروژه فایل آماده‌ای پیدا نکردم.', '😕 I couldn’t find a ready-made file for this project.')];
+            return ['error' => L('🤷 برای این پروژه فایل آماده‌ای پیدا نکردم 😕', '🤷 I couldn’t find a ready-made file for this project 😕')];
         }
         $tag = (string) ($rel['tag_name'] ?? '');
         $re  = self::hintRegex($hint);
@@ -751,7 +780,7 @@ final class Fetch
                       'src' => $src . ($tag !== '' ? ' · ' . $tag : ''), 'srcUrl' => 'https://github.com/' . $o . '/' . $r . '/releases' . ($tag !== '' ? '/tag/' . rawurlencode($tag) : ''), 'score' => self::score($n, $hint)];
         }
         if (!$all) {
-            return ['error' => L('😕 فایلی با این نوع تو آخرین نسخه‌ی این پروژه نبود.', '😕 This project’s release has no file of that type.')];
+            return ['error' => L('🤷 فایلی با این نوع تو آخرین نسخه‌ی این پروژه نبود 😕', '🤷 This project’s release has no file of that type 😕')];
         }
         usort($all, static fn($a, $b) => [$b['score'], $a['size']] <=> [$a['score'], $b['size']]);
         if (count($all) === 1) {
@@ -767,11 +796,11 @@ final class Fetch
     {
         $info = self::gh("/repos/{$o}/{$r}");
         if (!is_array($info) || empty($info['name'])) {
-            return ['error' => L('😕 این ریپو رو پیدا نکردم.', '😕 I couldn’t find this repository.')];
+            return ['error' => L('🤷 این ریپو رو پیدا نکردم 😕', '🤷 I couldn’t find this repository 😕')];
         }
         $bytes = (int) ($info['size'] ?? 0) * 1024;
         if ($bytes > self::maxBytes()) {
-            return ['error' => L('📦 این ریپو از سقف حجم مجاز (', '📦 This repository is over the size limit (') . self::limitText() . L(') بزرگ‌تره.', ').')];
+            return ['error' => L('📦 حجم این ریپو از سقف ', '📦 This repository’s size is over the ') . self::limitText() . L(' بیشتره 😕', ' limit 😕')];
         }
         $branch = (string) ($info['default_branch'] ?? 'main');
         return ['urls' => [['url' => "https://api.github.com/repos/{$o}/{$r}/zipball", 'name' => "{$r}-{$branch}.zip", 'size' => $bytes, 'src' => $src . L(' (سورس)', ' (source)'), 'srcUrl' => $srcUrl]]];
@@ -858,7 +887,7 @@ final class Fetch
         $words  = $hint !== '' && !$images && $hint !== 'source' ? ' ' . $hint : '';
         $res    = WebSearch::files($q . $words . ($images ? '' : ' download'), $images);
         if ($res === null) {
-            return ['error' => L('😕 جستجو الان کار نمی‌کنه؛ لینک مستقیم فایل رو بفرست یا بعداً امتحان کن.', '😕 Search isn’t working right now; send a direct link or try later.')];
+            return ['error' => L('⚠️ جستجو الان کار نمی‌کنه؛', '⚠️ Search isn’t working right now;') . "\n" . L('لینک مستقیم فایل رو بفرست یا یه‌کم دیگه امتحان کن.', 'send a direct link or try again in a bit.')];
         }
 
         $cands = [];
@@ -916,7 +945,7 @@ final class Fetch
         }
 
         if (!$cands) {
-            return ['error' => L('😕 لینک مستقیم فایل رو پیدا نکردم؛ اسم دقیق‌تر یا لینک مستقیمش رو بفرست.', '😕 I couldn’t find a direct file link; send a more exact name or the direct link.')];
+            return ['error' => L('🤷 لینک مستقیم فایل رو پیدا نکردم 😕', '🤷 I couldn’t find a direct file link 😕') . "\n" . L('اسم دقیق‌تر یا لینک مستقیمش رو بفرست.', 'send a more exact name or the direct link.')];
         }
         if (count($cands) > 1 && !$images) {
             $lines = [];
@@ -996,11 +1025,36 @@ final class Fetch
         return [$html, $direct];
     }
 
+    private static function mediaRe(string $hint): string
+    {
+        return '/\.(' . ($hint === 'mp3' ? self::AUDIO_EXT : self::VIDEO_EXT) . ')$/i';
+    }
+
+    /** @return string[] direct audio/video file links found in a page's HTML */
+    private static function pageMedia(string $pageUrl, string $html, string $hint): array
+    {
+        $out = [];
+        if (preg_match_all('/(?:href|src)\s*=\s*["\']([^"\'#<>\s]+)["\']/i', $html, $mm)) {
+            foreach ($mm[1] as $lnk) {
+                $abs = self::absUrl($pageUrl, html_entity_decode($lnk));
+                if ($abs !== null && self::looksFile($abs, self::mediaRe($hint), $hint)) {
+                    $out[$abs] = $abs;
+                }
+            }
+        }
+        return array_values($out);
+    }
+
     private static function looksFile(string $url, ?string $re, string $hint = ''): bool
     {
         $path = rawurldecode((string) parse_url($url, PHP_URL_PATH));
         if (preg_match('/\.(' . self::FILE_EXT . ')$/i', $path)) {
             return $re === null || preg_match($re, $path) === 1;
+        }
+        // پسوند دلخواه: اگه کاربر خودش نوع فایل رو گفته (مثلاً txt، psd، sql)، همون پسوند هم قبول می‌شه
+        if (preg_match('/^[a-z0-9]{2,6}$/', $hint) && !in_array($hint, ['apk', 'win', 'mac', 'linux', 'ios', 'image', 'source'], true)
+            && preg_match('/\.' . $hint . '$/i', $path)) {
+            return true;
         }
         // لینک‌های دانلود بدون پسوند، مثل telegram.org/dl/android/apk: آخرین بخش آدرس خودش نوع فایله
         $last = strtolower(basename($path));
@@ -1204,10 +1258,10 @@ final class Fetch
 
     private static function mediaKind(string $ext, string $mime): string
     {
-        if (str_starts_with($mime, 'video/') || in_array($ext, ['mp4', 'mov', 'mkv', 'webm'], true)) {
+        if (str_starts_with($mime, 'video/') || preg_match('/^(' . self::VIDEO_EXT . ')$/', $ext) === 1) {
             return 'video';
         }
-        if (str_starts_with($mime, 'audio/') || in_array($ext, ['mp3', 'm4a', 'ogg', 'flac', 'wav'], true)) {
+        if (str_starts_with($mime, 'audio/') || preg_match('/^(' . self::AUDIO_EXT . ')$/', $ext) === 1) {
             return 'audio';
         }
         return 'document';
@@ -1221,7 +1275,7 @@ final class Fetch
         $kind  = self::mediaKind($ext, $mime);
 
         if ($size <= Downloader::BOT_API_BYTES) {
-            self::show($job, L('📤 دارم می‌فرستم...', '📤 Sending...'));
+            self::show($job, L('📤 دارم می‌فرستمش...', '📤 Sending it...'));
             if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true) && $size <= 10 * 1048576) {
                 $mime = $ext === 'png' ? 'image/png' : ($ext === 'webp' ? 'image/webp' : 'image/jpeg');
                 $r = $tg->call('sendPhoto', [
@@ -1368,7 +1422,7 @@ final class Fetch
             $rows[] = [btn($label, "gf:{$token}:{$i}", $i === 0 ? 'success' : 'primary')];
         }
         $rows[] = [btn(L('✖️ بیخیال', '✖️ Cancel'), "gf:{$token}:x", null)];
-        self::show($job, L("📥 چند تا فایل پیدا کردم؛ کدوم رو بفرستم؟\n🔗 ", "📥 I found several files; which one should I send?\n🔗 ") . h((string) ($cands[0]['src'] ?? '')), ikb($rows));
+        self::show($job, L("📥 چند تا فایل پیدا کردم؛\nکدوم رو بفرستم؟ 👇\n🔗 ", "📥 I found several files;\nwhich one should I send? 👇\n🔗 ") . h((string) ($cands[0]['src'] ?? '')), ikb($rows));
     }
 
     private static function show(array $job, string $html, ?array $kb = null): void
@@ -1387,15 +1441,15 @@ final class Fetch
     private static function errText(string $err): string
     {
         return match ($err) {
-            'html'    => L('😕 این لینک یه صفحه‌ی وبه، نه خود فایل؛ لینک مستقیم فایل رو بفرست.', '😕 That link is a web page, not the file itself; send the direct file link.'),
-            'big'     => L('📦 حجم فایل از سقف مجاز (', '📦 The file is over the size limit (') . self::limitText() . L(') بیشتره.', ').'),
+            'html'    => L('🚫 این لینک یه صفحه‌ی وبه، نه خود فایل 😕', '🚫 That link is a web page, not the file itself 😕') . "\n" . L('لینک مستقیم فایل رو بفرست.', 'send the direct file link.'),
+            'big'     => L('📦 حجمش از سقف ', '📦 Its size is over the ') . self::limitText() . L(' بیشتره 😕', ' limit 😕'),
             'blocked' => L('🚫 این آدرس مجاز نیست.', '🚫 This address isn’t allowed.'),
-            'http'    => L('😕 سرور فایل اجازه‌ی دانلود نداد یا فایل پیدا نشد.', '😕 The file server refused the download or the file wasn’t found.'),
-            default   => L('😕 دانلود نشد؛ سرور فایل جواب نداد.', '😕 The download failed; the file server didn’t respond.'),
+            'http'    => L('🚫 سرور فایل اجازه‌ی دانلود نداد یا فایل پیدا نشد 😕', '🚫 The file server refused the download or the file wasn’t found 😕'),
+            default   => L('❌ نتونستم دانلودش کنم 😕', '❌ Couldn’t download it 😕') . "\n" . L('سرور فایل جواب نداد.', 'the file server didn’t respond.'),
         };
     }
 
-    private static function caption(array $c, string $name, int $size, bool $exec): string
+    private static function caption(array $c, string $name, int $size): string
     {
         $bot   = App::botUsername();
         $ext   = strtolower(pathinfo($name, PATHINFO_EXTENSION));
@@ -1408,9 +1462,6 @@ final class Fetch
         $d = dirMark($title);
         $t = $d . $icon . ' <b>' . h(mb_substr($title !== '' ? $title : $name, 0, 800)) . "</b>\n"
             . $d . '📦 ' . strtoupper($ext !== '' ? $ext : 'file') . ' · ' . Downloader::mb((float) $size) . "\n";
-        if ($exec) {
-            $t .= $d . '⚠️ ' . L('فایل نصبی/فشرده است؛ فقط اگه به منبعش اعتماد داری بازش کن.', 'Installer/archive file — open it only if you trust the source.') . "\n";
-        }
         $url = (string) ($c['srcUrl'] ?? '');
         $t  .= "\n";
         if ($url !== '' && strlen($url) <= 400) {

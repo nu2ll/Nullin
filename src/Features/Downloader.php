@@ -109,6 +109,11 @@ final class Downloader
 
     public static ?string $preset = null;
 
+    public static function quotaText(): string
+    {
+        return L('فردا دوباره بیا 🙂', 'Come back tomorrow 🙂') . "\n" . L('✋ امروز سهمیه‌ی دانلودت (', '✋ You’ve used up today’s download quota (') . fa(self::DAILY) . L(' تا) تموم شده؛', ' downloads).');
+    }
+
     public static function quotaLeft(int $uid): bool
     {
         return App::isAdmin($uid) || self::usedToday($uid) < self::DAILY;
