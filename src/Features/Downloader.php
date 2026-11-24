@@ -1465,7 +1465,8 @@ final class Downloader
             $limit = self::limit($job);
             $last  = 0.0;
             $stage = '';
-            $viaApi = Cobalt::enabled((string) $job['site']) && Cobalt::download((string) $job['url'], $fmt, $dir, $limit);
+            // A guest (inline) message holds one media: for multi-item posts Cobalt hands back the first item.
+            $viaApi = Cobalt::enabled((string) $job['site']) && Cobalt::download((string) $job['url'], $fmt, $dir, $limit, !empty($job['imid']));
             $res   = $viaApi ? ['code' => 0, 'out' => '', 'err' => ''] : self::run(array_merge([self::bin()], self::commonArgs(), self::formatArgs($fmt, $limit <= self::BOT_API_BYTES, self::isVertical($job)), [
                 '--no-playlist', '--newline', '--no-warnings', '--no-mtime', '--restrict-filenames',
                 '--socket-timeout', '20', '--retries', '3', '--fragment-retries', '3', '--concurrent-fragments', '4',

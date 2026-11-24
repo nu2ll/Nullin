@@ -40,7 +40,8 @@ final class Fetch
             return self::images($msg, $q);
         }
         App::tg()->action($chat, 'typing');
-        $items = self::search($q, 0);
+        $web   = [];
+        $items = self::search($q, 0, $kind, $web);
         if (!$items) {
             Rich::notice($msg, self::nothing());
             return true;
@@ -48,9 +49,9 @@ final class Fetch
         $token = bin2hex(random_bytes(6));
         Store::set('fetch', $token, [
             'owner' => $uid, 'chat' => $chat, 'ctype' => (string) ($msg['chat']['type'] ?? 'private'),
-            'reply' => (int) $msg['message_id'], 'kind' => $kind, 'q' => $q, 'off' => 0, 'items' => $items,
+            'reply' => (int) $msg['message_id'], 'kind' => $kind, 'q' => $q, 'off' => 0, 'items' => $items, 'web' => $web,
         ]);
-        Rich::sendHtml($chat, self::listText($q, $kind), (int) $msg['message_id'], self::listKeyboard($token, $items));
+        Rich::sendHtml($chat, self::listText($q, $kind, 0, count($items)), (int) $msg['message_id'], self::listKeyboard($token, $items, $kind));
         return true;
     }
 
@@ -81,34 +82,73 @@ final class Fetch
         return L('🤷 چیزی پیدا نکردم؛ یه‌جور دیگه اسمش رو بگو.', '🤷 I found nothing; try describing it differently.');
     }
 
-    private static function listText(string $q, string $kind): string
+    private static function listText(string $q, string $kind, int $off = 0, int $count = 0): string
     {
-        return ($kind === 'audio' ? '🎵 ' : '🎬 ') . L('نتیجه‌ها برای «', 'Results for “') . h($q) . L('»؛ یکی رو انتخاب کن:', '”; pick one:');
+        $meta = ['🔎 ' . fa((string) $count) . L(' نتیجه', ' results')];
+        if ($off > 0) {
+            $meta[] = '📄 ' . L('صفحه‌ی ', 'page ') . fa((string) (intdiv($off, self::PICK) + 1));
+        }
+        $meta[] = '📍 ' . L('یوتیوب و وب', 'YouTube & web');
+        return ($kind === 'audio' ? '🎵 ' : '🎬 ') . '<b>' . h(mb_substr($q, 0, 200)) . "</b>\n"
+            . implode(' · ', $meta) . "\n\n"
+            . ($kind === 'audio' ? L('کدوم آهنگ؟ 👇', 'Which song? 👇') : L('کدوم ویدیو؟ 👇', 'Which video? 👇'));
     }
 
-    private static function listKeyboard(string $token, array $items): array
+    private static function listKeyboard(string $token, array $items, string $kind = 'video'): array
     {
         $rows = [];
         foreach ($items as $i => $e) {
             $d      = (int) $e['d'];
             $time   = $d > 0 ? ($d >= 3600 ? sprintf('%d:%02d:%02d', intdiv($d, 3600), intdiv($d % 3600, 60), $d % 60) : sprintf('%d:%02d', intdiv($d, 60), $d % 60)) : '';
-            $label  = mb_substr(trim($e['title']), 0, 48) . ($time !== '' ? ' · ' . $time : '');
-            $rows[] = [btn(($i + 1) . '. ' . $label, "fe:{$token}:{$i}", null)];
+            $label  = ($kind === 'audio' ? '🎵 ' : '🎬 ') . mb_substr(trim($e['title']), 0, 40)
+                . ($time !== '' ? ' · ' . $time : '')
+                . (isset($e['name']) ? ' · ' . $e['name'] : ' · YouTube');
+            $rows[] = [btn($label, "fe:{$token}:{$i}", $i === 0 ? 'success' : 'primary')];
         }
         $rows[] = [btn(L('🔄 نتایج بیشتر', '🔄 More results'), "fe:{$token}:more", null), btn(L('✖️ بیخیال', '✖️ Cancel'), "fe:{$token}:x", null)];
         return ikb($rows);
     }
 
-    private static function search(string $q, int $off): array
+    /**
+     * YouTube plus the whole web (no site list), interleaved. $web is filled on the first call
+     * and reused for "more results". YouTube items carry an id; web items carry url, site and name.
+     */
+    private static function search(string $q, int $off, string $kind, array &$web): array
     {
         $n   = $off + self::PICK;
         $res = Downloader::exec([Downloader::bin(), '--ignore-config', '--no-color', '-J', '--flat-playlist', '--no-warnings', '--socket-timeout', '15', 'ytsearch' . $n . ':' . $q], 45);
         $j   = json_decode((string) $res['out'], true);
-        $out = [];
+        $yt  = [];
         foreach (array_values((array) ($j['entries'] ?? [])) as $e) {
             $id = (string) ($e['id'] ?? '');
             if (preg_match('/^[\w-]{11}$/', $id) && !in_array($e['live_status'] ?? '', ['is_live', 'is_upcoming'], true)) {
-                $out[] = ['id' => $id, 'title' => (string) ($e['title'] ?? $id), 'd' => (int) ($e['duration'] ?? 0)];
+                $yt[] = ['id' => $id, 'title' => (string) ($e['title'] ?? $id), 'd' => (int) ($e['duration'] ?? 0)];
+            }
+        }
+        if ($off === 0 && WebSearch::available()) {
+            $web  = [];
+            $seen = [];
+            $hits = WebSearch::files($q . ($kind === 'audio' ? ' song music' : ' video'));
+            foreach ((array) ($hits['results'] ?? []) as $r) {
+                $url = (string) ($r['url'] ?? '');
+                if (!preg_match('#^https?://#i', $url)) {
+                    continue;
+                }
+                $link = Downloader::match($url) ?? ['url' => $url, 'site' => 'web', 'name' => self::host($url)];
+                if ($link['site'] === 'youtube' || isset($seen[$link['url']])) {
+                    continue;
+                }
+                $seen[$link['url']] = true;
+                $web[] = ['url' => $link['url'], 'site' => $link['site'], 'name' => $link['name'], 'title' => (string) (($r['title'] ?? '') !== '' ? $r['title'] : $link['name']), 'd' => 0];
+            }
+        }
+        $out = [];
+        for ($i = 0, $m = max(count($yt), count($web)); $i < $m; $i++) {
+            if (isset($yt[$i])) {
+                $out[] = $yt[$i];
+            }
+            if (isset($web[$i])) {
+                $out[] = $web[$i];
             }
         }
         return array_slice($out, $off, self::PICK);
@@ -141,7 +181,8 @@ final class Fetch
         }
         if ($m[2] === 'more') {
             $off   = (int) $job['off'] + self::PICK;
-            $items = self::search((string) $job['q'], $off);
+            $web   = (array) ($job['web'] ?? []);
+            $items = self::search((string) $job['q'], $off, (string) $job['kind'], $web);
             if (!$items) {
                 $tg->alert($cq, L('نتیجه‌ی بیشتری نیست.', 'No more results.'));
                 return;
@@ -149,7 +190,7 @@ final class Fetch
             $job['off'] = $off;
             $job['items'] = $items;
             Store::set('fetch', $m[1], $job);
-            Rich::editHtml($chat, $mid, self::listText((string) $job['q'], (string) $job['kind']), self::listKeyboard($m[1], $items), null);
+            Rich::editHtml($chat, $mid, self::listText((string) $job['q'], (string) $job['kind'], $off, count($items)), self::listKeyboard($m[1], $items, (string) $job['kind']), null);
             $tg->answer($cq);
             return;
         }
@@ -162,9 +203,15 @@ final class Fetch
         $tg->call('deleteMessage', ['chat_id' => $chat, 'message_id' => $mid], 8);
         Store::delete('fetch', $m[1]);
         $msg = ['chat' => ['id' => $chat, 'type' => $job['ctype']], 'from' => ['id' => (int) $job['owner']], 'message_id' => (int) $job['reply']];
+        if (($e['site'] ?? '') === 'web' && isset($e['url'])) {
+            self::start($msg, (string) $e['url'] . ' | ' . ($job['kind'] === 'audio' ? 'mp3' : 'mp4'));
+            return;
+        }
         Downloader::$preset = $job['kind'] === 'audio' ? 'mp3' : 'video';
         try {
-            Downloader::offer($msg, ['url' => 'https://www.youtube.com/watch?v=' . $e['id'], 'site' => 'youtube', 'name' => 'YouTube']);
+            Downloader::offer($msg, isset($e['url'])
+                ? ['url' => (string) $e['url'], 'site' => (string) $e['site'], 'name' => (string) $e['name']]
+                : ['url' => 'https://www.youtube.com/watch?v=' . $e['id'], 'site' => 'youtube', 'name' => 'YouTube']);
         } finally {
             Downloader::$preset = null;
         }
@@ -598,6 +645,36 @@ final class Fetch
                     $ver = rawurldecode($tm[1]);
                 }
                 return self::fromGithub($m[1], $m[2], $hint, $ver);
+            }
+            if (in_array($hint, ['mp3', 'mp4'], true) && !self::looksFile($q, null, '')) {
+                [$htmls, $direct] = self::readPages([$q]);
+                $re   = $hint === 'mp3' ? '/\.(mp3|m4a|flac|ogg|wav)$/i' : '/\.(mp4|webm|mkv|mov|avi|m4v)$/i';
+                $c    = [];
+                $seen = [];
+                $add  = static function (string $u) use (&$c, &$seen, $q): void {
+                    if (isset($seen[$u]) || count($c) >= 4) {
+                        return;
+                    }
+                    $seen[$u] = true;
+                    $c[]      = ['url' => $u, 'name' => '', 'size' => 0, 'src' => self::hostOf($q), 'srcUrl' => $q];
+                };
+                foreach ($direct as $du) {
+                    $add($du);
+                }
+                foreach ($htmls as $pu => $html) {
+                    if (preg_match_all('/(?:href|src)\s*=\s*["\']([^"\'#<>\s]+)["\']/i', $html, $mm)) {
+                        foreach ($mm[1] as $lnk) {
+                            $abs = self::absUrl((string) $pu, html_entity_decode($lnk));
+                            if ($abs !== null && self::looksFile($abs, $re, $hint)) {
+                                $add($abs);
+                            }
+                        }
+                    }
+                }
+                if ($c) {
+                    return ['urls' => $c];
+                }
+                return ['error' => L('😕 توی این صفحه لینک مستقیم فایل پیدا نکردم؛ یه نتیجه‌ی دیگه رو امتحان کن.', '😕 I couldn’t find a direct file link on that page; try another result.')];
             }
             return ['urls' => [['url' => $q, 'name' => '', 'size' => 0, 'src' => self::hostOf($q), 'srcUrl' => $q]]];
         }
@@ -1320,16 +1397,26 @@ final class Fetch
 
     private static function caption(array $c, string $name, int $size, bool $exec): string
     {
-        $t   = '📥 <b>' . h($name) . '</b> · ' . Downloader::mb((float) $size);
-        $url = (string) ($c['srcUrl'] ?? '');
-        if ($url !== '' && strlen($url) <= 400) {
-            $label = (string) ($c['src'] ?? '');
-            $t .= "\n🔗 " . L('منبع: ', 'Source: ') . '<a href="' . h($url) . '">' . h($label !== '' ? $label : self::hostOf($url)) . '</a>';
+        $bot   = App::botUsername();
+        $ext   = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        $kind  = self::mediaKind($ext, '');
+        $icon  = $kind === 'audio' ? '🎵' : ($kind === 'video' ? '🎬' : '📥');
+        $title = trim((string) ($c['title'] ?? ''));
+        if ($title === '') {
+            $title = trim((string) preg_replace('/[._]+/', ' ', pathinfo($name, PATHINFO_FILENAME)));
         }
+        $d = dirMark($title);
+        $t = $d . $icon . ' <b>' . h(mb_substr($title !== '' ? $title : $name, 0, 800)) . "</b>\n"
+            . $d . '📦 ' . strtoupper($ext !== '' ? $ext : 'file') . ' · ' . Downloader::mb((float) $size) . "\n";
         if ($exec) {
-            $t .= "\n⚠️ " . L('فایل نصبی/فشرده است؛ فقط اگه به منبعش اعتماد داری بازش کن.', 'Installer/archive file — open it only if you trust the source.');
+            $t .= $d . '⚠️ ' . L('فایل نصبی/فشرده است؛ فقط اگه به منبعش اعتماد داری بازش کن.', 'Installer/archive file — open it only if you trust the source.') . "\n";
         }
-        return $t;
+        $url = (string) ($c['srcUrl'] ?? '');
+        $t  .= "\n";
+        if ($url !== '' && strlen($url) <= 400) {
+            $t .= $d . '🔗 <a href="' . h($url) . '">' . h(preg_replace('/^www\\./', '', self::hostOf($url))) . "</a>\n";
+        }
+        return $t . $d . "📥 <a href=\"https://t.me/{$bot}\">@{$bot}</a>";
     }
 
     // ───────────────────────── کمکی‌ها ─────────────────────────

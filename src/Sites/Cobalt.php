@@ -80,14 +80,15 @@ final class Cobalt
         return ['kinds' => $kinds, 'info' => $info];
     }
 
-    public static function download(string $url, string $fmt, string $dir, int $limit): bool
+    public static function download(string $url, string $fmt, string $dir, int $limit, bool $first = false): bool
     {
         $audio = $fmt === 'mp3';
         $q     = ['sd' => '360', 'hd' => '1080', 'fhd' => '1080'][$fmt] ?? (preg_match('/^v(\d{3,4})$/', $fmt, $m) ? $m[1] : '720');
         $items = self::resolve($url, $audio ? 'audio' : 'auto', $q);
-        if ($items === null || count($items) !== 1) {
+        if ($items === null || $items === [] || (count($items) !== 1 && !$first)) {
             return false;
         }
+        $items = [$items[0]];
         @mkdir($dir, 0775, true);
         $file = self::save($items[0]['url'], $dir . '/cobalt', $limit, $audio ? 'mp3' : ($items[0]['kind'] === 'p' ? 'jpg' : 'mp4'));
         if ($file === null) {
