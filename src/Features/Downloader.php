@@ -1673,33 +1673,10 @@ final class Downloader
         return true;
     }
 
-    /** Direct slideshow over MTProto (DL_SLIDES_DIRECT=0 turns it off and keeps the forward-for-file_id way). */
+    /** Slideshows go straight over MTProto whenever it's configured. */
     public static function slidesDirect(): bool
     {
-        return self::mtproto() && env('DL_SLIDES_DIRECT', '1') !== '0';
-    }
-
-    /**
-     * Bot API file_ids for the Bot API slideshow. Items flagged [3] are videos over 50 MB that
-     * can only reach Telegram through MTProto, so they get their id via the storage chat forward.
-     * Items that can't get one are dropped and counted in $skipped.
-     */
-    private static function resolveIds(array $job, array $items, string $dir, int &$skipped): array
-    {
-        $out = [];
-        foreach ($items as $it) {
-            if (empty($it[3]) || isset($it[2])) {
-                $out[] = $it;
-                continue;
-            }
-            $r = self::uploadMtproto($job, 'hd', $it[1], self::videoMeta($it[1]), $dir, true);
-            if (isset($r['file_id'])) {
-                $out[] = [$it[0], $it[1], (string) $r['file_id']];
-            } else {
-                $skipped++;
-            }
-        }
-        return $out;
+        return self::mtproto();
     }
 
     /**
@@ -1911,7 +1888,13 @@ final class Downloader
         }
         $direct = self::slidesDirect() && !$big && count($items) >= 2;
         if (!$direct) {
-            $items = self::resolveIds($job, $items, $dir, $skipped);
+            foreach ($items as $k => $it) {
+                if (!empty($it[3])) {
+                    $big[] = [$it[0], $it[1]];
+                    unset($items[$k]);
+                }
+            }
+            $items = array_values($items);
         }
         if (!$items && !$big) {
             logError('dl', "{$job['site']} album failed (exit {$res['code']}): " . self::lastLine($res['err']));
@@ -1925,24 +1908,14 @@ final class Downloader
         $cap   = self::caption($job);
         $ok    = false;
 
-        $ready = array_values(array_filter($items, static fn(array $it): bool => isset($it[2])));
-        $plain = array_values(array_filter($items, static fn(array $it): bool => !isset($it[2])));
         if ($big || count($items) === 1) {
-            if ($plain) {
-                $ok = self::legacyAlbum($chat, $plain, $cap, $reply);
-            }
-            foreach ($ready as $it) {
-                $rr = Rich::sendVideo($chat, !$ok ? $cap : '', (string) $it[2], $job['reply_to'] ? (int) $job['reply_to'] : null);
-                $ok = !empty($rr['ok']) || $ok;
+            if ($items) {
+                $ok = self::legacyAlbum($chat, $items, $cap, $reply);
             }
         } elseif ($items) {
-            $ok = $direct && self::slideshowDirect($job, $items, $cap, $dir);
-            if (!$ok) {
-                if ($direct) {
-                    $items = self::resolveIds($job, $items, $dir, $skipped);
-                }
-                $ok = $items !== [] && self::slideshow($chat, (int) $job['owner'], $items, $cap, $job['reply_to'] ? (int) $job['reply_to'] : null);
-            }
+            $ok = $direct
+                ? self::slideshowDirect($job, $items, $cap, $dir)
+                : self::slideshow($chat, (int) $job['owner'], $items, $cap, $job['reply_to'] ? (int) $job['reply_to'] : null);
         }
         foreach ($big as $i => [$kind, $f]) {
             $size = (int) filesize($f);
@@ -2250,7 +2223,7 @@ final class Downloader
         ];
     }
 
-    private static function uploadMtproto(array $job, string $fmt, string $file, array $meta, string $dir, bool $idOnly = false): ?array
+    private static function uploadMtproto(array $job, string $fmt, string $file, array $meta, string $dir): ?array
     {
         if (!self::mtproto()) {
             return null;
@@ -2270,9 +2243,6 @@ final class Downloader
         if ($kind === 'video' && empty($job['imid'])) {
             $viaStore = (string) App::cfg('storage_chat', '');
             $viaStore = $viaStore !== '' ? $viaStore : (string) (App::cfg('admins', [])[0] ?? '');
-        }
-        if ($idOnly && $viaStore === '') {
-            return null;
         }
         $job2 = [
             'session_file' => NULLINI_DATA . '/mtproto' . (App::botIndex() === 0 ? '' : (string) App::botIndex()) . '.session',
@@ -2328,9 +2298,6 @@ final class Downloader
             if ($fid === '') {
                 logError('dl', 'mtproto video: no file_id after forward');
                 return null;
-            }
-            if ($idOnly) {
-                return ['type' => 'video', 'file_id' => $fid, 'msg' => 0];
             }
             $rr = Rich::sendVideo($job['chat'], self::caption($job, true), $fid, $job['reply_to'] ? (int) $job['reply_to'] : null);
             if (empty($rr['ok'])) {

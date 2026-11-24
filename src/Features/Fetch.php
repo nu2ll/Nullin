@@ -18,7 +18,7 @@ final class Fetch
         if ($kind === 'file') {
             return self::start($msg, $q);
         }
-        if (!Switches::on('download') || (!$private && !Downloader::groupsEnabled())) {
+        if (!Switches::on('ai') || (!$private && !Downloader::groupsEnabled())) {
             return true;
         }
         if (!in_array($kind, ['video', 'audio', 'image'], true)) {
@@ -40,8 +40,7 @@ final class Fetch
             return self::images($msg, $q);
         }
         App::tg()->action($chat, 'typing');
-        $web   = [];
-        $items = self::search($q, 0, $kind, $web);
+        $items = self::search($q, 0, $kind, []);
         if (!$items) {
             Rich::notice($msg, self::nothing());
             return true;
@@ -49,7 +48,7 @@ final class Fetch
         $token = bin2hex(random_bytes(6));
         Store::set('fetch', $token, [
             'owner' => $uid, 'chat' => $chat, 'ctype' => (string) ($msg['chat']['type'] ?? 'private'),
-            'reply' => (int) $msg['message_id'], 'kind' => $kind, 'q' => $q, 'off' => 0, 'items' => $items, 'web' => $web,
+            'reply' => (int) $msg['message_id'], 'kind' => $kind, 'q' => $q, 'off' => 0, 'items' => $items, 'seen' => self::keys($items),
         ]);
         Rich::sendHtml($chat, self::listText($q, $kind, 0, count($items)), (int) $msg['message_id'], self::listKeyboard($token, $items, $kind));
         return true;
@@ -109,28 +108,41 @@ final class Fetch
         return ikb($rows);
     }
 
-    /**
-     * YouTube plus the whole web (no site list), interleaved. $web is filled on the first call
-     * and reused for "more results". YouTube items carry an id; web items carry url, site and name.
-     */
-    private static function search(string $q, int $off, string $kind, array &$web): array
+    /** Identity of a result in the pick list, so "more results" never repeats one. */
+    private static function keys(array $items): array
     {
-        $n   = $off + self::PICK;
-        $res = Downloader::exec([Downloader::bin(), '--ignore-config', '--no-color', '-J', '--flat-playlist', '--no-warnings', '--socket-timeout', '15', 'ytsearch' . $n . ':' . $q], 45);
+        $out = [];
+        foreach ($items as $e) {
+            $out[] = isset($e['url']) ? (string) $e['url'] : 'yt:' . (string) ($e['id'] ?? '');
+        }
+        return $out;
+    }
+
+    /**
+     * YouTube plus the whole web (no site list), interleaved. Every call (the first and each
+     * "more results") searches both again; $seen holds what's already been shown, so only new
+     * results come back. Each round asks Tavily with a different wording to get different pages.
+     */
+    private static function search(string $q, int $round, string $kind, array $seen): array
+    {
+        $seen = array_flip($seen);
+        $n   = self::PICK * ($round + 1) + count($seen);
+        $res = Downloader::exec([Downloader::bin(), '--ignore-config', '--no-color', '-J', '--flat-playlist', '--no-warnings', '--socket-timeout', '15', 'ytsearch' . min($n, 50) . ':' . $q], 45);
         $j   = json_decode((string) $res['out'], true);
         $yt  = [];
         foreach (array_values((array) ($j['entries'] ?? [])) as $e) {
             $id = (string) ($e['id'] ?? '');
-            if (preg_match('/^[\w-]{11}$/', $id) && !in_array($e['live_status'] ?? '', ['is_live', 'is_upcoming'], true)) {
+            if (preg_match('/^[\w-]{11}$/', $id) && !isset($seen['yt:' . $id]) && !in_array($e['live_status'] ?? '', ['is_live', 'is_upcoming'], true)) {
                 $yt[] = ['id' => $id, 'title' => (string) ($e['title'] ?? $id), 'd' => (int) ($e['duration'] ?? 0)];
             }
         }
-        if ($off === 0 && WebSearch::available()) {
-            $web  = [];
-            $seen = [];
+        $web = [];
+        if (WebSearch::available()) {
             $rows = [];
             $hint = $kind === 'audio' ? 'mp3' : 'mp4';
-            $hits = WebSearch::files($q . ($kind === 'audio' ? ' song music' : ' video'));
+            $tail = $kind === 'audio' ? [' song music', ' mp3 download', ' listen online', ' audio', ' official'] : [' video', ' watch online', ' mp4 download', ' full video', ' official'];
+            $hits = WebSearch::files($q . $tail[$round % count($tail)]);
+            $page = [];
             foreach ((array) ($hits['results'] ?? []) as $r) {
                 $url = (string) ($r['url'] ?? '');
                 if (!preg_match('#^https?://#i', $url)) {
@@ -138,10 +150,10 @@ final class Fetch
                 }
                 $known = Downloader::match($url);
                 $link  = $known ?? ['url' => $url, 'site' => 'web', 'name' => self::host($url)];
-                if ($link['site'] === 'youtube' || isset($seen[$link['url']])) {
+                if ($link['site'] === 'youtube' || isset($seen[$link['url']]) || isset($page[$link['url']])) {
                     continue;
                 }
-                $seen[$link['url']] = true;
+                $page[$link['url']] = true;
                 $rows[] = ['site' => $link['site'], 'url' => $link['url'], 'name' => $link['name'], 'check' => $known === null,
                            'title' => (string) (($r['title'] ?? '') !== '' ? $r['title'] : $link['name'])];
             }
@@ -185,7 +197,7 @@ final class Fetch
                 $out[] = $web[$i];
             }
         }
-        return array_slice($out, $off, self::PICK);
+        return array_slice($out, 0, self::PICK);
     }
 
     public static function onCallback(array $cq, string $data): void
@@ -215,14 +227,15 @@ final class Fetch
         }
         if ($m[2] === 'more') {
             $off   = (int) $job['off'] + self::PICK;
-            $web   = (array) ($job['web'] ?? []);
-            $items = self::search((string) $job['q'], $off, (string) $job['kind'], $web);
+            $seen  = (array) ($job['seen'] ?? []);
+            $items = self::search((string) $job['q'], intdiv($off, self::PICK), (string) $job['kind'], $seen);
             if (!$items) {
                 $tg->alert($cq, L('🏁 نتیجه‌ی بیشتری نیست؛', '🏁 There are no more results;') . "\n" . L('یه کلمه‌ی دیگه امتحان کن.', 'try another word.'));
                 return;
             }
             $job['off'] = $off;
             $job['items'] = $items;
+            $job['seen'] = array_values(array_unique(array_merge($seen, self::keys($items))));
             Store::set('fetch', $m[1], $job);
             Rich::editHtml($chat, $mid, self::listText((string) $job['q'], (string) $job['kind'], $off, count($items)), self::listKeyboard($m[1], $items, (string) $job['kind']), null);
             $tg->answer($cq);
@@ -309,9 +322,7 @@ final class Fetch
             }
             $html = '<tg-slideshow>' . $imgs . '<figcaption>🖼 ' . h(mb_substr($q, 0, 100)) . '</figcaption></tg-slideshow>'
                   . '<p>' . str_replace("\n", '<br>', self::sources(array_values($srcs))) . '</p>';
-            if (Downloader::mtSlideshow((int) $msg['chat']['id'], (int) $msg['message_id'], $slides, $html)) {
-                return true;
-            }
+            return Downloader::mtSlideshow((int) $msg['chat']['id'], (int) $msg['message_id'], $slides, $html);
         }
         $store = self::imgStore((int) ($msg['from']['id'] ?? 0));
         if ($store === null) {
@@ -479,7 +490,7 @@ final class Fetch
 
     public static function start(array $msg, string $arg): bool
     {
-        if (!Switches::on('download') || (($msg['chat']['type'] ?? '') !== 'private' && !Downloader::groupsEnabled())) {
+        if (!Switches::on('ai') || (($msg['chat']['type'] ?? '') !== 'private' && !Downloader::groupsEnabled())) {
             return true;
         }
         $uid  = (int) ($msg['from']['id'] ?? 0);
