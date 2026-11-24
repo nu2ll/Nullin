@@ -2535,7 +2535,7 @@ final class Downloader
         ],
         'tiktok' => [
             ['geo',     '/ip address is blocked from accessing this post/'],
-            ['private', '/permission to view this post|requiring login for access|may not be comfortable for some audiences|account is (likely either )?private/'],
+            ['private', '/no video formats found|permission to view this post|requiring login for access|may not be comfortable for some audiences|account is (likely either )?private/'],
             ['empty',   '/this account does not have any videos posted/'],
             ['gone',    '/video not available, status code|this livestream has ended/'],
         ],
