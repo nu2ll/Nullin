@@ -200,20 +200,7 @@ final class Fetch
             if (count($files) === 1) {
                 $ok = $tg->sendPhotoBytes($chat, (string) file_get_contents($files[0]), $cap, (int) $msg['message_id']);
             } else {
-                $media  = [];
-                $params = ['chat_id' => $chat, 'reply_parameters' => ['message_id' => (int) $msg['message_id'], 'allow_sending_without_reply' => true]];
-                foreach ($files as $i => $f) {
-                    $media[]         = ['type' => 'photo', 'media' => "attach://p{$i}"] + ($i === 0 ? ['caption' => $cap, 'parse_mode' => 'HTML'] : []);
-                    $params["p{$i}"] = new CURLFile($f, (string) (getimagesize($f)['mime'] ?? 'image/jpeg'), "p{$i}.jpg");
-                }
-                $params['media'] = $media;
-                $r  = $tg->call('sendMediaGroup', $params, 180);
-                $ok = !empty($r['ok']);
-                if (!$ok) {
-                    foreach ($files as $i => $f) {
-                        $ok = $tg->sendPhotoBytes($chat, (string) file_get_contents($f), $i === 0 ? $cap : '', (int) $msg['message_id']) || $ok;
-                    }
-                }
+                $ok = self::slideshow($msg, $q, $files, $srcs);
             }
         } finally {
             foreach ($files as $f) {
@@ -226,6 +213,61 @@ final class Fetch
             Rich::notice($msg, Downloader::genericError());
         }
         return true;
+    }
+
+    /** One rich message holding all photos in Telegram's own swipeable slideshow block. */
+    private static function slideshow(array $msg, string $q, array $files, array $srcs): bool
+    {
+        $tg    = App::tg();
+        $store = self::imgStore((int) ($msg['from']['id'] ?? 0));
+        if ($store === null) {
+            logWarn('fetch', 'slideshow: no storage chat to upload photos to');
+            return false;
+        }
+        $imgs  = '';
+        $media = [];
+        foreach ($files as $i => $f) {
+            $id = $tg->photoFileId($store, (string) file_get_contents($f));
+            if ($id === null) {
+                logWarn('fetch', "slideshow: uploading image {$i} to the storage chat failed");
+                continue;
+            }
+            $imgs   .= '<img src="tg://photo?id=p' . $i . '"/>';
+            $media[] = ['id' => 'p' . $i, 'media' => ['type' => 'photo', 'media' => $id]];
+        }
+        if (!$media) {
+            return false;
+        }
+        $n    = count($media);
+        $html = '<tg-slideshow>' . $imgs . '<figcaption>🖼 ' . h(mb_substr($q, 0, 100)) . '</figcaption></tg-slideshow>'
+              . '<p>' . str_replace("\n", '<br>', self::sources(array_values($srcs))) . '</p>';
+        $r = $tg->call('sendRichMessage', [
+            'chat_id'          => $msg['chat']['id'],
+            'rich_message'     => ['html' => $html, 'media' => $media] + (Lang::is('fa') ? ['is_rtl' => true] : []),
+            'reply_parameters' => ['message_id' => (int) $msg['message_id'], 'allow_sending_without_reply' => true],
+        ], 30);
+        if (empty($r['ok'])) {
+            logWarn('fetch', "slideshow ({$n} photos) failed: " . mb_substr((string) ($r['description'] ?? 'no response'), 0, 200));
+            return false;
+        }
+        if (!empty($r['result']['message_id'])) {
+            Rich::mark((int) ($r['result']['chat']['id'] ?? $msg['chat']['id']), (int) $r['result']['message_id']);
+        }
+        return true;
+    }
+
+    private static function imgStore(int $uid): int|string|null
+    {
+        $fixed = (string) App::cfg('storage_chat', '');
+        if ($fixed !== '') {
+            return preg_match('/^-?\d+$/', $fixed) ? (int) $fixed : $fixed;
+        }
+        $s = Downloader::storeChat($uid);
+        if ($s !== null) {
+            return $s;
+        }
+        $a = (array) App::cfg('admins', []);
+        return isset($a[0]) ? (int) $a[0] : null;
     }
 
     private static function grab(array $urls): array

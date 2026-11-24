@@ -3,6 +3,7 @@
 final class GuestHandler
 {
     private static int $uid = 0;
+    private static int $chat = 0;
 
     // پیام ضد اسپم: آخرین پیام ربات برای این کاربر رو ادیت می‌کنه؛ اگه نبود به همین پیام مهمان جواب می‌ده
     public static function spamNotice(array $msg, string $html): void
@@ -26,7 +27,8 @@ final class GuestHandler
             return;
         }
         $from = $msg['guest_bot_caller_user'] ?? $msg['from'] ?? [];
-        self::$uid = (int) ($from['id'] ?? 0);
+        self::$uid  = (int) ($from['id'] ?? 0);
+        self::$chat = (int) ($msg['chat']['id'] ?? 0);
         $text = trim((string) ($msg['text'] ?? $msg['caption'] ?? ''));
         $bot  = App::botUsername();
         $q    = mbTrim(preg_replace('/@' . preg_quote($bot, '/') . '\b/iu', '', $text) ?? $text, " \t\n،,:");
@@ -68,6 +70,11 @@ final class GuestHandler
                 Users::hit('guest:dl');
                 Downloader::guest($from, $link, $imid);
             }
+            return;
+        }
+
+        if (self::toolReply($msg, $reply, $text)) {
+            logInfo('reply', 'guest: ignored reply to non-AI bot message ' . self::$chat . ':' . (int) ($reply['message_id'] ?? 0));
             return;
         }
 
@@ -171,7 +178,61 @@ final class GuestHandler
             $kb = AnswerButtons::retryKeyboard();
             AnswerButtons::attachInline($imid, ['u' => (int) ($from['id'] ?? 0), 'q' => $body, 'a' => $answer, 'h' => '', 'f' => 1]);
         }
-        self::edit($imid, $qid, $html, $answer, $kb);
+        self::edit($imid, $qid, $html, $answer, $kb, true);
+    }
+
+    /**
+     * مثل MessageHandler: جواب هوش مصنوعی با AI::markMsg برچسب می‌خوره و ریپلای به بقیه‌ی پیام‌های ربات (ابزارها) نادیده گرفته می‌شه.
+     * answerGuestQuery فقط inline_message_id می‌ده؛ شماره‌ی پیام توش جاسازی شده (base64url از dc_id, owner_id, id, access_hash).
+     */
+    private static function messageId(string $imid): ?int
+    {
+        $b = base64_decode(strtr($imid, '-_', '+/') . str_repeat('=', (4 - strlen($imid) % 4) % 4), true);
+        if ($b === false) {
+            return null;
+        }
+        if (strlen($b) === 24) {
+            $u = unpack('Vdc/Powner/Vid/Pacc', $b);
+        } elseif (strlen($b) === 20) {
+            $u = unpack('Vdc/Pid/Pacc', $b);
+        } else {
+            return null;
+        }
+        $id = is_array($u) ? (int) $u['id'] : 0;
+        return $id > 0 && $id < 2147483648 ? $id : null;
+    }
+
+    private static function markAi(?string $imid): void
+    {
+        if ($imid === null || $imid === '' || self::$chat === 0) {
+            return;
+        }
+        $mid = self::messageId($imid);
+        if ($mid === null) {
+            logWarn('guest', 'could not read the message id from inline_message_id (length ' . strlen($imid) . ')');
+            return;
+        }
+        AI::markMsg(self::$chat, $mid);
+        Store::set('guest_decode', 'ok', 1);
+    }
+
+    private static function toolReply(array $msg, ?array $reply, string $text): bool
+    {
+        if (!$reply || Store::get('guest_decode', 'ok') === null) {
+            return false;
+        }
+        $bot = App::botUsername();
+        $r   = $reply['from'] ?? null;
+        $own = ($r && !empty($r['is_bot']) && strcasecmp((string) ($r['username'] ?? ''), $bot) === 0)
+            || strcasecmp((string) ($reply['via_bot']['username'] ?? ''), $bot) === 0;
+        if (!$own) {
+            return false;
+        }
+        if (preg_match('/@' . preg_quote($bot, '/') . '\b/iu', $text) === 1
+            || preg_match('/^(?:نالینی|نالین|nullini|nullin)(?=[\s،,:!؟?.]|$)/iu', ltrim($text)) === 1) {
+            return false;
+        }
+        return !AI::isAiMsg((int) ($msg['chat']['id'] ?? 0), (int) ($reply['message_id'] ?? 0));
     }
 
     private const CMD_SWITCH  = ['wiki' => 'wiki', 'translate' => 'translate', 'font' => 'font', 'gif' => 'gif', 'screenshot' => 'screenshot', 'giveaway' => 'giveaway', 'image' => 'image', 'sharetrace' => 'linkcheck'];
@@ -394,6 +455,9 @@ final class GuestHandler
             'caption'       => $html,
             'parse_mode'    => 'HTML',
         ]], 15);
+        if (!empty($r['ok'])) {
+            self::markAi((string) ($r['result']['inline_message_id'] ?? ''));
+        }
         return !empty($r['ok']);
     }
 
@@ -409,6 +473,7 @@ final class GuestHandler
 
     public static function image(?string $imid, ?string $qid, string $prompt, int $uid = 0): void
     {
+        self::markAi($imid);
         self::edit($imid, null, (Lang::is('en') ? LiveReply::DRAWING_EN : LiveReply::DRAWING));
         $bytes = ImageGen::generate($prompt, static function () {});
         if ($bytes === null) {
@@ -521,14 +586,20 @@ final class GuestHandler
         return $imid;
     }
 
-    private static function edit(?string $imid, ?string $qid, string $html, ?string $plain = null, ?array $kb = null): void
+    private static function edit(?string $imid, ?string $qid, string $html, ?string $plain = null, ?array $kb = null, bool $ai = false): void
     {
         $tg = App::tg();
         if ($imid === null) {
             if ($qid !== null) {
-                self::send($qid, $html);
+                $n = self::send($qid, $html);
+                if ($ai) {
+                    self::markAi($n);
+                }
             }
             return;
+        }
+        if ($ai) {
+            self::markAi($imid);
         }
         if (empty(Rich::editInline($imid, $html, $kb)['ok']) && $plain !== null) {
             Rich::editInline($imid, mb_substr($plain, 0, 4096), $kb, null, false);
