@@ -5,7 +5,6 @@ final class Photos
     private const SITES = ['instagram', 'pinterest', 'twitter', 'reddit'];
     private const UA    = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
     private const MAX   = 20;
-    private const GROUP = 10;
     private const PHOTO_BYTES = 10 * 1048576;
 
     private static array $info = [];
@@ -33,7 +32,7 @@ final class Photos
             }
             $tg->action($chat, 'upload_photo');
             $cap  = self::caption($link);
-            $sent = count($files) === 1 ? self::single($chat, $files[0], $cap, (int) $msg['message_id']) : self::album($chat, $files, $cap, (int) $msg['message_id']);
+            $sent = count($files) === 1 ? self::single($chat, $files[0], $cap, (int) $msg['message_id']) : self::album($chat, (int) $msg['from']['id'], $files, $cap, (int) $msg['message_id']);
             if (!$sent) {
                 return false;
             }
@@ -323,31 +322,9 @@ final class Photos
         return !empty($r['ok']);
     }
 
-    private static function album(int|string $chat, array $files, string $cap, int $replyTo): bool
+    private static function album(int|string $chat, int $uid, array $files, string $cap, int $replyTo): bool
     {
-        $ok = false;
-        foreach (array_chunk($files, self::GROUP) as $g => $chunk) {
-            $capG = $g === 0 ? $cap : '';
-            if (count($chunk) === 1) {
-                $ok = App::tg()->sendPhotoBytes($chat, (string) file_get_contents($chunk[0]), $capG, $replyTo) || $ok;
-                continue;
-            }
-            $media  = [];
-            $params = ['chat_id' => $chat, 'reply_parameters' => ['message_id' => $replyTo, 'allow_sending_without_reply' => true]];
-            foreach ($chunk as $i => $f) {
-                $media[]         = ['type' => 'photo', 'media' => "attach://p{$i}"] + ($i === 0 && $capG !== '' ? ['caption' => $capG, 'parse_mode' => 'HTML'] : []);
-                $params["p{$i}"] = new CURLFile($f, 'image/jpeg', "p{$i}.jpg");
-            }
-            $params['media'] = $media;
-            $r = App::tg()->call('sendMediaGroup', $params, 180);
-            if (!empty($r['ok'])) {
-                $ok = true;
-                continue;
-            }
-            foreach ($chunk as $i => $f) {
-                $ok = App::tg()->sendPhotoBytes($chat, (string) file_get_contents($f), $i === 0 ? $capG : '', $replyTo) || $ok;
-            }
-        }
-        return $ok;
+        $items = array_map(static fn(string $f): array => ['photo', $f], $files);
+        return Downloader::slideshow($chat, $uid, $items, $cap, $replyTo);
     }
 }

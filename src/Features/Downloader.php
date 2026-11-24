@@ -37,7 +37,7 @@ final class Downloader
         $h    = preg_replace('/^(www|m|mobile)\./', '', $rawHost) ?? $rawHost;
         $path = (string) parse_url($url, PHP_URL_PATH);
         return match ($site) {
-            'pinterest'  => $h === 'pin.it',
+            'pinterest'  => $h === 'pin.it' || ($h === 'api.pinterest.com' && str_starts_with($path, '/url_shortener/')),
             'tiktok'     => str_starts_with($h, 'vm.') || str_starts_with($h, 'vt.') || preg_match('#^/t/\w+#', $path) === 1,
             'soundcloud' => $h === 'snd.sc' || $h === 'on.soundcloud.com',
             'reddit'     => $h === 'redd.it' || preg_match('#^/(?:r/[\w-]+/)?s/\w+#', $path) === 1,
@@ -271,7 +271,8 @@ final class Downloader
                     && !(count($segs) === 2 && in_array($segs[1], ['tracks', 'albums', 'sets', 'likes', 'reposts', 'following', 'followers', 'popular-tracks', 'comments', 'spotlight', 'playlists'], true))),
             'pinterest'  => $host === 'pin.it'
                 ? $short
-                : preg_match('#^/pin/(?:[\w-]*?--)?\d+#', $path) === 1,
+                : ($host === 'api.pinterest.com' && str_starts_with($path, '/url_shortener/'))
+                    || preg_match('#^/pin/(?:[\w-]*?--)?\d+#', $path) === 1,
             'reddit'     => ($host === 'redd.it' || $host === 'v.redd.it')
                 ? $short
                 : preg_match('#^/(?:(?:r|user)/[\w-]+/)?comments/\w+#', $path) === 1
@@ -1626,6 +1627,122 @@ final class Downloader
         return $res;
     }
 
+    /** All album items in one rich message, in Telegram's own swipeable slideshow block. */
+    public static function slideshow(int|string $chat, int $uid, array $items, string $cap, ?int $replyTo): bool
+    {
+        $tg    = App::tg();
+        $store = Fetch::imgStore($uid);
+        if ($store === null) {
+            logWarn('dl', 'slideshow: no storage chat to upload files to');
+            return false;
+        }
+        $html  = '';
+        $media = [];
+        foreach (array_values($items) as $i => $it) {
+            [$kind, $f] = $it;
+            $id = $it[2] ?? ($kind === 'video' ? self::videoFileId($store, $f) : $tg->photoFileId($store, (string) file_get_contents($f)));
+            if ($id === null) {
+                logWarn('dl', "slideshow: uploading item {$i} to the storage chat failed");
+                continue;
+            }
+            $html   .= $kind === 'video' ? '<video src="tg://video?id=m' . $i . '"></video>' : '<img src="tg://photo?id=m' . $i . '"/>';
+            $media[] = ['id' => 'm' . $i, 'media' => ['type' => $kind === 'video' ? 'video' : 'photo', 'media' => $id]];
+        }
+        if (!$media) {
+            return false;
+        }
+        $body = '<tg-slideshow>' . $html . '</tg-slideshow>' . ($cap !== '' ? '<p>' . str_replace("\n", '<br>', $cap) . '</p>' : '');
+        $r = $tg->call('sendRichMessage', [
+            'chat_id'          => $chat,
+            'rich_message'     => ['html' => $body, 'media' => $media] + (Lang::is('fa') ? ['is_rtl' => true] : []),
+            'reply_parameters' => $replyTo ? ['message_id' => $replyTo, 'allow_sending_without_reply' => true] : null,
+        ], 60);
+        if (empty($r['ok'])) {
+            logWarn('dl', 'slideshow (' . count($media) . ' items) failed: ' . mb_substr((string) ($r['description'] ?? 'no response'), 0, 200));
+            return false;
+        }
+        if (!empty($r['result']['message_id'])) {
+            Rich::mark((int) ($r['result']['chat']['id'] ?? $chat), (int) $r['result']['message_id']);
+        }
+        return true;
+    }
+
+    private static function videoFileId(int|string $store, string $file): ?string
+    {
+        $meta = self::videoMeta($file);
+        $r    = App::tg()->call('sendVideo', array_filter([
+            'chat_id'              => $store,
+            'video'                => new CURLFile($file, 'video/mp4', basename($file)),
+            'supports_streaming'   => true,
+            'width'                => $meta['width'] ?: null,
+            'height'               => $meta['height'] ?: null,
+            'duration'             => $meta['duration'] ?: null,
+            'disable_notification' => true,
+        ], static fn($v) => $v !== null), 300);
+        if (empty($r['ok'])) {
+            return null;
+        }
+        if (isset($r['result']['message_id'])) {
+            App::tg()->call('deleteMessage', ['chat_id' => $store, 'message_id' => $r['result']['message_id']], 8);
+        }
+        return $r['result']['video']['file_id'] ?? null;
+    }
+
+    /** The old way (media-group albums, single sends): used only when some file is too big for a slideshow. */
+    private static function legacyAlbum(int|string $chat, array $items, string $cap, ?array $reply): bool
+    {
+        $tg    = App::tg();
+        $ok    = false;
+        $rest  = $items;
+        $first = true;
+        if (count($items) >= 2) {
+            $rest = [];
+            foreach (array_chunk($items, self::GROUP_MAX) as $chunk) {
+                if (count($chunk) < 2) {
+                    array_push($rest, ...$chunk);
+                    continue;
+                }
+                $media  = [];
+                $params = ['chat_id' => $chat, 'reply_parameters' => $reply];
+                foreach ($chunk as $i => [$kind, $f]) {
+                    $m = ['type' => $kind, 'media' => "attach://f{$i}"];
+                    if ($kind === 'video') {
+                        $meta = self::videoMeta($f);
+                        $m   += ['supports_streaming' => true, 'width' => $meta['width'] ?: null, 'height' => $meta['height'] ?: null, 'duration' => $meta['duration'] ?: null];
+                        $m    = array_filter($m, static fn($v) => $v !== null);
+                    }
+                    if ($i === 0 && $first) {
+                        $m += ['caption' => $cap, 'parse_mode' => 'HTML'];
+                    }
+                    $media[]         = $m;
+                    $params["f{$i}"] = new CURLFile($f, $kind === 'photo' ? 'image/jpeg' : 'video/mp4', basename($f));
+                }
+                $params['media'] = $media;
+                $r = $tg->call('sendMediaGroup', $params, 300);
+                if (!empty($r['ok'])) {
+                    $ok    = true;
+                    $first = false;
+                } else {
+                    array_push($rest, ...$chunk);
+                }
+            }
+        }
+        foreach ($rest as [$kind, $f]) {
+            $r = $tg->call($kind === 'photo' ? 'sendPhoto' : 'sendVideo', [
+                'chat_id'          => $chat,
+                $kind              => new CURLFile($f, $kind === 'photo' ? 'image/jpeg' : 'video/mp4', basename($f)),
+                'caption'          => $first ? $cap : null,
+                'parse_mode'       => 'HTML',
+                'reply_parameters' => $reply,
+            ], 300);
+            if (!empty($r['ok'])) {
+                $ok    = true;
+                $first = false;
+            }
+        }
+        return $ok;
+    }
+
     private static function workAlbum(array $job, string $token, string $dir): void
     {
         $tg    = App::tg();
@@ -1665,6 +1782,13 @@ final class Downloader
             $size = (int) filesize($f);
             if ($size > $limit) {
                 $skipped++;
+            } elseif ($kind === 'video' && $size > self::BOT_API_BYTES && self::mtproto()) {
+                $r = self::uploadMtproto($job, 'hd', $f, self::videoMeta($f), $dir, true);
+                if (isset($r['file_id'])) {
+                    $items[] = [$kind, $f, (string) $r['file_id']];
+                } else {
+                    $skipped++;
+                }
             } elseif ($size > self::BOT_API_BYTES || ($kind === 'photo' && $size > 10 * 1048576)) {
                 $big[] = [$kind, $f];
             } else {
@@ -1683,52 +1807,18 @@ final class Downloader
         $cap   = self::caption($job);
         $ok    = false;
 
-        $rest  = $items;
-        $first = true;
-        if (count($items) >= 2) {
-            $rest = [];
-            foreach (array_chunk($items, self::GROUP_MAX) as $chunk) {
-                if (count($chunk) < 2) {
-                    array_push($rest, ...$chunk);
-                    continue;
-                }
-                $media  = [];
-                $params = ['chat_id' => $chat, 'reply_parameters' => $reply];
-                foreach ($chunk as $i => [$kind, $f]) {
-                    $m = ['type' => $kind, 'media' => "attach://f{$i}"];
-                    if ($kind === 'video') {
-                        $meta = self::videoMeta($f);
-                        $m   += ['supports_streaming' => true, 'width' => $meta['width'] ?: null, 'height' => $meta['height'] ?: null, 'duration' => $meta['duration'] ?: null];
-                        $m    = array_filter($m, static fn($v) => $v !== null);
-                    }
-                    if ($i === 0 && $first) {
-                        $m += ['caption' => $cap, 'parse_mode' => 'HTML'];
-                    }
-                    $media[]         = $m;
-                    $params["f{$i}"] = new CURLFile($f, $kind === 'photo' ? 'image/jpeg' : 'video/mp4', basename($f));
-                }
-                $params['media'] = $media;
-                $r = $tg->call('sendMediaGroup', $params, 300);
-                if (!empty($r['ok'])) {
-                    $ok    = true;
-                    $first = false;
-                } else {
-                    array_push($rest, ...$chunk);
-                }
+        $ready = array_values(array_filter($items, static fn(array $it): bool => isset($it[2])));
+        $plain = array_values(array_filter($items, static fn(array $it): bool => !isset($it[2])));
+        if ($big || count($items) === 1) {
+            if ($plain) {
+                $ok = self::legacyAlbum($chat, $plain, $cap, $reply);
             }
-        }
-        foreach ($rest as $i => [$kind, $f]) {
-            $r = $tg->call($kind === 'photo' ? 'sendPhoto' : 'sendVideo', [
-                'chat_id'          => $chat,
-                $kind              => new CURLFile($f, $kind === 'photo' ? 'image/jpeg' : 'video/mp4', basename($f)),
-                'caption'          => $first ? $cap : null,
-                'parse_mode'       => 'HTML',
-                'reply_parameters' => $reply,
-            ], 300);
-            if (!empty($r['ok'])) {
-                $ok    = true;
-                $first = false;
+            foreach ($ready as $it) {
+                $rr = Rich::sendVideo($chat, !$ok ? $cap : '', (string) $it[2], $job['reply_to'] ? (int) $job['reply_to'] : null);
+                $ok = !empty($rr['ok']) || $ok;
             }
+        } elseif ($items) {
+            $ok = self::slideshow($chat, (int) $job['owner'], $items, $cap, $job['reply_to'] ? (int) $job['reply_to'] : null);
         }
         foreach ($big as $i => [$kind, $f]) {
             $size = (int) filesize($f);
@@ -2036,7 +2126,7 @@ final class Downloader
         ];
     }
 
-    private static function uploadMtproto(array $job, string $fmt, string $file, array $meta, string $dir): ?array
+    private static function uploadMtproto(array $job, string $fmt, string $file, array $meta, string $dir, bool $idOnly = false): ?array
     {
         if (!self::mtproto()) {
             return null;
@@ -2056,6 +2146,9 @@ final class Downloader
         if ($kind === 'video' && empty($job['imid'])) {
             $viaStore = (string) App::cfg('storage_chat', '');
             $viaStore = $viaStore !== '' ? $viaStore : (string) (App::cfg('admins', [])[0] ?? '');
+        }
+        if ($idOnly && $viaStore === '') {
+            return null;
         }
         $job2 = [
             'session_file' => NULLINI_DATA . '/mtproto' . (App::botIndex() === 0 ? '' : (string) App::botIndex()) . '.session',
@@ -2111,6 +2204,9 @@ final class Downloader
             if ($fid === '') {
                 logError('dl', 'mtproto video: no file_id after forward');
                 return null;
+            }
+            if ($idOnly) {
+                return ['type' => 'video', 'file_id' => $fid, 'msg' => 0];
             }
             $rr = Rich::sendVideo($job['chat'], self::caption($job, true), $fid, $job['reply_to'] ? (int) $job['reply_to'] : null);
             if (empty($rr['ok'])) {

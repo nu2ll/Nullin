@@ -256,7 +256,7 @@ final class Fetch
         return true;
     }
 
-    private static function imgStore(int $uid): int|string|null
+    public static function imgStore(int $uid): int|string|null
     {
         $fixed = (string) App::cfg('storage_chat', '');
         if ($fixed !== '') {
