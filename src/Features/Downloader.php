@@ -2540,11 +2540,11 @@ final class Downloader
             ['gone',    '/video not available, status code|this livestream has ended/'],
         ],
         'twitter' => [
-            // "Twitter API says: <text>": the <text> is Twitter's own API error message (documented API error codes), not yt-dlp's, so each one is matched by its own wording.
-            ['private', '/nsfw tweet requires authentication|not authorized to view this protected tweet|twitter api says:.*sorry, you are not authorized to see this status/'],   // API code 179
-            ['rate',    '/twitter api says:.*rate limit exceeded/'],                                                                   // API code 88
+            // "Twitter API says: <text>" (yt-dlp twitter.py, _graphql_to_legacy): <text> is the tombstone text Twitter shows in place of the tweet.
+            ['private', '/nsfw tweet requires authentication|not authorized to view this protected tweet|twitter api says:.*(limits who can view|protected)/'],
+            ['age',     '/twitter api says:.*(age-restricted|under 18)/'],
             ['empty',   '/no video could be found in this tweet|is not a video|space ended|space not started yet/'],
-            ['gone',    '/twitter space not found|requested tweet is unavailable|broadcast is no longer available|video #\d+ is unavailable|twitter api says:.*(no status found with that id|user has been suspended|sorry, that page does not exist)/'],   // API codes 144, 63, 34
+            ['gone',    '/twitter space not found|requested tweet is unavailable|broadcast is no longer available|video #\d+ is unavailable|twitter api says: (?!unknown error)/'],   // any other tombstone = tweet no longer viewable
         ],
         'reddit' => [
             ['private', '/account authentication is required|quarantined subreddit|private subreddit|http error 403 forbidden/'],

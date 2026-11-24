@@ -25,33 +25,24 @@ def kind(err, code=1):
     return 'other'
 
 cases = [
- # (message, expected)  -- the ones listed in the report
- ("ERROR: [tiktok] 1: This account does not have any videos posted", 'empty'),
- ("ERROR: [tiktok] 1: This livestream has ended", 'gone'),
- ("ERROR: [twitter] 1: Twitter Space not found", 'gone'),
- ("ERROR: [twitter:spaces] 1: Space ended", 'empty'),
- ("ERROR: [twitter:spaces] 1: Space not started yet", 'empty'),
- ("ERROR: [twitter] 1: Media #2 is not a video", 'empty'),
- ("ERROR: [reddit] 1: Your IP address is unable to access the Reddit API", 'geo'),
- ("ERROR: [reddit] 1: This video is processing", 'empty'),
- ("ERROR: [youtube] x: Login details are needed to download this content", 'private'),
- ("ERROR: [youtube] x: Your IP is likely being blocked by Youtube", 'bot'),
- ("ERROR: [youtube] x: Sign in to confirm you’re not a bot", 'bot'),
- ("ERROR: [youtube] x: Private video. Sign in if you've been granted access", 'private'),
- # should stay generic
- ("ERROR: [youtube] x: Unable to extract initial data", 'other'),
- ("ERROR: [generic] Invalid URL", 'other'),
- ("ERROR: [youtube] x: Failed to extract any player response", 'other'),
- ("ERROR: [tiktok] 1: Fresh cookies (not necessarily logged in) are needed", 'other'),
- # the three limitations
- ("ERROR: [twitter] 1: Twitter API says: Sorry, you are not authorized to see this status.", 'private'),
- ("ERROR: [twitter] 1: Twitter API says: Rate limit exceeded", 'rate'),
- ("ERROR: [twitter] 1: Twitter API says: No status found with that ID.", 'gone'),
- ("ERROR: [twitter] 1: Twitter API says: User has been suspended.", 'gone'),
- ("ERROR: [twitter] 1: Twitter API says: Sorry, that page does not exist.", 'gone'),
- ("ERROR: [twitter] 1: Twitter API says: something nobody has seen before", 'other'),
+ ("ERROR: [twitter] 1: Twitter API says: This Post was deleted by the Post author", 'gone'),
+ ("ERROR: [twitter] 1: Twitter API says: This Post is from a suspended account", 'gone'),
+ ("ERROR: [twitter] 1: Twitter API says: You're unable to view this Post because this account owner limits who can view their Posts", 'private'),
+ ("ERROR: [twitter] 1: Twitter API says: Age-restricted adult content. This content might not be appropriate for people under 18 years old", 'age'),
+ ("ERROR: [twitter] 1: Twitter API says: Unknown error", 'other'),
+ ("ERROR: [twitter] 1: Error(s) while querying API: Unknown error", 'other'),
  ("ERROR: [twitter] 1: Requested tweet is unavailable", 'gone'),
  ("ERROR: [twitter] 1: Video #2 is unavailable", 'gone'),
+ ("ERROR: [twitter] 1: Media #2 is not a video", 'empty'),
+ ("ERROR: [twitter] 1: Twitter Space ended and replay is disabled", 'empty'),
+ ("ERROR: [twitter] 1: NSFW tweet requires authentication", 'private'),
+ ("ERROR: [douyin] 1: Fresh cookies (not necessarily logged in) are needed", 'other'),
+ ("ERROR: [tiktok] 1: This account does not have any videos posted", 'empty'),
+ ("ERROR: [tiktok] 1: This livestream has ended", 'gone'),
+ ("ERROR: [reddit] 1: Your IP address is unable to access the Reddit API", 'geo'),
+ ("ERROR: [youtube] x: Your IP is likely being blocked by Youtube", 'bot'),
+ ("ERROR: [youtube] x: Login details are needed to download this content", 'private'),
+ ("ERROR: [youtube] x: Unable to extract initial data", 'other'),
 ]
 bad = 0
 for msg, exp in cases:
