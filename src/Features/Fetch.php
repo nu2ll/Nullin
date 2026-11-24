@@ -18,6 +18,11 @@ final class Fetch
         if ($kind === 'file') {
             return self::start($msg, $q);
         }
+        // The AI always writes the file-type and version slots ("audio | name | |"); they only matter
+        // for "file", so for video/audio/image keep just the search text and drop the stray pipes.
+        if (in_array($kind, ['video', 'audio', 'image'], true)) {
+            $q = mbTrim((string) (preg_split('/\s*[|｜]\s*/u', $q)[0] ?? ''));
+        }
         if (!Switches::on('ai') || (!$private && !Downloader::groupsEnabled())) {
             return true;
         }
@@ -474,16 +479,43 @@ final class Fetch
 
     private const AUDIO_EXT = 'mp3|m4a|m4b|aac|ogg|oga|opus|flac|wav|wma|aiff|aif|amr|mka|ac3|weba';
     private const VIDEO_EXT = 'mp4|m4v|mkv|webm|mov|avi|wmv|flv|mpg|mpeg|3gp|ogv|mts|m2ts|vob';
-    private const FILE_EXT = 'pdf|zip|rar|7z|tar|gz|tgz|xz|apk|xapk|apks|aab|exe|msi|dmg|pkg|deb|rpm|appimage|ipa|iso|mp3|m4a|m4b|aac|ogg|oga|opus|flac|wav|wma|aiff|aif|amr|mka|ac3|weba|mp4|m4v|mkv|webm|mov|avi|wmv|flv|mpg|mpeg|3gp|ogv|mts|m2ts|vob|epub|mobi|docx?|xlsx?|pptx?|csv|jpe?g|png|gif|webp|bmp|ttf|otf|torrent';
+    private const FILE_EXT = 'pdf|zip|rar|7z|tar|gz|tgz|xz|apk|xapk|apks|aab|exe|msi|dmg|pkg|deb|rpm|appimage|ipa|iso|mp3|m4a|m4b|aac|ogg|oga|opus|flac|wav|wma|aiff|aif|amr|mka|ac3|weba|mp4|m4v|mkv|webm|mov|avi|wmv|flv|mpg|mpeg|3gp|ogv|mts|m2ts|vob|epub|mobi|docx?|xlsx?|pptx?|csv|jpe?g|png|gif|webp|bmp|tiff?|heic|heif|avif|psd|ttf|otf|torrent|rtf|odt|ods|odp|xlsm|xlsb|docm|srt|vtt|azw3|fb2|djvu|cbz|cbr|bz2|zst|cab|jar|whl';
+    // Only matched with a real ".ext" at the end of the URL path (never as a bare last path segment such as /go or /py).
+    // Web-page assets (js, css, html, php, svg, ico, json, xml) are deliberately NOT here: pages are full of them,
+    // so they would flood link discovery. They still work with a direct link or an explicit type: "name | json".
+    private const DOT_EXT = 'txt|md|log|sql|ass|ssa|ipynb|yml|yaml|toml|ini|cfg|conf|py|java|cpp|cc|hpp|cs|go|rs|rb|swift|kts?|sh|bat|ps1|lua|pl|dart|scala|vue|jsx|tsx';
+
     private const SOFT_HINTS = ['', 'apk', 'win', 'mac', 'linux', 'ios', 'source', 'zip', 'exe', 'msi', 'dmg', 'deb', 'rpm', 'appimage', 'ipa', 'tar', 'gz'];
 
     private static string $err = '';
 
     private const MIME_EXT = [
         'application/pdf' => 'pdf', 'application/zip' => 'zip', 'application/vnd.android.package-archive' => 'apk',
-        'image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif',
-        'audio/mpeg' => 'mp3', 'video/mp4' => 'mp4', 'application/x-msdownload' => 'exe', 'application/x-7z-compressed' => '7z',
-        'application/gzip' => 'gz', 'application/vnd.rar' => 'rar', 'application/x-rar-compressed' => 'rar', 'application/epub+zip' => 'epub',
+        'image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif', 'image/bmp' => 'bmp',
+        'image/svg+xml' => 'svg', 'image/tiff' => 'tiff', 'image/heic' => 'heic', 'image/heif' => 'heif', 'image/avif' => 'avif',
+        'image/x-icon' => 'ico', 'image/vnd.microsoft.icon' => 'ico', 'image/vnd.adobe.photoshop' => 'psd',
+        'audio/mpeg' => 'mp3', 'audio/mp4' => 'm4a', 'audio/aac' => 'aac', 'audio/ogg' => 'ogg', 'audio/opus' => 'opus', 'audio/flac' => 'flac',
+        'audio/wav' => 'wav', 'audio/x-wav' => 'wav', 'audio/webm' => 'weba',
+        'video/mp4' => 'mp4', 'video/webm' => 'webm', 'video/quicktime' => 'mov', 'video/x-matroska' => 'mkv', 'video/x-msvideo' => 'avi',
+        'video/mpeg' => 'mpg', 'video/3gpp' => '3gp',
+        'application/x-msdownload' => 'exe', 'application/x-7z-compressed' => '7z',
+        'application/gzip' => 'gz', 'application/x-gzip' => 'gz', 'application/x-bzip2' => 'bz2', 'application/zstd' => 'zst',
+        'application/x-tar' => 'tar', 'application/x-xz' => 'xz', 'application/vnd.rar' => 'rar', 'application/x-rar-compressed' => 'rar',
+        'application/java-archive' => 'jar', 'application/vnd.ms-cab-compressed' => 'cab',
+        'application/epub+zip' => 'epub', 'application/x-mobipocket-ebook' => 'mobi', 'image/vnd.djvu' => 'djvu', 'application/x-fictionbook+xml' => 'fb2',
+        'application/msword' => 'doc', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        'application/vnd.ms-excel' => 'xls', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+        'application/vnd.ms-powerpoint' => 'ppt', 'application/vnd.openxmlformats-officedocument.presentationml.presentation' => 'pptx',
+        'application/vnd.oasis.opendocument.text' => 'odt', 'application/vnd.oasis.opendocument.spreadsheet' => 'ods',
+        'application/vnd.oasis.opendocument.presentation' => 'odp', 'application/rtf' => 'rtf', 'text/rtf' => 'rtf',
+        'text/csv' => 'csv', 'text/plain' => 'txt', 'text/markdown' => 'md', 'application/json' => 'json', 'application/xml' => 'xml', 'text/xml' => 'xml',
+        'application/sql' => 'sql', 'application/x-yaml' => 'yaml', 'application/yaml' => 'yaml', 'text/yaml' => 'yaml', 'application/toml' => 'toml',
+        'application/x-subrip' => 'srt', 'text/vtt' => 'vtt', 'application/x-bittorrent' => 'torrent',
+        'text/javascript' => 'js', 'application/javascript' => 'js', 'text/css' => 'css', 'application/x-httpd-php' => 'php',
+        'text/x-python' => 'py', 'application/x-python-code' => 'pyc', 'text/x-java-source' => 'java', 'text/x-c' => 'c', 'text/x-c++src' => 'cpp',
+        'text/x-csharp' => 'cs', 'text/x-go' => 'go', 'text/x-rustsrc' => 'rs', 'text/x-ruby' => 'rb', 'text/x-shellscript' => 'sh', 'application/x-sh' => 'sh',
+        'application/x-ipynb+json' => 'ipynb', 'application/typescript' => 'ts',
+        'font/ttf' => 'ttf', 'font/otf' => 'otf', 'font/woff' => 'woff', 'font/woff2' => 'woff2', 'application/font-woff' => 'woff',
     ];
 
     // ───────────────────────── ورودی ─────────────────────────
@@ -1059,7 +1091,7 @@ final class Fetch
     private static function looksFile(string $url, ?string $re, string $hint = ''): bool
     {
         $path = rawurldecode((string) parse_url($url, PHP_URL_PATH));
-        if (preg_match('/\.(' . self::FILE_EXT . ')$/i', $path)) {
+        if (preg_match('/\.(' . self::FILE_EXT . '|' . self::DOT_EXT . ')$/i', $path)) {
             return $re === null || preg_match($re, $path) === 1;
         }
         // پسوند دلخواه: اگه کاربر خودش نوع فایل رو گفته (مثلاً txt، psd، sql)، همون پسوند هم قبول می‌شه

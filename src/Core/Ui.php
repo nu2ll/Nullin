@@ -899,8 +899,7 @@ final class Ui
                 . L("«🔎» هم گیف‌های بیشتر همین جستجو رو نشونت می‌ده.", "\"🔎\" shows you more GIFs from the same search."),
 
             'screenshot' => L("<b>📸 اسکرین‌شات سایت</b>\n", "<b>📸 Website screenshot</b>\n")
-                . L("ببین هر سایتی\n", "See how any website\n")
-                . L("الان چه شکلیه.\n\n", "looks right now.\n\n")
+                . L("ببین هر سایتی الان چه شکلیه.\n\n", "See how any website looks right now.\n\n")
                 . "• " . $c(L('ss digikala.com', 'ss example.com')) . "\n"
                 . L("• پیوی یا گروه:\n<code>نالین از سایت گوگل اسکرین‌شات بگیر</code>\n", "• Private or group:\n<code>Nullin take a screenshot of google.com</code>\n")
                 . L("• دستور:\n<code>/screenshot example.com</code>\n\n", "• Command:\n<code>/screenshot example.com</code>\n\n")
@@ -1026,7 +1025,7 @@ final class Ui
 
     private const HELP_LAYOUT = [
         1 => [['ai', 'image', 'translate'], ['search', 'wiki'], ['whisper', 'linkcheck', 'font'], ['download', 'giveaway'], ['gif', 'like', 'roast']],
-        2 => [['weather', 'calc'], ['qr', 'short', 'unit'], ['love', 'group', 'screenshot'], ['nid', 'card', 'sheba'], ['funstat', 'games']],
+        2 => [['weather', 'calc', 'unit'], ['qr', 'short'], ['love', 'group', 'screenshot'], ['funstat', 'games'], ['nid', 'card', 'sheba']],
     ];
 
     public static function helpPage(string $key): int
