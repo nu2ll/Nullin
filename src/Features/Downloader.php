@@ -1667,6 +1667,119 @@ final class Downloader
         return true;
     }
 
+    /** Direct slideshow over MTProto (DL_SLIDES_DIRECT=0 turns it off and keeps the forward-for-file_id way). */
+    public static function slidesDirect(): bool
+    {
+        return self::mtproto() && env('DL_SLIDES_DIRECT', '1') !== '0';
+    }
+
+    /**
+     * Bot API file_ids for the Bot API slideshow. Items flagged [3] are videos over 50 MB that
+     * can only reach Telegram through MTProto, so they get their id via the storage chat forward.
+     * Items that can't get one are dropped and counted in $skipped.
+     */
+    private static function resolveIds(array $job, array $items, string $dir, int &$skipped): array
+    {
+        $out = [];
+        foreach ($items as $it) {
+            if (empty($it[3]) || isset($it[2])) {
+                $out[] = $it;
+                continue;
+            }
+            $r = self::uploadMtproto($job, 'hd', $it[1], self::videoMeta($it[1]), $dir, true);
+            if (isset($r['file_id'])) {
+                $out[] = [$it[0], $it[1], (string) $r['file_id']];
+            } else {
+                $skipped++;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * The whole slideshow in one MTProto session: mtup.py uploads the files, then sends one rich
+     * message with them attached as InputRichFile*. Nothing goes through the storage chat.
+     */
+    private static function slideshowDirect(array $job, array $items, string $cap, string $dir): bool
+    {
+        $html   = '';
+        $slides = [];
+        foreach (array_values($items) as $i => $it) {
+            [$kind, $f] = $it;
+            $id    = 'm' . $i;
+            $html .= $kind === 'video' ? '<video src="tg://video?id=' . $id . '"></video>' : '<img src="tg://photo?id=' . $id . '"/>';
+            $sl    = ['id' => $id, 'kind' => $kind === 'video' ? 'video' : 'photo', 'file' => $f, 'name' => basename($f)];
+            if ($kind === 'video') {
+                $meta  = self::videoMeta($f);
+                $thumb = $dir . '/slide' . $i . '.jpg';
+                self::run(['ffmpeg', '-y', '-v', 'error', '-ss', '1', '-i', $f, '-frames:v', '1', '-vf', 'scale=320:-2', '-q:v', '4', $thumb], 40);
+                $sl += [
+                    'duration' => $meta['duration'],
+                    'width'    => $meta['width'],
+                    'height'   => $meta['height'],
+                    'thumb'    => is_file($thumb) ? $thumb : '',
+                ];
+            }
+            $slides[] = $sl;
+        }
+        $html = '<tg-slideshow>' . $html . '</tg-slideshow>' . ($cap !== '' ? '<p>' . str_replace("\n", '<br>', $cap) . '</p>' : '');
+        $last = 0.0;
+        $ok   = self::mtSlideshow((int) $job['chat'], $job['reply_to'] ? (int) $job['reply_to'] : 0, $slides, $html, static function (array $j) use ($job, &$last): void {
+            if (isset($j['p'], $j['t']) && microtime(true) - $last >= 3.5) {
+                $pct = $j['t'] > 0 ? (int) floor($j['p'] / $j['t'] * 100) : 0;
+                self::show($job, self::stageText($job, '📤 ' . self::bar($pct) . ' ' . fa((string) $pct) . L("٪\n📦 ", "%\n📦 ") . self::mb((float) $j['p']) . L(' از ', ' of ') . self::mb((float) $j['t'])));
+                $last = microtime(true);
+            }
+        });
+        foreach ($slides as $sl) {
+            if (!empty($sl['thumb'])) {
+                @unlink($sl['thumb']);
+            }
+        }
+        return $ok;
+    }
+
+    /**
+     * Sends one rich slideshow message over MTProto. $slides: [['id','kind'=>photo|video,'file',...]],
+     * $html references them as tg://photo?id=ID / tg://video?id=ID. $onProgress gets mtup's {p,t} lines.
+     */
+    public static function mtSlideshow(int $chat, int $replyTo, array $slides, string $html, ?callable $onProgress = null): bool
+    {
+        $job2 = [
+            'session_file' => NULLINI_DATA . '/mtproto' . (App::botIndex() === 0 ? '' : (string) App::botIndex()) . '.session',
+            'api_id'       => self::apiId(),
+            'api_hash'     => self::apiHash(),
+            'bot_token'    => App::tg()->token(),
+            'test'         => App::botIndex() === 2 ? ['dc' => (int) env('TEST_DC_ID', 2), 'ip' => (string) env('TEST_DC_IP', '149.154.167.40'), 'port' => (int) env('TEST_DC_PORT', 443)] : null,
+            'chat'         => $chat,
+            'reply_to'     => $replyTo,
+            'slides'       => $slides,
+            'html'         => $html,
+            'rtl'          => Lang::is('fa'),
+        ];
+        $out = null;
+        $res = self::run(['python3', NULLINI_ROOT . '/bin/mtup.py'], self::jobTime() - 120, static function (string $line) use ($onProgress, &$out): void {
+            $j = json_decode($line, true);
+            if (!is_array($j)) {
+                return;
+            }
+            if (isset($j['ok'])) {
+                $out = $j;
+            } elseif ($onProgress !== null) {
+                $onProgress($j);
+            }
+        }, ['NL_JOB' => json_encode($job2, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
+        if (empty($out['ok'])) {
+            logWarn('dl', 'direct slideshow failed (exit ' . $res['code'] . '): ' . (string) ($out['error'] ?? self::lastLine($res['err'])));
+            return false;
+        }
+        if (!empty($out['msg_id'])) {
+            Rich::mark($chat, (int) $out['msg_id']);
+        }
+        logInfo('dl', 'direct slideshow sent: items=' . count($slides));
+        return true;
+    }
+
     private static function videoFileId(int|string $store, string $file): ?string
     {
         $meta = self::videoMeta($file);
@@ -1783,17 +1896,16 @@ final class Downloader
             if ($size > $limit) {
                 $skipped++;
             } elseif ($kind === 'video' && $size > self::BOT_API_BYTES && self::mtproto()) {
-                $r = self::uploadMtproto($job, 'hd', $f, self::videoMeta($f), $dir, true);
-                if (isset($r['file_id'])) {
-                    $items[] = [$kind, $f, (string) $r['file_id']];
-                } else {
-                    $skipped++;
-                }
+                $items[] = [$kind, $f, null, true];
             } elseif ($size > self::BOT_API_BYTES || ($kind === 'photo' && $size > 10 * 1048576)) {
                 $big[] = [$kind, $f];
             } else {
                 $items[] = [$kind, $f];
             }
+        }
+        $direct = self::slidesDirect() && !$big && count($items) >= 2;
+        if (!$direct) {
+            $items = self::resolveIds($job, $items, $dir, $skipped);
         }
         if (!$items && !$big) {
             logError('dl', "{$job['site']} album failed (exit {$res['code']}): " . self::lastLine($res['err']));
@@ -1818,7 +1930,13 @@ final class Downloader
                 $ok = !empty($rr['ok']) || $ok;
             }
         } elseif ($items) {
-            $ok = self::slideshow($chat, (int) $job['owner'], $items, $cap, $job['reply_to'] ? (int) $job['reply_to'] : null);
+            $ok = $direct && self::slideshowDirect($job, $items, $cap, $dir);
+            if (!$ok) {
+                if ($direct) {
+                    $items = self::resolveIds($job, $items, $dir, $skipped);
+                }
+                $ok = $items !== [] && self::slideshow($chat, (int) $job['owner'], $items, $cap, $job['reply_to'] ? (int) $job['reply_to'] : null);
+            }
         }
         foreach ($big as $i => [$kind, $f]) {
             $size = (int) filesize($f);

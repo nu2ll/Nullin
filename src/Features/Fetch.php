@@ -219,6 +219,19 @@ final class Fetch
     private static function slideshow(array $msg, string $q, array $files, array $srcs): bool
     {
         $tg    = App::tg();
+        if (Downloader::slidesDirect()) {
+            $imgs   = '';
+            $slides = [];
+            foreach (array_values($files) as $i => $f) {
+                $imgs    .= '<img src="tg://photo?id=p' . $i . '"/>';
+                $slides[] = ['id' => 'p' . $i, 'kind' => 'photo', 'file' => $f, 'name' => 'img' . $i . '.jpg'];
+            }
+            $html = '<tg-slideshow>' . $imgs . '<figcaption>🖼 ' . h(mb_substr($q, 0, 100)) . '</figcaption></tg-slideshow>'
+                  . '<p>' . str_replace("\n", '<br>', self::sources(array_values($srcs))) . '</p>';
+            if (Downloader::mtSlideshow((int) $msg['chat']['id'], (int) $msg['message_id'], $slides, $html)) {
+                return true;
+            }
+        }
         $store = self::imgStore((int) ($msg['from']['id'] ?? 0));
         if ($store === null) {
             logWarn('fetch', 'slideshow: no storage chat to upload photos to');
