@@ -1500,7 +1500,7 @@ final class Downloader
                 self::workAlbum($job, $token, $dir);
                 return;
             }
-            self::show($job, self::stageText($job, self::bar(0) . L(' ۰٪', ' 0%')));
+            self::show($job, self::stageText($job, self::bar(0) . ' 0%'));
             $limit = self::limit($job);
             $last  = 0.0;
             $stage = '';
@@ -1526,7 +1526,7 @@ final class Downloader
                     $speed = (float) (is_numeric($p[4] ?? '') ? $p[4] : 0);
                     $pct   = $total > 0 ? min(100, (int) floor($done / $total * 100)) : 0;
                     $line2 = '📦 ' . self::mb($done) . ($total > 0 ? L(' از ', ' of ') . self::mb($total) : '') . ($speed > 0 ? ' · ⚡️ ' . self::mb($speed) . L('/ث', '/s') : '');
-                    self::show($job, self::stageText($job, self::bar($pct) . ' ' . fa((string) $pct) . L("٪\n", "%\n") . $line2));
+                    self::show($job, self::stageText($job, self::bar($pct) . ' ' . $pct . "%\n" . $line2));
                     $last = $now;
                 } elseif (preg_match('/^\[(Merger|ExtractAudio|VideoConvertor|FixupM3u8|EmbedThumbnail)\]/', $line) && $stage === '') {
                     $stage = 'post';
@@ -1628,7 +1628,7 @@ final class Downloader
         ]), self::jobTime() - 60, static function (string $line) use ($job, $total, &$last): void {
             if (preg_match('/Downloading item (\\d+) of (\\d+)/', $line, $m) && microtime(true) - $last >= 2.5) {
                 $n = min((int) $m[2], self::ALBUM_MAX);
-                self::show($job, self::stageText($job, L('📦 فایل ', '📦 File ') . fa($m[1]) . L(' از ', ' of ') . fa((string) $n) . "\n" . self::bar((int) floor(((int) $m[1] - 1) / max(1, $n) * 100)) . ' ' . fa((string) (int) floor(((int) $m[1] - 1) / max(1, $n) * 100)) . L('٪', '%')));
+                self::show($job, self::stageText($job, L('📦 فایل ', '📦 File ') . fa($m[1]) . L(' از ', ' of ') . fa((string) $n) . "\n" . self::bar((int) floor(((int) $m[1] - 1) / max(1, $n) * 100)) . ' ' . (int) floor(((int) $m[1] - 1) / max(1, $n) * 100) . '%'));
                 $last = microtime(true);
             }
         });
@@ -1744,7 +1744,7 @@ final class Downloader
         $ok   = self::mtSlideshow((int) $job['chat'], $job['reply_to'] ? (int) $job['reply_to'] : 0, $slides, $html, static function (array $j) use ($job, &$last): void {
             if (isset($j['p'], $j['t']) && microtime(true) - $last >= 3.5) {
                 $pct = $j['t'] > 0 ? (int) floor($j['p'] / $j['t'] * 100) : 0;
-                self::show($job, self::stageText($job, '📤 ' . self::bar($pct) . ' ' . fa((string) $pct) . L("٪\n📦 ", "%\n📦 ") . self::mb((float) $j['p']) . L(' از ', ' of ') . self::mb((float) $j['t'])));
+                self::show($job, self::stageText($job, '📤 ' . self::bar($pct) . ' ' . $pct . "%\n📦 " . self::mb((float) $j['p']) . L(' از ', ' of ') . self::mb((float) $j['t'])));
                 $last = microtime(true);
             }
         });
@@ -2141,6 +2141,7 @@ final class Downloader
                 self::show($job, self::stageText($job, L('🕐 تو صفم؛ چند لحظه صبر کن...', '🕐 You’re in the queue; wait a moment...')));
                 $told = true;
             }
+            Http::pulse();
             sleep(2);
         }
         return null;
@@ -2311,7 +2312,7 @@ final class Downloader
             }
             if (isset($j['p'], $j['t']) && microtime(true) - $last >= 3.5) {
                 $pct = $j['t'] > 0 ? (int) floor($j['p'] / $j['t'] * 100) : 0;
-                self::show($job, self::stageText($job, '📤 ' . self::bar($pct) . ' ' . fa((string) $pct) . L("٪\n📦 ", "%\n📦 ") . self::mb((float) $j['p']) . L(' از ', ' of ') . self::mb((float) $j['t'])));
+                self::show($job, self::stageText($job, '📤 ' . self::bar($pct) . ' ' . $pct . "%\n📦 " . self::mb((float) $j['p']) . L(' از ', ' of ') . self::mb((float) $j['t'])));
                 $last = microtime(true);
             }
         }, ['NL_JOB' => json_encode($job2, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
@@ -2506,6 +2507,7 @@ final class Downloader
                     $err = substr($err . $chunk, -65536);
                 }
             }
+            Http::pulse();
             if (feof($pipes[1]) && feof($pipes[2])) {
                 break;
             }

@@ -7,6 +7,8 @@ final class AnswerButtons
     private const L_SEARCH = '🔎';
     private const L_VOICE  = '🔊';
     private const L_RETRY  = '🔄';
+    private const L_MENU   = '⚙️';
+    private const L_BACK   = '↩️';
 
     public static function plain(string $answer): string
     {
@@ -33,14 +35,28 @@ final class AnswerButtons
 
     public static function rows(bool $searched, bool $voice = true, bool $noSearch = false): string
     {
+        $search = !$searched && !$noSearch && WebSearch::available();
+        if ($search && $voice) {
+            return '<tg-button-row>' . self::rb(self::L_MENU, 'ab:o', 'primary') . '</tg-button-row>';
+        }
         $row = '';
-        if (!$searched && !$noSearch && WebSearch::available()) {
+        if ($search) {
             $row .= self::rb(self::L_SEARCH, 'ab:s', 'primary');
         }
         if ($voice) {
             $row .= self::rb(self::L_VOICE, 'ab:v', 'success');
         }
         return $row === '' ? '' : '<tg-button-row>' . $row . '</tg-button-row>';
+    }
+
+    public static function rowsOpen(bool $searched, bool $voice = true, bool $noSearch = false): string
+    {
+        $search = !$searched && !$noSearch && WebSearch::available();
+        if (!$search || !$voice) {
+            return self::rows($searched, $voice, $noSearch);
+        }
+        return '<tg-button-row>' . self::rb(self::L_SEARCH, 'ab:s', 'primary') . self::rb(self::L_VOICE, 'ab:v', 'success') . '</tg-button-row>'
+            . '<tg-button-row>' . self::rb(self::L_BACK, 'ab:c', 'primary') . '</tg-button-row>';
     }
 
     public static function retryRows(): string
@@ -252,6 +268,18 @@ final class AnswerButtons
         }
 
         switch ($act) {
+            case 'o':
+            case 'c':
+                $owner = (int) ($rec['u'] ?? 0);
+                if (($owner !== 0 && $owner !== $uid) || !empty($rec['f']) || empty($rec['rc'])) {
+                    return;
+                }
+                $sr = !empty($rec['sr']);
+                $vl = empty($rec['vo']);
+                $ns = !empty($rec['ns']);
+                self::editRich($chatId, $mid, (string) $rec['a'], $act === 'o' ? self::rowsOpen($sr, $vl, $ns) : self::rows($sr, $vl, $ns));
+                return;
+
             case 'r':
                 $owner = (int) ($rec['u'] ?? 0);
                 if (($owner !== 0 && $owner !== $uid) || empty($rec['f']) || !self::lock($key, 'r')) {

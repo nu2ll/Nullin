@@ -45,6 +45,21 @@ final class Http
 
     public static $tick = null;
 
+    public static ?array $pulse = null;
+
+    public static function pulse(): void
+    {
+        $p = self::$pulse;
+        if ($p === null || microtime(true) - $p['at'] < 4.0) {
+            return;
+        }
+        self::$pulse['at'] = microtime(true);
+        try {
+            $p['tg']->ping($p['chat'], $p['action']);
+        } catch (Throwable) {
+        }
+    }
+
     // استاپ جنریشن: اگه این کال‌بک true بده، درخواست جاری curl قطع می‌شه و $aborted روشن می‌مونه
     // تا لایه‌های بالاتر (AI / FreeAI) بدونن دوباره‌تلاش نکنن
     public static $abort = null;
@@ -58,6 +73,7 @@ final class Http
                 if (self::$tick !== null) {
                     (self::$tick)();
                 }
+                self::pulse();
                 if (self::$abort !== null && !self::$aborted && (self::$abort)()) {
                     self::$aborted = true;
                 }
@@ -113,7 +129,7 @@ final class Http
                 return strlen($buf) > $max ? 0 : strlen($data);
             };
         }
-        if (self::$tick !== null || self::$abort !== null) {
+        if (self::$tick !== null || self::$abort !== null || self::$pulse !== null) {
             $set += self::progress();
         }
         curl_setopt_array($ch, $set);
@@ -156,7 +172,7 @@ final class Http
     {
         $err = '';
         $ch  = curl_init($url);
-        $set = (self::$tick !== null || self::$abort !== null) ? self::progress() : [];
+        $set = (self::$tick !== null || self::$abort !== null || self::$pulse !== null) ? self::progress() : [];
         curl_setopt_array($ch, $set + [
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),

@@ -42,6 +42,9 @@ final class Telegram
         }
         $r      = $this->request($method, $params, $timeout);
         MessageHandler::tidySeen($method, $params, $r);
+        if (!empty($r['ok']) && preg_match('/^send(Message|Photo|Video|Document|Audio|Voice|Animation|MediaGroup|VideoNote|Sticker|RichMessage|Dice)$/', $method)) {
+            Http::$pulse = null;
+        }
         return $r;
     }
 
@@ -76,6 +79,11 @@ final class Telegram
                 CURLOPT_POSTFIELDS     => $params,
                 CURLOPT_TIMEOUT        => $timeout,
                 CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_NOPROGRESS     => Http::$pulse === null,
+                CURLOPT_PROGRESSFUNCTION => static function (): int {
+                    Http::pulse();
+                    return 0;
+                },
             ]);
             $response = curl_exec($ch);
 
@@ -213,7 +221,23 @@ final class Telegram
 
     public function action(int|string $chatId, string $action = 'typing'): void
     {
+        Http::$pulse = ['tg' => $this, 'chat' => $chatId, 'action' => $action, 'at' => microtime(true)];
         $this->call('sendChatAction', ['chat_id' => $chatId, 'action' => $action], 8);
+    }
+
+    public function ping(int|string $chatId, string $action): void
+    {
+        $ch = curl_init($this->base . 'sendChatAction');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => ['chat_id' => $chatId, 'action' => $action],
+            CURLOPT_TIMEOUT        => 4,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        curl_exec($ch);
+        curl_close($ch);
     }
 
     public function react(int|string $chatId, int $messageId, string $emoji): void

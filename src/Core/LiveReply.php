@@ -27,6 +27,7 @@ final class LiveReply
     private bool $inTick  = false;
     private bool $typingOnly = false;
     private bool $stopped = false;
+    private bool $quiet   = false;
     private static float $stopLast = 0.0;
     private static bool $stopHit   = false;
 
@@ -56,6 +57,7 @@ final class LiveReply
     {
         $this->adopted = true;
         $this->richMsg = $rich;
+        $this->quiet   = in_array($this->msg['chat']['type'] ?? '', ['group', 'supergroup'], true);
         $this->ids[0] = $mid;
         $this->editMsg($mid, $this->frame(0));
         $this->arm();
@@ -205,6 +207,23 @@ final class LiveReply
             return;
         }
         if (!$this->draft) {
+            $this->typing();
+            if ($this->adopted && !$this->quiet && ($this->msg['chat']['type'] ?? '') === 'private' && isset($this->ids[0])) {
+                $n = (int) floor(microtime(true) - $this->t0);
+                if ($n >= $this->shown + 1) {
+                    $this->inTick = true;
+                    $this->shown  = $n;
+                    try {
+                        $r = $this->editMsg($this->ids[0], $this->frame($n));
+                        if ((int) ($r['error_code'] ?? 0) === 429) {
+                            $this->disarm();
+                        }
+                    } catch (Throwable) {
+                    } finally {
+                        $this->inTick = false;
+                    }
+                }
+            }
             return;
         }
         $n    = (int) floor(microtime(true) - $this->t0);
@@ -254,12 +273,20 @@ final class LiveReply
             return;
         }
 
-        $this->typing();
-        $r = $tg->reply($this->msg, $this->frame(0));
+        $this->quiet = true;
+        $r = $tg->call('sendRichMessage', [
+            'chat_id'          => $this->msg['chat']['id'],
+            'rich_message'     => ['html' => '<p>' . h($this->frame(0)) . '</p>'],
+            'reply_parameters' => ['message_id' => $this->msg['message_id'], 'allow_sending_without_reply' => true],
+        ], 10);
         if (empty($r['ok']) || !isset($r['result']['message_id'])) {
             return;
         }
+        $this->richMsg = true;
+        Rich::mark((int) $this->msg['chat']['id'], (int) $r['result']['message_id']);
         $this->ids[0] = (int) $r['result']['message_id'];
+        $this->lastTyping = 0;
+        $this->typing();
         $this->arm();
     }
 
@@ -290,7 +317,7 @@ final class LiveReply
 
     private function frame(int $n): string
     {
-        return $this->head !== '' ? $this->head . (Lang::is('en') ? self::WAIT_TEXT_EN : self::WAIT_TEXT) : (Lang::is('en') ? self::THINKING_EN : self::THINKING);
+        return ($this->head !== '' ? $this->head . (Lang::is('en') ? self::WAIT_TEXT_EN : self::WAIT_TEXT) : (Lang::is('en') ? self::THINKING_EN : self::THINKING)) . ($n > 0 ? '… ' . $n . 's' : '');
     }
 
     private function typing(): void
@@ -318,6 +345,9 @@ final class LiveReply
         if ($this->hold && $body !== (Lang::is('en') ? self::DRAWING_EN : self::DRAWING)) {
             return;
         }
+        if ($this->quiet && $body !== (Lang::is('en') ? self::DRAWING_EN : self::DRAWING)) {
+            return;
+        }
         $this->mode = 'live';
         $this->disarm();
         $this->show($body);
@@ -327,6 +357,7 @@ final class LiveReply
     {
         $this->disarm();
         $this->releaseStop();
+        Http::$pulse = null;
         if ($this->typingOnly) {
             return false;
         }
@@ -353,6 +384,7 @@ final class LiveReply
     {
         $this->disarm();
         $this->releaseStop();
+        Http::$pulse = null;
         if (!isset($this->ids[0])) {
             return false;
         }
@@ -492,7 +524,7 @@ final class LiveReply
         $parts = AI::chunks($text);
         $last  = count($parts) - 1;
 
-        if ($final && $this->richMsg && isset($this->ids[0]) && mb_strlen($text) <= 12000) {
+        if ($final && $this->richMsg && isset($this->ids[0])) {
             $mid = (int) $this->ids[0];
             $r   = $tg->call('editMessageText', [
                 'chat_id'      => $this->msg['chat']['id'],

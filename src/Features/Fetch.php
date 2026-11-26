@@ -567,6 +567,7 @@ final class Fetch
             $st = curl_multi_exec($mh, $active);
             if ($active) {
                 curl_multi_select($mh, 1);
+                Http::pulse();
             }
         } while ($active && $st === CURLM_OK);
         $out = [];
@@ -822,7 +823,7 @@ final class Fetch
                 $next = microtime(true) + 3.5;
                 $pct  = $total > 0 ? (int) floor($now / $total * 100) : 0;
                 $line = $total > 0
-                    ? Downloader::bar($pct) . ' ' . fa((string) $pct) . L('٪', '%') . "\n📦 " . Downloader::mb((float) $now) . L(' از ', ' of ') . Downloader::mb((float) $total)
+                    ? Downloader::bar($pct) . ' ' . $pct . '%' . "\n📦 " . Downloader::mb((float) $now) . L(' از ', ' of ') . Downloader::mb((float) $total)
                     : '📦 ' . Downloader::mb((float) $now);
                 self::show($job, '⬇️ <b>' . h(mb_substr($label, 0, 80)) . "</b>\n" . $line);
             };
@@ -1208,6 +1209,7 @@ final class Fetch
             $st = curl_multi_exec($mh, $active);
             if ($active) {
                 curl_multi_select($mh, 1);
+                Http::pulse();
             }
         } while ($active && $st === CURLM_OK);
         $html   = [];
@@ -1562,7 +1564,7 @@ final class Fetch
             if (isset($j['p'], $j['t']) && microtime(true) - $last >= 3.5) {
                 $last = microtime(true);
                 $pct  = $j['t'] > 0 ? (int) floor($j['p'] / $j['t'] * 100) : 0;
-                self::show($job, '📤 ' . Downloader::bar($pct) . ' ' . fa((string) $pct) . L('٪', '%') . "\n📦 " . Downloader::mb((float) $j['p']) . L(' از ', ' of ') . Downloader::mb((float) $j['t']));
+                self::show($job, '📤 ' . Downloader::bar($pct) . ' ' . $pct . '%' . "\n📦 " . Downloader::mb((float) $j['p']) . L(' از ', ' of ') . Downloader::mb((float) $j['t']));
             }
         });
         if (empty($out['ok']) || empty($out['msg_id'])) {
@@ -1603,6 +1605,7 @@ final class Fetch
                     $err = substr($err . $chunk, -65536);
                 }
             }
+            Http::pulse();
             if (feof($pipes[1]) && feof($pipes[2])) {
                 break;
             }
