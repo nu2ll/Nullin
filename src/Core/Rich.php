@@ -210,6 +210,12 @@ final class Rich
         return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => self::videoPayload($html, $media, $kb)], 15);
     }
 
+    /** Guest/inline: replaces the message with a rich message whose HTML references media by file_id (e.g. a <tg-slideshow>). */
+    public static function editInlineSlideshow(string $inlineId, string $html, array $media): ?array
+    {
+        return App::tg()->call('editMessageText', ['inline_message_id' => $inlineId, 'rich_message' => ['html' => $html, 'media' => $media] + (Lang::is('fa') ? ['is_rtl' => true] : [])], 30);
+    }
+
     public static function editVideoMsg(int|string $chatId, int $mid, string $html, string $media, ?array $kb = null): ?array
     {
         return App::tg()->call('editMessageText', ['chat_id' => $chatId, 'message_id' => $mid, 'rich_message' => self::videoPayload($html, $media, $kb)], 15);

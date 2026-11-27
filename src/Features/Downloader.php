@@ -397,6 +397,7 @@ final class Downloader
         }
         $store = self::storeChat($uid);
         if ($store === null) {
+            Rich::editInline($imid, self::genericError());
             return;
         }
         self::prepare(['chat' => $store, 'card' => 0, 'imid' => $imid], $link, $uid, 0, null);
@@ -413,14 +414,21 @@ final class Downloader
         return null;
     }
 
+    /** Where uploads go to get a file_id: the fixed store chat, else the first admin's private chat. Users never have to start the bot. */
     public static function storeChat(int $uid): int|string|null
     {
         $fixed = (string) env('DL_STORE_CHAT', '');
-        if ($fixed !== '') {
-            return preg_match('/^-?\d+$/', $fixed) ? (int) $fixed : $fixed;
+        if ($fixed === '') {
+            $fixed = (string) App::cfg('storage_chat', '');
         }
-        $r = App::tg()->call('sendChatAction', ['chat_id' => $uid, 'action' => 'upload_document'], 8);
-        return !empty($r['ok']) ? $uid : null;
+        if ($fixed === '') {
+            $a     = (array) App::cfg('admins', []);
+            $fixed = isset($a[0]) ? (string) $a[0] : '';
+        }
+        if ($fixed === '') {
+            return null;
+        }
+        return preg_match('/^-?\d+$/', $fixed) ? (int) $fixed : $fixed;
     }
 
     private static function show(array $t, string $text, ?array $kb = null, ?array $preview = null): void
@@ -476,9 +484,9 @@ final class Downloader
         $link['url'] = self::cleanUrl($link['url'], $link['site']);
 
         $photos = static fn(int $expect = 0) => $sp === null && Photos::supports($link['site'])
-            && ($msg !== null ? Photos::deliver($msg, $link, (int) $t['card'], $expect) : Photos::inline($link, (string) $t['imid'], $t['chat'], $uid));
+            && ($msg !== null ? Photos::deliver($msg, $link, (int) $t['card'], $expect) : Photos::inline($link, (string) $t['imid'], $t['chat'], $uid, $expect));
 
-        $multi = $sp === null && empty($t['imid']) && in_array($link['site'], self::MULTI, true);
+        $multi = $sp === null && in_array($link['site'], self::MULTI, true);
         $api   = $sp === null && Cobalt::enabled($link['site']) ? Cobalt::probe($link['url']) : null;
         $ks    = $api !== null ? $api['kinds'] : ($sp === null && GalleryDl::supports($link['site']) ? GalleryDl::kinds($link['url']) : []);
         $vurls = [];
@@ -524,7 +532,7 @@ final class Downloader
         $vid   = $ks !== [] ? in_array('v', $ks, true) : self::hasVideo($info);
         logInfo('dl', "probe {$link['site']}: count={$count} kinds=" . implode('', (array) ($info['kinds'] ?? [])) . ' video=' . ($vid ? '1' : '0') . ' multi=' . ($multi ? '1' : '0') . ' src=' . ($api !== null ? 'cobalt' : ($ks !== [] ? 'gallery-dl' : 'yt-dlp')));
         if ($multi && $count > 1 && (in_array('v', (array) ($info['kinds'] ?? []), true) || !Photos::supports($link['site']))) {
-            $token = self::newJob($link, $info, $uid, $t['chat'], (int) $t['card'], $replyTo, null, $count);
+            $token = self::newJob($link, $info, $uid, $t['chat'], (int) $t['card'], $replyTo, $t['imid'] ?? null, $count);
             self::show($t, self::albumText($info, $link, $count), self::albumKeyboard($token, $count), self::preview($info));
             return;
         }
@@ -537,7 +545,7 @@ final class Downloader
             return;
         }
         if ($expect > 1) {
-            $token = self::newJob($link, $info, $uid, $t['chat'], (int) $t['card'], $replyTo, null, $count);
+            $token = self::newJob($link, $info, $uid, $t['chat'], (int) $t['card'], $replyTo, $t['imid'] ?? null, $count);
             self::show($t, self::albumText($info, $link, $count), self::albumKeyboard($token, $count), self::preview($info));
             return;
         }
@@ -577,7 +585,7 @@ final class Downloader
     private static function prepareSet(array $t, array $link, int $uid, int $replyTo, array $ref): void
     {
         if (!empty($t['imid'])) {
-            self::show($t, L('🎶 پلی‌لیست و آلبوم رو توی پیوی ربات بفرست 🙂', '🎶 Send playlists and albums in the bot’s private chat 🙂'));
+            self::show($t, L('🎶 پلی‌لیست و آلبوم اینجا پشتیبانی نمی‌شه؛ فقط تک‌آهنگ 🙂', '🎶 Playlists and albums aren’t supported here; single tracks only 🙂'));
             return;
         }
         $c = Spotify::collection($ref[0], $ref[1]);
@@ -1707,6 +1715,68 @@ final class Downloader
         return true;
     }
 
+    /**
+     * Guest/inline: all items as ONE swipeable slideshow inside the guest message itself (items: [kind, file, ?file_id, ?bigMt]).
+     * A single item becomes a plain photo/video; if Telegram refuses the slideshow, the first item is shown instead.
+     */
+    public static function slideshowInline(string $imid, int|string $store, array $items, string $cap, ?array $job = null, string $dir = ''): bool
+    {
+        $tg    = App::tg();
+        $html  = '';
+        $media = [];
+        $first = null;
+        foreach (array_values($items) as $i => $it) {
+            [$kind, $f] = $it;
+            $id = $it[2] ?? null;
+            if ($id === null) {
+                if ($kind === 'video') {
+                    $id = !empty($it[3]) && $job !== null ? self::mtVideoId($job, $store, $f, $dir) : self::videoFileId($store, $f);
+                } else {
+                    $id = $tg->photoFileId($store, (string) file_get_contents($f));
+                }
+            }
+            if ($id === null) {
+                logWarn('dl', "guest slideshow: uploading item {$i} to the store chat failed");
+                continue;
+            }
+            $html   .= $kind === 'video' ? '<video src="tg://video?id=m' . $i . '"></video>' : '<img src="tg://photo?id=m' . $i . '"/>';
+            $media[] = ['id' => 'm' . $i, 'media' => ['type' => $kind === 'video' ? 'video' : 'photo', 'media' => $id]];
+            $first ??= [$kind, $id];
+        }
+        if (!$media) {
+            return false;
+        }
+        if (count($media) >= 2) {
+            $body = '<tg-slideshow>' . $html . '</tg-slideshow>' . ($cap !== '' ? '<p>' . str_replace("\n", '<br>', $cap) . '</p>' : '');
+            $r    = Rich::editInlineSlideshow($imid, $body, $media);
+            if (!empty($r['ok'])) {
+                return true;
+            }
+            logWarn('dl', 'guest slideshow (' . count($media) . ' items) refused: ' . mb_substr((string) ($r['description'] ?? 'no response'), 0, 200));
+        }
+        [$kind, $id] = $first;
+        $r = $kind === 'video' ? Rich::editInlineVideo($imid, $cap, $id) : Rich::editInlinePhoto($imid, $cap, $id, null, false);
+        return !empty($r['ok']);
+    }
+
+    /** A video over the Bot API size limit: upload over MTProto to the store chat, forward it once to read its file_id, delete both. */
+    private static function mtVideoId(array $job, int|string $store, string $file, string $dir): ?string
+    {
+        $sent = self::uploadMtproto($job, 'hd', $file, self::videoMeta($file), $dir);
+        if ($sent === null || empty($sent['msg'])) {
+            return null;
+        }
+        $tg  = App::tg();
+        $f   = $tg->call('forwardMessage', ['chat_id' => $store, 'from_chat_id' => $sent['chat'], 'message_id' => (int) $sent['msg'], 'disable_notification' => true], 60);
+        $res = (array) ($f['result'] ?? []);
+        $id  = $res['video']['file_id'] ?? ($res['document']['file_id'] ?? null);
+        if (!empty($res['message_id'])) {
+            $tg->call('deleteMessage', ['chat_id' => $store, 'message_id' => (int) $res['message_id']], 8);
+        }
+        $tg->call('deleteMessage', ['chat_id' => $sent['chat'], 'message_id' => (int) $sent['msg']], 8);
+        return is_string($id) && $id !== '' ? $id : null;
+    }
+
     /** Slideshows go straight over MTProto whenever it's configured. */
     public static function slidesDirect(): bool
     {
@@ -1915,10 +1985,31 @@ final class Downloader
             } elseif ($kind === 'video' && $size > self::BOT_API_BYTES && self::mtproto()) {
                 $items[] = [$kind, $f, null, true];
             } elseif ($size > self::BOT_API_BYTES || ($kind === 'photo' && $size > 10 * 1048576)) {
-                $big[] = [$kind, $f];
+                if (!empty($job['imid'])) {
+                    $skipped++;
+                } else {
+                    $big[] = [$kind, $f];
+                }
             } else {
                 $items[] = [$kind, $f];
             }
+        }
+        if (!empty($job['imid'])) {
+            // Guest message: every item goes into ONE slideshow inside the guest message itself.
+            if (!$items) {
+                logError('dl', "{$job['site']} guest album failed (exit {$res['code']}): " . self::lastLine($res['err']));
+                self::show($job, self::explain($res['err'] . "\n" . $res['out'], $res['code']), self::retryKeyboard($token, 'all'));
+                return;
+            }
+            self::show($job, self::stageText($job, L('📤 دارم می‌فرستمشون... (', '📤 Sending them... (') . fa((string) count($items)) . L(' تا)', ' files)')));
+            $cap = self::caption($job) . ($skipped > 0 ? "\n\n📦 " . fa((string) $skipped) . L(' تا از فایل‌ها حجمشون زیاد بود یا آپلود نشد.', ' of the files were too big or failed to upload.') : '');
+            if (!self::slideshowInline((string) $job['imid'], $chat, $items, $cap, $job, $dir)) {
+                self::show($job, L('❌ آپلود تو تلگرام نشد؛', '❌ Upload to Telegram failed;') . "\n" . L('یه بار دیگه امتحان کن.', 'please try again.'), self::retryKeyboard($token, 'all'));
+                return;
+            }
+            self::charge((int) $job['owner']);
+            Users::hit('dl:' . $job['site'] . ':album:guest');
+            return;
         }
         $direct = self::slidesDirect() && !$big && count($items) >= 2;
         if (!$direct) {

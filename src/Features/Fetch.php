@@ -68,7 +68,7 @@ final class Fetch
 
     /**
      * Guest / inline version of run(): the answer lives in an inline message ($imid).
-     * No pick list: video/audio use the first match, images send one photo, files go to the user's private chat.
+     * No pick list: video/audio use the first match, images become a slideshow, files replace the guest message itself.
      */
     public static function guest(array $from, string $arg, string $imid): bool
     {
@@ -122,21 +122,41 @@ final class Fetch
 
     private static function guestImage(int $uid, string $q, string $imid): bool
     {
-        $store = self::imgStore($uid);
+        $store = Downloader::storeChat($uid);
         if ($store === null) {
-            Rich::editInline($imid, L('⚠️ اول ربات رو تو چت خصوصی استارت کن 🙂', '⚠️ Start the bot in a private chat first 🙂'));
+            Rich::editInline($imid, Downloader::genericError());
             return true;
         }
-        foreach (self::grab(array_slice(WebSearch::images($q), 0, 12)) as [$bytes, $from]) {
-            $id = App::tg()->photoFileId($store, $bytes);
-            if ($id === null) {
-                continue;
+        $files = [];
+        $srcs  = [];
+        foreach (self::grab(array_slice(WebSearch::images($q), 0, 24)) as [$bytes, $from]) {
+            $tmp = tempnam(sys_get_temp_dir(), 'nl_fe_');
+            if ($tmp !== false && file_put_contents($tmp, $bytes) !== false) {
+                $files[] = $tmp;
+                $srcs[]  = $from;
             }
-            Rich::editInline($imid, '🖼 ' . h(mb_substr($q, 0, 100)) . "\n" . self::src($from), null, $id);
-            Downloader::charge($uid);
+            if (count($files) >= self::IMAGES) {
+                break;
+            }
+        }
+        if (!$files) {
+            Rich::editInline($imid, self::nothing());
             return true;
         }
-        Rich::editInline($imid, self::nothing());
+        try {
+            $items = array_map(static fn(string $f): array => ['photo', $f], $files);
+            $cap   = '🖼 ' . h(mb_substr($q, 0, 100)) . "\n" . self::sources($srcs);
+            $ok    = Downloader::slideshowInline($imid, $store, $items, $cap);
+        } finally {
+            foreach ($files as $f) {
+                @unlink($f);
+            }
+        }
+        if ($ok) {
+            Downloader::charge($uid);
+        } else {
+            Rich::editInline($imid, Downloader::genericError());
+        }
         return true;
     }
 
@@ -149,7 +169,7 @@ final class Fetch
         }
         $store = Downloader::storeChat($uid);
         if ($store === null) {
-            Rich::editInline($imid, L('⚠️ اول ربات رو تو چت خصوصی استارت کن 🙂', '⚠️ Start the bot in a private chat first 🙂'));
+            Rich::editInline($imid, Downloader::genericError());
             return true;
         }
         $token = bin2hex(random_bytes(6));
@@ -646,6 +666,7 @@ final class Fetch
     private const SOFT_HINTS = ['', 'apk', 'win', 'mac', 'linux', 'ios', 'source', 'zip', 'exe', 'msi', 'dmg', 'deb', 'rpm', 'appimage', 'ipa', 'tar', 'gz'];
 
     private static string $err = '';
+    private static int $mtMsg = 0;
 
     private const MIME_EXT = [
         'application/pdf' => 'pdf', 'application/zip' => 'zip', 'application/vnd.android.package-archive' => 'apk',
@@ -850,9 +871,7 @@ final class Fetch
                 self::fail($job, L('❌ دانلود شد ولی نتونستم بفرستمش 😕', '❌ It downloaded but I couldn’t send it 😕') . "\n" . L('یه‌کم دیگه دوباره امتحان کن.', 'please try again in a bit.') . $why);
                 return;
             }
-            if (!empty($job['imid'])) {
-                self::show($job, L('✅ فایل رو تو چت خصوصی‌ت با ربات فرستادم 📥', '✅ I sent the file to your private chat with the bot 📥'));
-            } else {
+            if (empty($job['imid'])) {
                 App::tg()->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => (int) $job['mid']], 8);
             }
             Downloader::charge((int) $job['owner']);
@@ -1475,10 +1494,19 @@ final class Fetch
 
     private static function send(array $job, string $file, string $name, string $caption, int $size, string $mime = ''): bool
     {
-        $tg    = App::tg();
-        $reply = !empty($job['reply_to']) ? ['message_id' => (int) $job['reply_to'], 'allow_sending_without_reply' => true] : null;
-        $ext   = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-        $kind  = self::mediaKind($ext, $mime);
+        $tg     = App::tg();
+        $inline = !empty($job['imid']);
+        $reply  = !empty($job['reply_to']) ? ['message_id' => (int) $job['reply_to'], 'allow_sending_without_reply' => true] : null;
+        $ext    = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        $kind   = self::mediaKind($ext, $mime);
+        // Guest/inline job: the file is uploaded to the store chat only to get a file_id, then the inline
+        // message itself is turned into the file and the temporary upload is deleted.
+        $done = function (?array $r) use ($job, $inline, $caption): bool {
+            if (empty($r['ok'])) {
+                return false;
+            }
+            return !$inline || self::toInline($job, (array) ($r['result'] ?? []), $caption);
+        };
 
         if ($size <= Downloader::BOT_API_BYTES) {
             self::show($job, L('📤 دارم می‌فرستمش...', '📤 Sending it...'));
@@ -1491,7 +1519,7 @@ final class Fetch
                     'parse_mode'       => 'HTML',
                     'reply_parameters' => $reply,
                 ], 180);
-                if (!empty($r['ok'])) {
+                if ($done($r)) {
                     return true;
                 }
             }
@@ -1503,7 +1531,7 @@ final class Fetch
                     'parse_mode'       => 'HTML',
                     'reply_parameters' => $reply,
                 ] + ($kind === 'video' ? ['supports_streaming' => true] : []), 900);
-                if (!empty($r['ok'])) {
+                if ($done($r)) {
                     return true;
                 }
             }
@@ -1516,11 +1544,75 @@ final class Fetch
             ], 900);
             if (empty($r['ok'])) {
                 logWarn('gf', 'sendDocument failed: ' . mb_substr((string) ($r['description'] ?? ''), 0, 200));
+                return false;
             }
-            return !empty($r['ok']);
+            return $done($r);
         }
-        return self::sendMt($job, $file, $name, $caption, $kind, $mime)
-            || ($kind !== 'document' && self::sendMt($job, $file, $name, $caption, 'document', $mime));
+        return self::sendMtOut($job, $file, $name, $caption, $kind, $mime)
+            || ($kind !== 'document' && self::sendMtOut($job, $file, $name, $caption, 'document', $mime));
+    }
+
+    /** MTProto upload (files over the Bot API limit); for guest jobs the uploaded message is then moved into the inline message. */
+    private static function sendMtOut(array $job, string $file, string $name, string $caption, string $kind, string $mime): bool
+    {
+        if (!self::sendMt($job, $file, $name, $caption, $kind, $mime)) {
+            return false;
+        }
+        if (empty($job['imid'])) {
+            return true;
+        }
+        $orig = self::$mtMsg;
+        $f    = App::tg()->call('forwardMessage', ['chat_id' => $job['chat'], 'from_chat_id' => $job['chat'], 'message_id' => $orig, 'disable_notification' => true], 60);
+        $ok   = !empty($f['ok']) && self::toInline($job, (array) ($f['result'] ?? []), $caption);
+        if ($orig > 0 && env('DL_STORE_CHAT', '') === '') {
+            App::tg()->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => $orig], 8);
+        }
+        if (!$ok) {
+            self::$err = 'could not move the uploaded file into the guest message';
+        }
+        return $ok;
+    }
+
+    /** Turns the guest (inline) message into the uploaded file, then deletes the temporary copy from the store chat. */
+    private static function toInline(array $job, array $m, string $caption): bool
+    {
+        $type = '';
+        $fid  = '';
+        if (!empty($m['photo']) && is_array($m['photo'])) {
+            $p    = end($m['photo']);
+            $type = 'photo';
+            $fid  = (string) ($p['file_id'] ?? '');
+        } else {
+            foreach (['video', 'audio', 'animation', 'document'] as $k) {
+                if (!empty($m[$k]['file_id'])) {
+                    $type = $k;
+                    $fid  = (string) $m[$k]['file_id'];
+                    break;
+                }
+            }
+        }
+        $ok = false;
+        if ($fid !== '') {
+            $imid = (string) $job['imid'];
+            $r = match ($type) {
+                'photo' => Rich::editInlinePhoto($imid, $caption, $fid),
+                'video' => Rich::editInlineVideo($imid, $caption, $fid),
+                default => App::tg()->call('editMessageMedia', [
+                    'inline_message_id' => $imid,
+                    'media'             => ['type' => $type, 'media' => $fid, 'caption' => $caption, 'parse_mode' => 'HTML'],
+                ], 30),
+            };
+            $ok = !empty($r['ok']);
+            if (!$ok) {
+                self::$err = 'editMessageMedia (inline): ' . mb_substr((string) ($r['description'] ?? ''), 0, 200);
+                logWarn('gf', self::$err);
+            }
+        }
+        $mid = (int) ($m['message_id'] ?? 0);
+        if ($mid > 0 && env('DL_STORE_CHAT', '') === '') {
+            App::tg()->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => $mid], 8);
+        }
+        return $ok;
     }
 
     private static function sendMt(array $job, string $file, string $name, string $caption, string $kind = 'document', string $mime = ''): bool
@@ -1567,6 +1659,7 @@ final class Fetch
                 self::show($job, '📤 ' . Downloader::bar($pct) . ' ' . $pct . '%' . "\n📦 " . Downloader::mb((float) $j['p']) . L(' از ', ' of ') . Downloader::mb((float) $j['t']));
             }
         });
+        self::$mtMsg = (int) ($out['msg_id'] ?? 0);
         if (empty($out['ok']) || empty($out['msg_id'])) {
             self::$err = 'exit ' . $res['code'] . ': ' . trim((string) ($out['error'] ?? mb_substr(trim($res['err']), -300)));
             logError('gf', 'mtproto upload failed (' . self::$err . ')');

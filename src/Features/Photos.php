@@ -48,34 +48,23 @@ final class Photos
         }
     }
 
-    public static function inline(array $link, string $imid, int|string $store, int $uid): bool
+    public static function inline(array $link, string $imid, int|string $store, int $uid, int $expect = 0): bool
     {
-        $tg = App::tg();
         Rich::editInline($imid, L('⏳ دارم دریافتش می‌کنم...', '⏳ Fetching it...'));
         $files = [];
         try {
-            $got   = self::collect($link['site'], $link['url'], 1);
-            $files = $got['files'];
-            foreach ($files as $f) {
-                $r     = $tg->call('sendPhoto', ['chat_id' => $store, 'photo' => new CURLFile($f, 'image/jpeg', 'photo.jpg'), 'disable_notification' => true], 90);
-                $sizes = (array) ($r['result']['photo'] ?? []);
-                $fid   = (string) (end($sizes)['file_id'] ?? '');
-                if ($fid === '') {
-                    continue;
-                }
-                $more = $got['total'] > 1 ? "\n📚 " . fa((string) $got['total']) . L(' تا عکس داره؛ بقیه رو تو پیوی بگیر.', ' photos in total; get the rest in private.') : '';
-                $e = Rich::editInlinePhoto($imid, self::caption($link) . $more, $fid, null, false);
-                if (env('DL_STORE_CHAT', '') === '' && !empty($r['result']['message_id'])) {
-                    $tg->call('deleteMessage', ['chat_id' => $store, 'message_id' => (int) $r['result']['message_id']], 8);
-                }
-                if (!empty($e['ok'])) {
-                    Downloader::charge($uid);
-                    Users::hit('dl:photo:guest');
-                    return true;
-                }
+            $files = self::collect($link['site'], $link['url'], self::MAX)['files'];
+            logInfo('dl', "photo {$link['site']} (guest): count=" . count($files) . " expect={$expect}");
+            if (!$files || ($expect > 1 && count($files) < $expect)) {
                 return false;
             }
-            return false;
+            $items = array_map(static fn(string $f): array => ['photo', $f], $files);
+            if (!Downloader::slideshowInline($imid, $store, $items, self::caption($link))) {
+                return false;
+            }
+            Downloader::charge($uid);
+            Users::hit('dl:photo:guest');
+            return true;
         } catch (\Throwable $e) {
             logWarn('dl', $link['site'] . ' photo failed: ' . $e->getMessage());
             return false;
