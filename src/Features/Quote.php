@@ -103,7 +103,7 @@ final class Quote
         foreach (['video', 'animation', 'video_note', 'document', 'audio'] as $k) {
             $t = $m[$k]['thumbnail'] ?? null;
             if (is_array($t) && !empty($t['file_id'])) {
-                return ['media' => [self::size($t)]] + ($k === 'video_note' ? ['mediaCrop' => true] : []);
+                return ['media' => [self::size($t)]] + ($k === 'video_note' ? ['mediaCrop' => true, 'mediaType' => 'sticker'] : []);
             }
         }
         return [];
