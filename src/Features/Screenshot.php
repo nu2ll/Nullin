@@ -205,14 +205,10 @@ final class Screenshot
 
     private static function say(array $msg, int $statusId, string $text): void
     {
-        $tg = App::tg();
         if ($statusId > 0) {
-            $r = $tg->editMessage($msg['chat']['id'], $statusId, $text);
-            if (!empty($r['ok'])) {
-                return;
-            }
+            App::tg()->call('deleteMessage', ['chat_id' => $msg['chat']['id'], 'message_id' => $statusId], 8);
         }
-        $tg->reply($msg, $text);
+        Rich::notice($msg, $text);
     }
 
     public static function send(array $msg, string $q): bool
@@ -222,7 +218,7 @@ final class Screenshot
         $rt   = (string) ($msg['reply_to_message']['text'] ?? $msg['reply_to_message']['caption'] ?? '');
         $p    = self::parse($q) ?? self::parse($rt);
         if ($p === null) {
-            $tg->reply($msg, trim($q) === '' ? Ui::guide('screenshot') : self::notice('url'));
+            trim($q) === '' ? $tg->reply($msg, Ui::guide('screenshot')) : Rich::notice($msg, self::notice('url'));
             return true;
         }
         $tg->action($chat, 'upload_photo');

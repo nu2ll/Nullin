@@ -125,7 +125,7 @@ final class Intent
             AnswerButtons::attach((int) $chat, $rmid, $o['retry'] + ['o' => (int) $msg['message_id']], false);
         }
         foreach ($o['more'] ?? [] as $part) {
-            $tg->reply($msg, $part);
+            Rich::notice($msg, $part);
         }
         return true;
     }

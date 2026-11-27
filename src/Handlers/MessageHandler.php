@@ -287,7 +287,7 @@ final class MessageHandler
             case 'forget':
                 $count = count(UserMemory::all((int) $from['id']));
                 if ($count === 0) {
-                    $tg->reply($msg, L('هنوز چیزی ازت تو حافظه‌م نیست 🤷', 'I don\'t have anything stored about you yet 🤷'));
+                    Rich::notice($msg, L('هنوز چیزی ازت تو حافظه‌م نیست 🤷', 'I don\'t have anything stored about you yet 🤷'));
                     return true;
                 }
                 Rich::replyTo($msg, L("🧹 <b>پاک کردن حافظه</b>\n\n", "🧹 <b>Clear memory</b>\n\n")
@@ -487,14 +487,14 @@ final class MessageHandler
                 } elseif ($args !== '' && $args[0] === '@') {
                     $tid = Ban::byUsername($args);
                     if ($tid <= 0) {
-                        $tg->reply($msg, L('این یوزرنیم پیدا نشد 😕', 'Username not found 😕') . "\n" . L('فقط کسایی که ربات رو استارت کرده باشن (یا تو گروه دیده شده باشن) پیدا می‌شن؛ با ریپلای یا آیدی عددی امتحان کن.', 'Only people who started the bot (or were seen in a group) can be found; try a reply or a numeric ID.'));
+                        Rich::notice($msg, L('این یوزرنیم پیدا نشد 😕', 'Username not found 😕') . "\n" . L('فقط کسایی که ربات رو استارت کرده باشن (یا تو گروه دیده شده باشن) پیدا می‌شن؛ با ریپلای یا آیدی عددی امتحان کن.', 'Only people who started the bot (or were seen in a group) can be found; try a reply or a numeric ID.'));
                         return true;
                     }
                 } else {
                     $tid = ($r && empty($r['is_bot'])) ? (int) $r['id'] : 0;
                 }
                 if ($tid <= 0) {
-                    $tg->reply($msg, L("روی پیام کاربر ریپلای کن و /{$cmd} بزن،\nیا آیدی عددی یا یوزرنیمش رو بنویس:", "Reply to the user's message and send /{$cmd},\nor write their numeric ID or username:") . "\n<code>/{$cmd} 123456</code>\n<code>/{$cmd} @username</code>");
+                    Rich::notice($msg, L("روی پیام کاربر ریپلای کن و /{$cmd} بزن،\nیا آیدی عددی یا یوزرنیمش رو بنویس:", "Reply to the user's message and send /{$cmd},\nor write their numeric ID or username:") . "\n<code>/{$cmd} 123456</code>\n<code>/{$cmd} @username</code>");
                     return true;
                 }
                 $row = ($r && (int) $r['id'] === $tid) ? ['name' => userName($r), 'username' => $r['username'] ?? null] : Db::row('SELECT name, username FROM users WHERE id = ?', [$tid]);

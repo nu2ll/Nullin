@@ -329,7 +329,7 @@ final class Downloader
     {
         if (!empty($msg['chat']['id']) && !empty($msg['message_id'])) {
             App::tg()->react($msg['chat']['id'], (int) $msg['message_id'], '👎');
-            App::tg()->reply($msg, self::genericError());
+            Rich::notice($msg, self::genericError());
         }
     }
 

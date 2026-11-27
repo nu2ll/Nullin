@@ -346,7 +346,7 @@ final class PriceCard
 
         $p = self::parts($m, Currency::feed(), true);
         if ($p === null) {
-            $tg->reply($msg, Currency::unavailable());
+            Rich::notice($msg, Currency::unavailable());
             return;
         }
         // positive reaction (thumbs up) on the user's price request

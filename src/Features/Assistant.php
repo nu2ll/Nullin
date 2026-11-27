@@ -461,7 +461,7 @@ final class Assistant
             $info  = self::fileInfo($msg);
             $data  = self::dataInfo($msg);
             if (!$media && $info === null && $data === null) {
-                $tg->reply($msg, L("😕 نتونستم فایلت رو دانلود کنم؛\nدوباره بفرست.", "😕 I couldn’t download your file;\nplease send it again."));
+                Rich::notice($msg, L("😕 نتونستم فایلت رو دانلود کنم؛\nدوباره بفرست.", "😕 I couldn’t download your file;\nplease send it again."));
                 return;
             }
             if ($media) {

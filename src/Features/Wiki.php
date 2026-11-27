@@ -144,7 +144,7 @@ final class Wiki
         $tg->action($msg['chat']['id'], 'typing');
         $p = self::first($q);
         if ($p === null) {
-            $tg->reply($msg, L('📖 تو ویکی‌پدیا چیزی درباره‌ی «', '📖 I found nothing on Wikipedia about “') . h(mb_substr($q, 0, 80)) . L('» پیدا نکردم.', '”.'));
+            Rich::notice($msg, L('📖 تو ویکی‌پدیا چیزی درباره‌ی «', '📖 I found nothing on Wikipedia about “') . h(mb_substr($q, 0, 80)) . L('» پیدا نکردم.', '”.'));
             return;
         }
         Users::hit('wiki');

@@ -870,14 +870,14 @@ final class Business
         $tg   = App::tg();
         $text = mbTrim((string) ($msg['text'] ?? ''));
         if ($text === '') {
-            $tg->reply($msg, L('فقط متن بفرست.', 'Please send text only.'));
+            Rich::notice($msg, L('فقط متن بفرست.', 'Please send text only.'));
             return true;
         }
         $found = [];
         if ($w['step'] === 'key') {
             $found = array_values(array_filter(preg_split('/\s+/u', $text) ?: [], static fn($t) => str_starts_with($t, 'gsk_')));
             if (!$found) {
-                $tg->reply($msg, L("😕 این شبیه کلید گروک نیست؛\nباید با <code>gsk_</code> شروع بشه.\nدوباره بفرست.", "😕 That doesn’t look like a Groq key;\nit should start with <code>gsk_</code>.\nPlease send it again."));
+                Rich::notice($msg, L("😕 این شبیه کلید گروک نیست؛\nباید با <code>gsk_</code> شروع بشه.\nدوباره بفرست.", "😕 That doesn’t look like a Groq key;\nit should start with <code>gsk_</code>.\nPlease send it again."));
                 return true;
             }
         }

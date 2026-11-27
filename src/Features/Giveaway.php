@@ -51,7 +51,7 @@ final class Giveaway
         if (preg_match('/^gw_(-?\d+)$/', $arg, $m)) {
             $t = self::checkTarget($uid, (int) $m[1]);
             if (isset($t['error'])) {
-                $tg->send($chat, $t['error']);
+                Rich::sendHtml($chat, $t['error']);
                 return;
             }
             self::askPrize($chat, $uid, $t);
@@ -227,12 +227,12 @@ final class Giveaway
     {
         $tg = App::tg();
         if (!empty($msg['sender_chat'])) {
-            $tg->reply($msg, L("🕶 ناشناس پیام دادی و نمی‌شناسمت!\nبیا پیوی ربات و /giveaway بزن،\nبعد این گروه رو انتخاب کن.", "🕶 You’re posting anonymously and I can’t tell who you are!\nCome to the bot’s private chat and send /giveaway,\nthen choose this group."));
+            Rich::notice($msg, L("🕶 ناشناس پیام دادی و نمی‌شناسمت!\nبیا پیوی ربات و /giveaway بزن،\nبعد این گروه رو انتخاب کن.", "🕶 You’re posting anonymously and I can’t tell who you are!\nCome to the bot’s private chat and send /giveaway,\nthen choose this group."));
             return;
         }
         $st = self::status($msg['chat']['id'], (int) $msg['from']['id']);
         if (!in_array($st, ['creator', 'administrator'], true)) {
-            $tg->reply($msg, L('🙅 فقط ادمین‌های گروه می‌تونن قرعه‌کشی بسازن.', '🙅 Only group admins can create giveaways.'));
+            Rich::notice($msg, L('🙅 فقط ادمین‌های گروه می‌تونن قرعه‌کشی بسازن.', '🙅 Only group admins can create giveaways.'));
             return;
         }
         $bot = App::botUsername();

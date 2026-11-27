@@ -256,12 +256,12 @@ final class Gif
         $tg->action($chat, 'upload_video');
         $r = self::fetch($q);
         if ($r === null) {
-            $tg->reply($msg, self::notice('fail'));
+            Rich::notice($msg, self::notice('fail'));
             return true;
         }
         $n = count($r['items']);
         if ($n === 0) {
-            $tg->reply($msg, self::notice('none', $q));
+            Rich::notice($msg, self::notice('none', $q));
             return true;
         }
         $i    = mt_rand(0, $n - 1);
@@ -278,7 +278,7 @@ final class Gif
             return true;
         }
         logWarn('gif', 'rich video send failed for ' . $g['id'] . ': ' . (string) ($res['description'] ?? ''));
-        $tg->reply($msg, self::notice('send'));
+        Rich::notice($msg, self::notice('send'));
         return true;
     }
 

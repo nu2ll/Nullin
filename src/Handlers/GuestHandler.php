@@ -576,7 +576,7 @@ final class GuestHandler
 
     public static function say(string $qid, string $html): void
     {
-        self::send($qid, $html);
+        self::send($qid, $html, null, true);
     }
 
     private static function send(string $qid, string $html, ?array $markup = null, bool $rich = false): ?string

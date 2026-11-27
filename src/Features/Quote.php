@@ -14,10 +14,10 @@ final class Quote
     public static function notice(string $kind): string
     {
         return match ($kind) {
-            'none'  => L("💬 روی پیامی که می‌خوای استیکرش کنم ریپلای کن؛\nبعد <code>/q</code> رو بزن.", "💬 Reply to the message you want as a sticker;\nthen send <code>/q</code>."),
-            'empty' => L("😕 این پیام چیزی نداره؛\nنمی‌تونم ازش استیکر بسازم.", "😕 This message has nothing in it;\nI can’t make a sticker from it."),
-            'send'  => L("😕 استیکر ساخته شد ولی ارسالش به مشکل خورد؛\nدوباره امتحان کن.", "😕 The sticker was made but sending it failed;\ntry again."),
-            default => L("😕 الان نتونستم استیکر بسازم؛\nیه‌کم دیگه امتحان کن.", "😕 I couldn’t make the sticker right now;\ntry again in a bit."),
+            'none'  => L("💬 روی پیامی که می‌خوای استیکرش کنم\nریپلای کن؛ بعد بنویس <code>/q</code> و بفرست.", "💬 Reply to the message you want as a sticker;\nthen type <code>/q</code> and send it."),
+            'empty' => L("😕 این پیام چیزی نداره؛ نمی‌تونم ازش استیکر بسازم.", "😕 This message has nothing in it; I can’t make a sticker from it."),
+            'send'  => L("😕 استیکر ساخته شد ولی ارسالش به مشکل خورد.\n\nدوباره امتحان کن", "😕 The sticker was made but sending it failed.\n\nTry again"),
+            default => L("😕 الان نتونستم استیکر بسازم.\n\nیه‌کم دیگه امتحان کن", "😕 I couldn’t make the sticker right now.\n\nTry again in a bit"),
         };
     }
 
@@ -103,7 +103,7 @@ final class Quote
         foreach (['video', 'animation', 'video_note', 'document', 'audio'] as $k) {
             $t = $m[$k]['thumbnail'] ?? null;
             if (is_array($t) && !empty($t['file_id'])) {
-                return ['media' => [self::size($t)]] + ($k === 'video_note' ? ['mediaCrop' => true, 'mediaType' => 'sticker'] : []);
+                return ['media' => [self::size($t)]];
             }
         }
         return [];
@@ -261,11 +261,11 @@ final class Quote
         }
         [$img, $err] = self::make($msg['reply_to_message'] ?? null);
         if ($img === null) {
-            $tg->reply($msg, self::notice($err));
+            Rich::notice($msg, self::notice($err));
             return true;
         }
         if (!self::sticker($msg, $img)) {
-            $tg->reply($msg, self::notice('send'));
+            Rich::notice($msg, self::notice('send'));
         }
         return true;
     }
