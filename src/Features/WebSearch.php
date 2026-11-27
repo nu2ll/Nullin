@@ -21,7 +21,7 @@ final class WebSearch
         $out = [];
         foreach ([$q, $q . ' photo'] as $query) {
             foreach (self::keys() as $key) {
-                $r = Http::postJson(self::URL, ['query' => mb_substr($query, 0, 200), 'search_depth' => 'basic', 'max_results' => 8, 'include_images' => true], ['Authorization: Bearer ' . $key], 12);
+                $r = Http::postJson(self::URL, ['query' => mb_substr($query, 0, 200), 'search_depth' => 'basic', 'max_results' => 10, 'include_images' => true], ['Authorization: Bearer ' . $key], 12);
                 if ($r['code'] === 200 && is_array($r['data'])) {
                     foreach ((array) ($r['data']['images'] ?? []) as $im) {
                         $u = is_array($im) ? (string) ($im['url'] ?? '') : (string) $im;

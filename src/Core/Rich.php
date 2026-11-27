@@ -133,10 +133,13 @@ final class Rich
 
     public static function buttonsHtml(?array $kb): string
     {
-        $out = '';
+        $out   = '';
+        $shown = false;
         foreach ((array) ($kb['inline_keyboard'] ?? []) as $row) {
-            $r = '';
+            $r   = '';
+            $src = false;
             foreach ((array) $row as $b) {
+                $src   = $src || !empty($b['src']);
                 $style = isset($b['style']) ? ' style="' . h((string) $b['style']) . '"' : '';
                 $label = h((string) ($b['text'] ?? ''));
                 if (isset($b['callback_data'])) {
@@ -149,9 +152,14 @@ final class Rich
                     $r .= '<tg-button type="copy_text"' . $style . ' text="' . h((string) $b['copy_text']['text']) . '">' . $label . '</tg-button>';
                 }
             }
-            if ($r !== '') {
-                $out .= '<tg-button-row>' . $r . '</tg-button-row>';
+            if ($r === '') {
+                continue;
             }
+            if ($src && !$shown) {
+                $out  .= '<aside>' . h(AnswerButtons::sourcesLabel()) . '</aside>';
+                $shown = true;
+            }
+            $out .= '<tg-button-row' . ($src ? ' align="center"' : '') . '>' . $r . '</tg-button-row>';
         }
         return $out;
     }

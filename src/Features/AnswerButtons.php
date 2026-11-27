@@ -42,10 +42,17 @@ final class AnswerButtons
             return $kb;
         }
         $rows = $kb['inline_keyboard'] ?? [];
-        foreach (array_chunk($links, 2) as $pair) {
-            $rows[] = array_map(static fn(array $l): array => ['text' => '🔗 ' . $l[0], 'url' => $l[1]], $pair);
+        foreach (self::linkChunks($links) as $pair) {
+            $rows[] = array_map(static fn(array $l): array => ['text' => '🔗 ' . $l[0], 'url' => $l[1], 'src' => 1], $pair);
         }
         return ['inline_keyboard' => $rows];
+    }
+
+    /** First source alone in its row, the rest two per row. */
+    private static function linkChunks(array $links): array
+    {
+        $links = array_values($links);
+        return array_merge(array_slice($links, 0, 1) ? [array_slice($links, 0, 1)] : [], array_chunk(array_slice($links, 1), 2));
     }
 
     public static function sourcesLabel(): string
@@ -53,10 +60,10 @@ final class AnswerButtons
         return L('🔗 منابع', '🔗 Sources');
     }
 
-    /** Classic (non-rich) messages: the label stays as a line of text above the source buttons. */
+    /** The label is drawn by Rich::buttonsHtml as a centered quote block above the source buttons, so the text stays untouched. */
     public static function withLabel(string $text, array $links): string
     {
-        return $links ? rtrim($text) . "\n\n" . self::sourcesLabel() : $text;
+        return $text;
     }
 
     private static function linkRows(array $links): string
@@ -64,8 +71,8 @@ final class AnswerButtons
         if (!$links) {
             return '';
         }
-        $out = '<p align="center">' . h(self::sourcesLabel()) . '</p>';
-        foreach (array_chunk($links, 2) as $pair) {
+        $out = '<aside>' . h(self::sourcesLabel()) . '</aside>';
+        foreach (self::linkChunks($links) as $pair) {
             $out .= '<tg-button-row align="center">';
             foreach ($pair as $l) {
                 $out .= '<tg-button type="url" url="' . h($l[1]) . '">' . h($l[0]) . '</tg-button>';
