@@ -1717,7 +1717,7 @@ final class Downloader
 
     /**
      * Guest/inline: all items as ONE swipeable slideshow inside the guest message itself (items: [kind, file, ?file_id, ?bigMt]).
-     * A single item becomes a plain photo/video; if Telegram refuses the slideshow, the first item is shown instead.
+     * A single item becomes a plain photo/video; several items are always a slideshow (no single-item fallback).
      */
     public static function slideshowInline(string $imid, int|string $store, array $items, string $cap, ?array $job = null, string $dir = ''): bool
     {
@@ -1746,13 +1746,17 @@ final class Downloader
         if (!$media) {
             return false;
         }
-        if (count($media) >= 2) {
+        if (count($items) >= 2) {
+            // Several items are always a slideshow: no falling back to a single item.
+            if (count($media) < 2) {
+                return false;
+            }
             $body = '<tg-slideshow>' . $html . '</tg-slideshow>' . ($cap !== '' ? '<p>' . str_replace("\n", '<br>', $cap) . '</p>' : '');
             $r    = Rich::editInlineSlideshow($imid, $body, $media);
-            if (!empty($r['ok'])) {
-                return true;
+            if (empty($r['ok'])) {
+                logWarn('dl', 'guest slideshow (' . count($media) . ' items) refused: ' . mb_substr((string) ($r['description'] ?? 'no response'), 0, 200));
             }
-            logWarn('dl', 'guest slideshow (' . count($media) . ' items) refused: ' . mb_substr((string) ($r['description'] ?? 'no response'), 0, 200));
+            return !empty($r['ok']);
         }
         [$kind, $id] = $first;
         $r = $kind === 'video' ? Rich::editInlineVideo($imid, $cap, $id) : Rich::editInlinePhoto($imid, $cap, $id, null, false);
