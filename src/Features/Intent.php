@@ -22,7 +22,7 @@ final class Intent
             . "\n- gif | <search query in English, one to four words>: send a GIF that matches what they want to see or express."
             . "\n- screenshot | <website address; leave empty if the link is in the message they replied to>: send a screenshot of a website."
             . "\n- download | <full link; leave empty if the link is in the message they replied to>: download the video, photo or audio of a link."
-            . "\n- fetch | <video, audio, image or file> | <what to search for, in the user's own words> | <only for file: file type or extension, or empty> | <only for file: version, or empty>: find anything they ask for on the internet, by name or by link, and send it to them. Use video, audio or image only when they want to watch a video, hear a song or see pictures; use file for everything else they want to get or download. In the search input write only the name of what they want; put the type and version in their own inputs."
+            . "\n- fetch | <video, audio or image> | <what to search for, in the user's own words>: find a video, a song or pictures on the internet by name and send it to them. In the search input write only the name of what they want."
             . "\n- calc | <math expression with + - * / ^ and parentheses>: numeric calculation."
             . "\n- nid | <national ID code>: check whether an Iranian national ID is valid."
             . "\n- card | <card number>: check whether an Iranian bank card number is valid and which bank issued it."
@@ -59,9 +59,6 @@ final class Intent
 
         if ($name === 'download') {
             $link = Downloader::match($arg) ?? Downloader::find($arg . ' ' . (string) ($msg['reply_to_message']['text'] ?? $msg['reply_to_message']['caption'] ?? ''));
-            if ($link === null && preg_match('#https?://\S+#i', $arg . ' ' . (string) ($msg['reply_to_message']['text'] ?? $msg['reply_to_message']['caption'] ?? ''), $um)) {
-                return Fetch::start($msg, rtrim($um[0], '.,،!؟?)»"\''));
-            }
             if ($link === null) {
                 Downloader::dislike($msg);
                 return true;

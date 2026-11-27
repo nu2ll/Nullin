@@ -286,12 +286,14 @@ final class InlineHandler
         if ($res['answer'] === null) {
             return false;
         }
-        $text = self::aiHead($q) . AI::toHtml(AI::fit($res['answer'], self::aiHead($q)));
-        $kb   = AI::$searched ? null : AnswerButtons::searchOnly();
+        [$shown, $links] = AnswerButtons::splitSources((string) $res['answer']);
+        $text   = self::aiHead($q) . AI::toHtml(AI::fit(AnswerButtons::withLabel($shown, $links), self::aiHead($q)));
+        $sKb    = AI::$searched ? null : AnswerButtons::searchOnly();
+        $kb     = AnswerButtons::withLinks($sKb, $links);
         if (empty(Rich::editInline($imid, $text, $kb)['ok'])) {
             Rich::editInline($imid, strip_tags($text), $kb, null, false);
         }
-        if ($kb !== null) {
+        if ($sKb !== null) {
             AnswerButtons::attachInline($imid, ['u' => (int) ($from['id'] ?? 0), 'q' => $q, 'a' => $res['answer'], 'h' => self::aiHead($q)]);
         }
         return true;

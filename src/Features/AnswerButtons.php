@@ -15,6 +15,66 @@ final class AnswerButtons
         return trim((string) preg_replace('/\n\n🔗 (?:منابع|Sources):.*$/su', '', $answer));
     }
 
+    /** @return array{0:string,1:array<int,array{0:string,1:string}>} [answer without its sources block, [label, url] links] */
+    public static function splitSources(string $answer): array
+    {
+        if (!preg_match('/\n\n🔗 (?:منابع|Sources): (.*)$/su', $answer, $m)) {
+            return [$answer, []];
+        }
+        $links = [];
+        if (preg_match_all('/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/u', $m[1], $mm, PREG_SET_ORDER)) {
+            foreach (array_slice($mm, 0, 5) as $x) {
+                $links[] = [mb_substr($x[1], 0, 40), $x[2]];
+            }
+        }
+        return [rtrim((string) preg_replace('/\n\n🔗 (?:منابع|Sources): .*$/su', '', $answer)), $links];
+    }
+
+    public static function hasSources(string $answer): bool
+    {
+        return self::splitSources($answer)[1] !== [];
+    }
+
+    /** Source buttons for a classic inline keyboard, merged under an existing keyboard (or alone). */
+    public static function withLinks(?array $kb, array $links): ?array
+    {
+        if (!$links) {
+            return $kb;
+        }
+        $rows = $kb['inline_keyboard'] ?? [];
+        foreach (array_chunk($links, 2) as $pair) {
+            $rows[] = array_map(static fn(array $l): array => ['text' => '🔗 ' . $l[0], 'url' => $l[1]], $pair);
+        }
+        return ['inline_keyboard' => $rows];
+    }
+
+    public static function sourcesLabel(): string
+    {
+        return L('🔗 منابع', '🔗 Sources');
+    }
+
+    /** Classic (non-rich) messages: the label stays as a line of text above the source buttons. */
+    public static function withLabel(string $text, array $links): string
+    {
+        return $links ? rtrim($text) . "\n\n" . self::sourcesLabel() : $text;
+    }
+
+    private static function linkRows(array $links): string
+    {
+        if (!$links) {
+            return '';
+        }
+        $out = '<p align="center">' . h(self::sourcesLabel()) . '</p>';
+        foreach (array_chunk($links, 2) as $pair) {
+            $out .= '<tg-button-row align="center">';
+            foreach ($pair as $l) {
+                $out .= '<tg-button type="url" url="' . h($l[1]) . '">' . h($l[0]) . '</tg-button>';
+            }
+            $out .= '</tg-button-row>';
+        }
+        return $out;
+    }
+
     public static function keyboard(bool $searched, bool $voice = true, bool $noSearch = false): array
     {
         $row = [];
@@ -66,7 +126,9 @@ final class AnswerButtons
 
     private static function body(string $answer, string $rows): string
     {
-        $answer = rtrim($answer);
+        [$answer, $links] = self::splitSources($answer);
+        $rows              = self::linkRows($links) . $rows;
+        $answer           = rtrim($answer);
         if (substr_count($answer, '```') % 2 === 1) {
             $answer .= "\n```";
         }
@@ -187,7 +249,7 @@ final class AnswerButtons
         $rec['b'] = App::botIndex();
         if ($withMarkup) {
             $rows = !empty($rec['f']) ? self::retryRows() : self::rows(!empty($rec['sr']), empty($rec['vo']), !empty($rec['ns']));
-            $rich = $rows !== '' && $fits && empty($rec['k']) && (Rich::was($chatId, $mid) || (int) ($rec['n'] ?? 1) <= 1)
+            $rich = ($rows !== '' || self::hasSources((string) $rec['a'])) && $fits && empty($rec['k']) && (Rich::was($chatId, $mid) || (int) ($rec['n'] ?? 1) <= 1)
                 && self::editRich($chatId, $mid, (string) $rec['a'], $rows);
             $rec['rc'] = $rich ? 1 : 0;
             Store::set(self::NS, $chatId . ':' . $mid, $rec);
@@ -415,8 +477,9 @@ final class AnswerButtons
             if ($answer === null) {
                 return;
             }
-            $kb   = $searched ? null : self::searchOnly();
-            $text = $head . AI::toHtml(AI::fit($answer, $head));
+            [$shown, $links] = self::splitSources($answer);
+            $kb   = self::withLinks($searched ? null : self::searchOnly(), $links);
+            $text = $head . AI::toHtml(AI::fit(self::withLabel($shown, $links), $head));
             $r    = Rich::editInline($imid, $text, $kb);
             if (empty($r['ok']) && stripos((string) ($r['description'] ?? ''), 'not modified') === false) {
                 $r = Rich::editInline($imid, mb_substr(strip_tags($text), 0, 4096), $kb, null, false);

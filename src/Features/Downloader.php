@@ -27,6 +27,7 @@ final class Downloader
         'reddit'      => ['ردیت', '/(^|\.)(reddit\.com|redd\.it)$/', true, 'Reddit'],
         'facebook'    => ['فیسبوک', '/(^|\.)(facebook\.com|fb\.watch)$/', true, 'Facebook'],
         'snapchat'    => ['اسنپ‌چت', '/(^|\.)snapchat\.com$/', true, 'Snapchat'],
+        'github'      => ['گیت‌هاب', '/(^|\.)github\.com$/', false, 'GitHub'],
         'spotify'     => ['اسپاتیفای', '/(^|\.)(open\.spotify\.com|spotify\.link|spotify\.app\.link)$/', false, 'Spotify'],
     ];
 
@@ -298,6 +299,7 @@ final class Downloader
                 ? $short
                 : preg_match('#^/(?:spotlight|t)/[\w-]+#', $path) === 1
                     || preg_match('#^/@[\w.-]+/spotlight/[\w-]+#', $path) === 1,
+            'github'     => self::ghParse($url) !== null,
             'spotify'    => ($host === 'spotify.link' || $host === 'spotify.app.link')
                 ? $segs !== []
                 : preg_match('#^/(?:intl-[\w-]+/)?(?:embed/)?(?:track|album|playlist)/[A-Za-z0-9]{22}#', $path) === 1,
@@ -373,6 +375,19 @@ final class Downloader
     {
         $tg  = App::tg();
         $uid = (int) $msg['from']['id'];
+        if ($link['site'] === 'github') {
+            if (!self::quotaLeft($uid)) {
+                Rich::notice($msg, self::quotaText());
+                return;
+            }
+            $tg->react($msg['chat']['id'], (int) $msg['message_id'], '👍');
+            $sent = Rich::sendHtml($msg['chat']['id'], L('🔎 دارم لینک ', '🔎 Checking ') . $link['name'] . L(' رو بررسی می‌کنم...', ' link...'), (int) $msg['message_id']);
+            $mid  = (int) ($sent['result']['message_id'] ?? 0);
+            if ($mid) {
+                self::ghPrepare(['chat' => $msg['chat']['id'], 'card' => $mid, 'imid' => null], $link, $uid, (int) $msg['message_id']);
+            }
+            return;
+        }
         if (($stop = self::gate($uid, $link)) !== null) {
             Rich::notice($msg, $stop);
             return;
@@ -391,6 +406,17 @@ final class Downloader
     {
         $tg  = App::tg();
         $uid = (int) ($from['id'] ?? 0);
+        if ($link['site'] === 'github') {
+            $store = self::storeChat($uid);
+            if (!self::quotaLeft($uid)) {
+                Rich::editInline($imid, self::quotaText());
+            } elseif ($store === null) {
+                Rich::editInline($imid, self::genericError());
+            } else {
+                self::ghPrepare(['chat' => $store, 'card' => 0, 'imid' => $imid], $link, $uid, 0);
+            }
+            return;
+        }
         if (($stop = self::gate($uid, $link)) !== null) {
             Rich::editInlineRich($imid, $stop);
             return;
@@ -2767,6 +2793,530 @@ final class Downloader
         $name = preg_replace('/[\\\\\/:*?"<>|\x00-\x1F]+/u', ' ', $job['title']) ?? 'nullini';
         $name = mbTrim(mb_substr($name, 0, 60));
         return ($name !== '' ? $name : 'nullini') . '.' . ($ext !== '' ? $ext : 'mp4');
+    }
+
+    // ───────────────────────── GitHub ─────────────────────────
+    // offer()/guest() → ghPrepare() (card) → ghOnGithub() (buttons) → ghWork() (background download + send)
+
+    private const GH_RESERVED = ['orgs', 'settings', 'topics', 'marketplace', 'features', 'about', 'login', 'explore', 'sponsors', 'pricing', 'notifications', 'new', 'search', 'issues', 'pulls', 'collections', 'trending', 'enterprise', 'customer-stories', 'readme', 'security', 'apps', 'join', 'site', 'codespaces', 'users', 'sessions', 'password_reset', 'contact', 'events', 'gist', 'organizations'];
+
+    /** @return array{o:string,r:string,branch:string,tag:string}|null */
+    private static function ghParse(string $url): ?array
+    {
+        $segs = array_values(array_filter(explode('/', rawurldecode((string) parse_url($url, PHP_URL_PATH))), static fn($x) => $x !== ''));
+        if (count($segs) < 2 || in_array(strtolower($segs[0]), self::GH_RESERVED, true)) {
+            return null;
+        }
+        $o = $segs[0];
+        $r = (string) preg_replace('/\.git$/i', '', $segs[1]);
+        if (!preg_match('/^[\w.-]+$/', $o) || !preg_match('/^[\w.-]+$/', $r) || $r === '') {
+            return null;
+        }
+        $branch = '';
+        $tag    = '';
+        if (($segs[2] ?? '') === 'tree' && isset($segs[3])) {
+            $branch = implode('/', array_slice($segs, 3));
+        } elseif (($segs[2] ?? '') === 'releases' && ($segs[3] ?? '') === 'tag' && isset($segs[4])) {
+            $tag = implode('/', array_slice($segs, 4));
+        }
+        return ['o' => $o, 'r' => $r, 'branch' => $branch, 'tag' => $tag];
+    }
+
+    /** @return array{0:int,1:?array} [HTTP status, decoded JSON] */
+    private static function ghGet(string $path): array
+    {
+        $h = ['Accept: application/vnd.github+json', 'User-Agent: Nullin-Downloader'];
+        if (($t = trim((string) env('GITHUB_TOKEN', ''))) !== '') {
+            $h[] = 'Authorization: Bearer ' . $t;
+        }
+        $r    = Http::request('GET', 'https://api.github.com' . $path, ['headers' => $h, 'timeout' => 12]);
+        $data = json_decode((string) ($r['body'] ?? ''), true);
+        return [(int) ($r['code'] ?? 0), is_array($data) ? $data : null];
+    }
+
+    private static function ghApi(string $path): ?array
+    {
+        [$code, $data] = self::ghGet($path);
+        return $code >= 200 && $code < 300 ? $data : null;
+    }
+
+    private static function ghPrivateText(): string
+    {
+        return L('🔒 این ریپو خصوصیه یا وجود نداره.', '🔒 This repo is private or doesn’t exist.');
+    }
+
+    private static function ghSizeError(): string
+    {
+        return L('📦 حجمش از سقف ', '📦 Its size is over the ') . self::limitText() . L(' بیشتره 😕', ' limit 😕');
+    }
+
+    private static function ghPrepare(array $t, array $link, int $uid, int $replyTo): void
+    {
+        $ref = self::ghParse($link['url']);
+        if ($ref === null) {
+            self::show($t, self::genericError());
+            return;
+        }
+        $o    = $ref['o'];
+        $r    = $ref['r'];
+        [$code, $info] = self::ghGet('/repos/' . rawurlencode($o) . '/' . rawurlencode($r));
+        if (!is_array($info) || empty($info['name'])) {
+            $limited = $code === 429 || ($code === 403 && stripos((string) ($info['message'] ?? ''), 'rate limit') !== false);
+            self::show($t, $limited ? self::explain('http error 429') : ($code === 404 || $code === 403 || $code === 451 ? self::ghPrivateText() : self::genericError()));
+            return;
+        }
+        $o = (string) ($info['owner']['login'] ?? $o);
+        $r = (string) $info['name'];
+        $default = (string) ($info['default_branch'] ?? 'main');
+
+        $branches = [$default];
+        foreach ((array) self::ghApi('/repos/' . rawurlencode($o) . '/' . rawurlencode($r) . '/branches?per_page=30') as $b) {
+            $n = is_array($b) ? (string) ($b['name'] ?? '') : '';
+            if ($n !== '' && !in_array($n, $branches, true)) {
+                $branches[] = $n;
+            }
+        }
+        $start = 0;
+        if ($ref['branch'] !== '') {
+            $k = array_search($ref['branch'], $branches, true);
+            if ($k === false) {
+                $branches[] = $ref['branch'];
+                $k = count($branches) - 1;
+            }
+            $start = (int) $k;
+        }
+        $branches = array_slice($branches, 0, 12);
+        if ($start >= count($branches)) {
+            $branches[11] = $ref['branch'];
+            $start = 11;
+        }
+
+        $assets = [];
+        $rel    = self::ghRelease($o, $r, $ref['tag']);
+        if (is_array($rel)) {
+            foreach ((array) ($rel['assets'] ?? []) as $a) {
+                $n = (string) ($a['name'] ?? '');
+                if ($n === '' || empty($a['browser_download_url']) || preg_match('/\.(sha\d+|md5|sig|asc|minisig|pem|sbom|blockmap|ya?ml)$/i', $n)) {
+                    continue;
+                }
+                $assets[] = ['name' => $n, 'url' => (string) $a['browser_download_url'], 'size' => (int) ($a['size'] ?? 0)];
+            }
+            usort($assets, static fn($x, $y) => $y['size'] <=> $x['size']);
+        }
+
+        $token = bin2hex(random_bytes(6));
+        $job   = [
+            'o' => $o, 'r' => $r, 'title' => $o . '/' . $r, 'desc' => mb_substr((string) ($info['description'] ?? ''), 0, 200),
+            'stars' => (int) ($info['stargazers_count'] ?? 0), 'bytes' => (int) ($info['size'] ?? 0) * 1024,
+            'branches' => $branches, 'default' => 0, 'cur' => $start,
+            'tag' => is_array($rel) ? (string) ($rel['tag_name'] ?? '') : '', 'assets' => $assets,
+            'owner' => $uid, 'chat' => $t['chat'], 'card' => (int) $t['card'], 'imid' => $t['imid'], 'reply_to' => $replyTo,
+            'url' => 'https://github.com/' . $o . '/' . $r, 'b' => App::botIndex(),
+        ];
+        Store::set('gh', $token, $job);
+        self::show($job, self::ghText($job), self::ghKeyboard($token, $job));
+    }
+
+    private static function ghRelease(string $o, string $r, string $tag): ?array
+    {
+        $base = '/repos/' . rawurlencode($o) . '/' . rawurlencode($r) . '/releases';
+        if ($tag !== '') {
+            $x = self::ghApi($base . '/tags/' . rawurlencode($tag));
+            return is_array($x) && !empty($x['assets']) ? $x : null;
+        }
+        $x = self::ghApi($base . '/latest');
+        return is_array($x) && !empty($x['assets']) ? $x : null;
+    }
+
+    private static function ghText(array $job): string
+    {
+        $branch = (string) $job['branches'][$job['cur']];
+        $meta   = ['👤 ' . h((string) $job['o'])];
+        if ($job['stars'] > 0) {
+            $meta[] = '⭐ ' . fa((string) $job['stars']);
+        }
+        if ($job['bytes'] > 0) {
+            $meta[] = '📦 ' . self::mb((float) $job['bytes']);
+        }
+        $meta[] = '📍 GitHub';
+        $meta[] = '🌿 ' . h(mb_substr($branch, 0, 40));
+        return '📦 <b>' . h((string) $job['title']) . "</b>\n"
+            . ($job['desc'] !== '' ? h((string) $job['desc']) . "\n" : '')
+            . implode(' · ', $meta) . "\n\n"
+            . L('چی می‌خوای؟ 👇', 'What do you want? 👇');
+    }
+
+    private static function ghKeyboard(string $token, array $job): array
+    {
+        $branches = (array) $job['branches'];
+        $cur      = (int) $job['cur'];
+        $rows     = [[btn(L('📦 کل ریپو (', '📦 Whole repo (') . mb_substr((string) $branches[$cur], 0, 30) . ')', "gh:{$token}:r", 'success')]];
+        if ($cur === (int) $job['default']) {
+            foreach ((array) $job['assets'] as $i => $a) {
+                $rows[] = [btn('📥 ' . mb_substr((string) $a['name'], 0, 40) . ($a['size'] > 0 ? ' · ' . self::mb((float) $a['size']) : ''), "gh:{$token}:a{$i}", 'primary')];
+            }
+        }
+        $pair = [];
+        foreach ($branches as $i => $b) {
+            if ($i === $cur) {
+                continue;
+            }
+            $pair[] = btn(($i === (int) $job['default'] ? '🔙 ' : '🌿 ') . mb_substr((string) $b, 0, 24), "gh:{$token}:b{$i}", null);
+            if (count($pair) === 2) {
+                $rows[] = $pair;
+                $pair   = [];
+            }
+        }
+        if ($pair) {
+            $rows[] = $pair;
+        }
+        $rows[] = [btn(L('✖️ بیخیال', '✖️ Cancel'), "gh:{$token}:x", null)];
+        return ikb($rows);
+    }
+
+    public static function onGithub(array $cq, string $data): void
+    {
+        $tg = App::tg();
+        if (!preg_match('/^gh:([a-f0-9]{12}):(r|x|a\d{1,2}|b\d{1,2})$/', $data, $m)) {
+            $tg->answer($cq);
+            return;
+        }
+        [, $token, $act] = $m;
+        $uid = (int) $cq['from']['id'];
+        $job = Store::get('gh', $token);
+        if (!is_array($job)) {
+            $tg->alert($cq, L('⌛️ این کارت منقضی شده؛', '⌛️ This card has expired;') . "\n" . L('لینک رو دوباره بفرست.', 'send the link again.'));
+            return;
+        }
+        if ($uid !== (int) $job['owner'] && !App::isAdmin($uid)) {
+            $tg->alert($cq, L("🙅 این دکمه مال کسیه که\nلینک رو فرستاده؛", "🙅 This button belongs to whoever\nsent the link;") . "\n" . L('لینک خودت رو بفرست 🙂', 'send your own link 🙂'));
+            return;
+        }
+        if ($act === 'x') {
+            if (!empty($job['imid'])) {
+                self::show($job, L('✖️ بیخیال شدی.', '✖️ You cancelled.'));
+            } else {
+                $tg->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => $job['card']], 8);
+            }
+            Store::delete('gh', $token);
+            $tg->answer($cq, L('باشه 👌', 'OK 👌'));
+            return;
+        }
+        if ($act[0] === 'b') {
+            $i = (int) substr($act, 1);
+            if (!isset($job['branches'][$i])) {
+                $tg->answer($cq);
+                return;
+            }
+            $job['cur'] = $i;
+            Store::set('gh', $token, $job);
+            self::show($job, self::ghText($job), self::ghKeyboard($token, $job));
+            $tg->answer($cq);
+            return;
+        }
+        if (!self::quotaLeft($uid)) {
+            $tg->alert($cq, self::quotaText());
+            return;
+        }
+        if (!empty($job['picked'])) {
+            $tg->answer($cq);
+            return;
+        }
+        $got = Store::update('dl_busy', (string) $uid, static fn($at) => (is_int($at) && time() - $at < self::jobTime() + 20) ? null : time());
+        if ($got === null) {
+            $tg->alert($cq, L('⏳ یه دانلود دیگه‌ت در جریانه؛', '⏳ You already have another download in progress;') . "\n" . L('صبر کن اون تموم شه.', 'wait for it to finish.'));
+            return;
+        }
+        if ($act[0] === 'a' && !isset($job['assets'][(int) substr($act, 1)])) {
+            Store::delete('dl_busy', (string) $uid);
+            $tg->answer($cq);
+            return;
+        }
+        $job['picked'] = true;
+        Store::set('gh', $token, $job);
+        $tg->answer($cq, L('⏳ شروع شد', '⏳ Started'));
+        self::show($job, self::ghStage($job, L('⏳ آماده‌ی دانلود...', '⏳ Getting ready to download...')));
+        if (!self::ghSpawn($token, $act)) {
+            @set_time_limit(self::jobTime());
+            self::ghWork($token, $act);
+        }
+    }
+
+    private static function ghSpawn(string $token, string $act): bool
+    {
+        if (!function_exists('exec') || in_array('exec', array_map('trim', explode(',', (string) ini_get('disable_functions'))), true)) {
+            return false;
+        }
+        $cmd = 'timeout -k 10 ' . self::jobTime() . ' ' . escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(NULLINI_ROOT . '/bot.php')
+            . ' --ghdl ' . escapeshellarg($token) . ' ' . escapeshellarg($act) . ' ' . App::botIndex() . ' > /dev/null 2>&1 &';
+        exec($cmd, $o, $code);
+        return $code === 0;
+    }
+
+    private static function ghStage(array $job, string $status): string
+    {
+        return '📥 <b>' . h((string) $job['title']) . "</b>\n\n" . $status;
+    }
+
+    private static function ghFail(array $job, string $text, string $token, string $act): void
+    {
+        $rows = [[btn(L('🔁 دوباره', '🔁 Retry'), "gh:{$token}:{$act}", 'primary')], [btn(L('✖️ بیخیال', '✖️ Cancel'), "gh:{$token}:x", null)]];
+        self::show($job, self::ghStage($job, $text), ikb($rows));
+        $job['picked'] = false;
+        Store::set('gh', $token, $job);
+    }
+
+    public static function ghWork(string $token, string $act): void
+    {
+        $job = Store::get('gh', $token);
+        if (!is_array($job)) {
+            return;
+        }
+        Lang::useFrom(['id' => (int) ($job['owner'] ?? 0)]);
+        $dir = self::TMP . '/gh-' . $token;
+        self::rmrf($dir);
+        @mkdir($dir, 0775, true);
+        try {
+            $o = rawurlencode((string) $job['o']);
+            $r = rawurlencode((string) $job['r']);
+            if ($act[0] === 'a') {
+                $a    = $job['assets'][(int) substr($act, 1)];
+                $url  = (string) $a['url'];
+                $name = (string) $a['name'];
+                $size = (int) $a['size'];
+            } else {
+                $branch = (string) $job['branches'][(int) $job['cur']];
+                $url    = 'https://codeload.github.com/' . $o . '/' . $r . '/zip/refs/heads/' . implode('/', array_map('rawurlencode', explode('/', $branch)));
+                $name   = (string) $job['r'] . '-' . str_replace('/', '-', $branch) . '.zip';
+                $size   = (int) $job['bytes'];
+            }
+            $max = self::maxBytes();
+            if ($size > $max) {
+                self::ghFail($job, self::ghSizeError(), $token, $act);
+                return;
+            }
+            $file = $dir . '/' . preg_replace('/[\\\\\/:*?"<>|\x00-\x1F]+/u', '_', $name);
+            $next = 0.0;
+            $res  = self::ghPull($url, $file, $max, static function (int $now, int $total) use ($job, &$next, $name): void {
+                if (microtime(true) < $next) {
+                    return;
+                }
+                $next = microtime(true) + 3.5;
+                $pct  = $total > 0 ? (int) floor($now / $total * 100) : 0;
+                self::show($job, self::ghStage($job, ($total > 0 ? self::bar($pct) . ' ' . $pct . '%' . "\n📦 " . self::mb((float) $now) . L(' از ', ' of ') . self::mb((float) $total) : '📦 ' . self::mb((float) $now))));
+            });
+            if (empty($res['ok'])) {
+                logWarn('gh', 'download failed (' . ($res['err'] ?? '?') . '): ' . mb_substr($url, 0, 200));
+                $text = match ($res['err'] ?? '') {
+                    'big'   => self::ghSizeError(),
+                    'http'  => self::explain('http error 404'),
+                    default => self::genericError(),
+                };
+                self::ghFail($job, $text, $token, $act);
+                return;
+            }
+            $bytes = (int) @filesize($file);
+            if (!self::ghSend($job, $file, $name, $bytes)) {
+                self::ghFail($job, self::genericError(), $token, $act);
+                return;
+            }
+            if (empty($job['imid'])) {
+                App::tg()->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => (int) $job['card']], 8);
+            }
+            self::charge((int) $job['owner']);
+            Users::hit('dl:github');
+            Store::delete('gh', $token);
+        } catch (\Throwable $e) {
+            logError('gh', $e->getMessage());
+            self::ghFail($job, self::genericError(), $token, $act);
+        } finally {
+            Store::delete('dl_busy', (string) ($job['owner'] ?? 0));
+            self::rmrf($dir);
+        }
+    }
+
+    private static function ghPull(string $url, string $dest, int $max, callable $tick): array
+    {
+        $fh = @fopen($dest, 'wb');
+        if (!$fh) {
+            return ['ok' => false, 'err' => 'net'];
+        }
+        $status = 0;
+        $got    = 0;
+        $abort  = '';
+        $ch     = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_FOLLOWLOCATION   => true,
+            CURLOPT_MAXREDIRS        => 6,
+            CURLOPT_USERAGENT        => 'Nullin-Downloader',
+            CURLOPT_HTTPHEADER       => ['Accept: application/octet-stream'],
+            CURLOPT_CONNECTTIMEOUT   => 10,
+            CURLOPT_TIMEOUT          => self::jobTime() - 60,
+            CURLOPT_LOW_SPEED_LIMIT  => 2048,
+            CURLOPT_LOW_SPEED_TIME   => 45,
+            CURLOPT_PROTOCOLS        => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+            CURLOPT_REDIR_PROTOCOLS  => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+            CURLOPT_NOPROGRESS       => false,
+            CURLOPT_PROGRESSFUNCTION => static function ($c, $dlT, $dlN) use ($tick): int {
+                if ($dlN > 0 && (int) curl_getinfo($c, CURLINFO_RESPONSE_CODE) === 200) {
+                    $tick((int) $dlN, (int) $dlT);
+                }
+                return 0;
+            },
+            CURLOPT_WRITEFUNCTION    => static function ($c, string $data) use ($fh, &$got, &$abort, &$status, $max): int {
+                $status = (int) curl_getinfo($c, CURLINFO_RESPONSE_CODE);
+                if ($status !== 200) {
+                    return strlen($data);
+                }
+                $got += strlen($data);
+                if ($got > $max) {
+                    $abort = 'big';
+                    return 0;
+                }
+                return (int) fwrite($fh, $data);
+            },
+        ]);
+        curl_exec($ch);
+        $errno  = curl_errno($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        curl_close($ch);
+        fclose($fh);
+        if ($abort !== '') {
+            return ['ok' => false, 'err' => $abort];
+        }
+        if ($errno !== 0) {
+            return ['ok' => false, 'err' => 'net'];
+        }
+        if ($status !== 200) {
+            return ['ok' => false, 'err' => 'http'];
+        }
+        return $got > 0 ? ['ok' => true] : ['ok' => false, 'err' => 'net'];
+    }
+
+    private static function ghCaption(array $job, string $name, int $size): string
+    {
+        $bot = App::botUsername();
+        $d   = dirMark((string) $job['title']);
+        return $d . '📦 <b>' . h((string) $job['title']) . "</b>\n"
+            . $d . '🗂 ' . h(mb_substr($name, 0, 80)) . ' · ' . self::mb((float) $size) . "\n\n"
+            . $d . '🔗 <a href="' . h((string) $job['url']) . '">github.com</a>' . "\n"
+            . $d . "📥 <a href=\"https://t.me/{$bot}\">@{$bot}</a>";
+    }
+
+    /** MTProto upload (over the Bot API limit). Returns the uploaded message id, or 0 on failure. */
+    private static function ghMt(array $job, string $file, string $name, string $caption, int|string $chat, int $replyTo): int
+    {
+        if (!self::mtproto()) {
+            return 0;
+        }
+        $job2 = [
+            'session_file' => NULLINI_DATA . '/mtproto' . (App::botIndex() === 0 ? '' : (string) App::botIndex()) . '.session',
+            'api_id'       => self::apiId(),
+            'api_hash'     => self::apiHash(),
+            'bot_token'    => App::tg()->token(),
+            'test'         => App::botIndex() === 2 ? ['dc' => (int) env('TEST_DC_ID', 2), 'ip' => (string) env('TEST_DC_IP', '149.154.167.40'), 'port' => (int) env('TEST_DC_PORT', 443)] : null,
+            'chat'         => (int) $chat,
+            'reply_to'     => $replyTo,
+            'file'         => $file,
+            'name'         => $name,
+            'kind'         => 'document',
+            'mime'         => null,
+            'thumb'        => '',
+            'caption'      => $caption,
+            'duration'     => 0,
+            'width'        => 0,
+            'height'       => 0,
+            'title'        => '',
+            'performer'    => '',
+        ];
+        $out  = null;
+        $last = 0.0;
+        $res  = self::run(['python3', NULLINI_ROOT . '/bin/mtup.py'], self::jobTime() - 120, static function (string $line) use ($job, &$out, &$last): void {
+            $j = json_decode($line, true);
+            if (!is_array($j)) {
+                return;
+            }
+            if (isset($j['ok'])) {
+                $out = $j;
+                return;
+            }
+            if (isset($j['p'], $j['t']) && microtime(true) - $last >= 3.5) {
+                $last = microtime(true);
+                $pct  = $j['t'] > 0 ? (int) floor($j['p'] / $j['t'] * 100) : 0;
+                self::show($job, self::ghStage($job, '📤 ' . self::bar($pct) . ' ' . $pct . "%\n📦 " . self::mb((float) $j['p']) . L(' از ', ' of ') . self::mb((float) $j['t'])));
+            }
+        }, ['NL_JOB' => json_encode($job2, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
+        if (empty($out['ok']) || empty($out['msg_id'])) {
+            logError('gh', 'mtproto upload failed (exit ' . $res['code'] . '): ' . (string) ($out['error'] ?? self::lastLine($res['err'])));
+            return 0;
+        }
+        return (int) $out['msg_id'];
+    }
+
+    /** Turns the guest (inline) message into the given document, then deletes the temporary copy from the store chat. */
+    private static function ghToInline(array $job, string $fid, string $caption): bool
+    {
+        $e = App::tg()->call('editMessageMedia', [
+            'inline_message_id' => $job['imid'],
+            'media'             => ['type' => 'document', 'media' => $fid, 'caption' => $caption, 'parse_mode' => 'HTML'],
+        ], 30);
+        if (empty($e['ok'])) {
+            logWarn('gh', 'editMessageMedia (inline) failed: ' . mb_substr((string) ($e['description'] ?? ''), 0, 200));
+        }
+        return !empty($e['ok']);
+    }
+
+    private static function ghSend(array $job, string $file, string $name, int $size): bool
+    {
+        $tg      = App::tg();
+        $caption = self::ghCaption($job, $name, $size);
+        $inline  = !empty($job['imid']);
+        $reply   = !$inline && !empty($job['reply_to']) ? ['message_id' => (int) $job['reply_to'], 'allow_sending_without_reply' => true] : null;
+        $drop    = env('DL_STORE_CHAT', '') === '';
+
+        if ($size > self::BOT_API_BYTES) {
+            $msg = self::ghMt($job, $file, $name, $caption, $job['chat'], $inline ? 0 : (int) ($job['reply_to'] ?? 0));
+            if ($msg <= 0) {
+                return false;
+            }
+            if (!$inline) {
+                return true;
+            }
+            // the file sits in the store chat now: forward it once to read its file_id, move it into the inline message, clean up
+            $f   = $tg->call('forwardMessage', ['chat_id' => $job['chat'], 'from_chat_id' => $job['chat'], 'message_id' => $msg, 'disable_notification' => true], 60);
+            $m   = (array) ($f['result'] ?? []);
+            $fid = (string) ($m['document']['file_id'] ?? '');
+            $ok  = $fid !== '' && self::ghToInline($job, $fid, $caption);
+            if ($drop) {
+                $tg->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => $msg], 8);
+                if (!empty($m['message_id'])) {
+                    $tg->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => (int) $m['message_id']], 8);
+                }
+            }
+            return $ok;
+        }
+
+        self::show($job, self::ghStage($job, L('📤 دارم می‌فرستمش...', '📤 Sending it...')));
+        $r = $tg->call('sendDocument', [
+            'chat_id'          => $job['chat'],
+            'document'         => new CURLFile($file, 'application/octet-stream', $name),
+            'caption'          => $caption,
+            'parse_mode'       => 'HTML',
+            'reply_parameters' => $reply,
+        ], 900);
+        if (empty($r['ok'])) {
+            logWarn('gh', 'sendDocument failed: ' . mb_substr((string) ($r['description'] ?? ''), 0, 200));
+            return false;
+        }
+        if (!$inline) {
+            return true;
+        }
+        $fid = (string) ($r['result']['document']['file_id'] ?? '');
+        $ok  = $fid !== '' && self::ghToInline($job, $fid, $caption);
+        if ($drop && !empty($r['result']['message_id'])) {
+            $tg->call('deleteMessage', ['chat_id' => $job['chat'], 'message_id' => (int) $r['result']['message_id']], 8);
+        }
+        return $ok;
     }
 
     public static function bar(int $pct): string

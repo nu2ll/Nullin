@@ -139,8 +139,8 @@ final class CallbackHandler
             UserMemory::onCallback($cq, $data);
             return;
         }
-        if (str_starts_with($data, 'gf:')) {
-            Fetch::onFileCallback($cq, $data);
+        if (str_starts_with($data, 'gh:')) {
+            Downloader::onGithub($cq, $data);
             return;
         }
         if (str_starts_with($data, 'fe:')) {
