@@ -764,7 +764,7 @@ final class Assistant
         $voiceLeft = empty($rec['vo']);
         $rich      = !empty($rec['rc']);
         if ($rich) {
-            AnswerButtons::editRich($chatId, $mid, $old, AnswerButtons::rows(true, $voiceLeft));
+            AnswerButtons::editRich($chatId, $mid, $old, AnswerButtons::rows(true, $voiceLeft), !$voiceLeft);
         }
         $tg->action($chatId, 'typing');
 
@@ -802,7 +802,7 @@ final class Assistant
             $edited = false;
             $isRich = false;
             if ($rich) {
-                AnswerButtons::editRich($chatId, $mid, $answer, AnswerButtons::rows($searched, $voiceLeft));
+                AnswerButtons::editRich($chatId, $mid, $answer, AnswerButtons::rows($searched, $voiceLeft), !$voiceLeft);
                 $edited = true;
                 $isRich = true;
             }
@@ -829,7 +829,7 @@ final class Assistant
         } finally {
             if (!$done) {
                 if ($rich) {
-                    AnswerButtons::editRich($chatId, $mid, $old, AnswerButtons::rows(!empty($rec['sr']), $voiceLeft));
+                    AnswerButtons::editRich($chatId, $mid, $old, AnswerButtons::rows(!empty($rec['sr']), $voiceLeft), !$voiceLeft);
                 }
             }
             $tg->answer($cq, $done ? null : (Lang::is('en') ? AI::FAIL_TEXT_EN : AI::FAIL_TEXT));

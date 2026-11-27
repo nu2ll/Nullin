@@ -49,10 +49,10 @@ final class AnswerButtons
     }
 
     /** First source alone in its row, the rest two per row. */
-    private static function linkChunks(array $links): array
+    private static function linkChunks(array $links, int $per = 2): array
     {
         $links = array_values($links);
-        return array_merge(array_slice($links, 0, 1) ? [array_slice($links, 0, 1)] : [], array_chunk(array_slice($links, 1), 2));
+        return array_merge(array_slice($links, 0, 1) ? [array_slice($links, 0, 1)] : [], array_chunk(array_slice($links, 1), $per));
     }
 
     public static function sourcesLabel(): string
@@ -66,13 +66,13 @@ final class AnswerButtons
         return $text;
     }
 
-    private static function linkRows(array $links): string
+    private static function linkRows(array $links, bool $voiced = false): string
     {
         if (!$links) {
             return '';
         }
         $out = '<aside>' . h(self::sourcesLabel()) . '</aside>';
-        foreach (self::linkChunks($links) as $pair) {
+        foreach (self::linkChunks($links, $voiced ? 3 : 2) as $pair) {
             $out .= '<tg-button-row align="center">';
             foreach ($pair as $l) {
                 $out .= '<tg-button type="url" url="' . h($l[1]) . '">' . h($l[0]) . '</tg-button>';
@@ -131,10 +131,10 @@ final class AnswerButtons
         return '<tg-button-row>' . self::rb(self::L_RETRY, 'ab:r', 'danger') . '</tg-button-row>';
     }
 
-    private static function body(string $answer, string $rows): string
+    private static function body(string $answer, string $rows, bool $voiced = false): string
     {
         [$answer, $links] = self::splitSources($answer);
-        $rows              = self::linkRows($links) . $rows;
+        $rows              = self::linkRows($links, $voiced) . $rows;
         $answer           = rtrim($answer);
         if (substr_count($answer, '```') % 2 === 1) {
             $answer .= "\n```";
@@ -152,20 +152,20 @@ final class AnswerButtons
         return !empty($r['ok']) || stripos((string) ($r['description'] ?? ''), 'not modified') !== false;
     }
 
-    public static function editRich(int $chatId, int $mid, string $answer, string $rows): bool
+    public static function editRich(int $chatId, int $mid, string $answer, string $rows, bool $voiced = false): bool
     {
         if (trim($answer) === '' || mb_strlen($answer) > 12000) {
             return false;
         }
-        return self::okEdit(self::richEdit(App::tg(), $chatId, $mid, $answer, $rows));
+        return self::okEdit(self::richEdit(App::tg(), $chatId, $mid, $answer, $rows, $voiced));
     }
 
-    private static function richEdit(Telegram $tg, int $chatId, int $mid, string $answer, string $rows): ?array
+    private static function richEdit(Telegram $tg, int $chatId, int $mid, string $answer, string $rows, bool $voiced = false): ?array
     {
         return $tg->call('editMessageText', [
             'chat_id'      => $chatId,
             'message_id'   => $mid,
-            'rich_message' => ['markdown' => self::body($answer, $rows)],
+            'rich_message' => ['markdown' => self::body($answer, $rows, $voiced)],
         ], 10);
     }
 
@@ -219,7 +219,7 @@ final class AnswerButtons
         $sr = !empty($rec['sr']);
         $ns = !empty($rec['ns']);
         if (!empty($rec['rc'])) {
-            self::editRich($chatId, $mid, (string) $rec['a'], self::rows($sr, $voice, $ns));
+            self::editRich($chatId, $mid, (string) $rec['a'], self::rows($sr, $voice, $ns), !$voice);
         }
     }
 
@@ -257,7 +257,7 @@ final class AnswerButtons
         if ($withMarkup) {
             $rows = !empty($rec['f']) ? self::retryRows() : self::rows(!empty($rec['sr']), empty($rec['vo']), !empty($rec['ns']));
             $rich = ($rows !== '' || self::hasSources((string) $rec['a'])) && $fits && empty($rec['k']) && (Rich::was($chatId, $mid) || (int) ($rec['n'] ?? 1) <= 1)
-                && self::editRich($chatId, $mid, (string) $rec['a'], $rows);
+                && self::editRich($chatId, $mid, (string) $rec['a'], $rows, !empty($rec['vo']));
             $rec['rc'] = $rich ? 1 : 0;
             Store::set(self::NS, $chatId . ':' . $mid, $rec);
             return;
@@ -284,7 +284,7 @@ final class AnswerButtons
             } else {
                 [$chat, $mid] = array_pad(explode(':', (string) $k, 2), 2, '0');
                 if (is_array($rec) && !empty($rec['rc']) && trim((string) ($rec['a'] ?? '')) !== '') {
-                    $r = self::richEdit($tgx, (int) $chat, (int) $mid, (string) $rec['a'], '');
+                    $r = self::richEdit($tgx, (int) $chat, (int) $mid, (string) $rec['a'], '', !empty($rec['vo']));
                 } else {
                     $r = $tgx->call('editMessageReplyMarkup', [
                         'chat_id'      => (int) $chat,
@@ -346,7 +346,7 @@ final class AnswerButtons
                 $sr = !empty($rec['sr']);
                 $vl = empty($rec['vo']);
                 $ns = !empty($rec['ns']);
-                self::editRich($chatId, $mid, (string) $rec['a'], $act === 'o' ? self::rowsOpen($sr, $vl, $ns) : self::rows($sr, $vl, $ns));
+                self::editRich($chatId, $mid, (string) $rec['a'], $act === 'o' ? self::rowsOpen($sr, $vl, $ns) : self::rows($sr, $vl, $ns), !$vl);
                 return;
 
             case 'r':
