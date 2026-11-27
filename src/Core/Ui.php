@@ -674,6 +674,7 @@ final class Ui
                 $base[] = $c($cmd, $desc);
             }
         }
+        $base[] = $c('q', L('💬 ساخت استیکر نقل‌قول (ریپلای)', '💬 Quote sticker (reply)'));
         if ($scope !== 'group' && Switches::on(Switches::COMMAND_SWITCH['secretary'])) {
             $base[] = $c('secretary', L('🤝 منشی هوشمند', '🤝 Smart secretary'));
         }

@@ -257,6 +257,12 @@ final class GuestHandler
         if (in_array($cmd, self::CMD_IGNORED, true)) {
             return true;
         }
+        if ($cmd === 'q' || $cmd === 'quote') {
+            Users::hit('cmd:q');
+            Users::hit('guest:cmd');
+            Quote::guest(['from' => $from] + $msg, $qid);
+            return true;
+        }
         if (self::panelCommand($cmd, $from, $qid)) {
             return true;
         }
@@ -566,6 +572,11 @@ final class GuestHandler
     private static function photoId(string $url): ?string
     {
         return Wiki::photoId($url);
+    }
+
+    public static function say(string $qid, string $html): void
+    {
+        self::send($qid, $html);
     }
 
     private static function send(string $qid, string $html, ?array $markup = null, bool $rich = false): ?string

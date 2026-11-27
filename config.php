@@ -55,6 +55,10 @@ return [
 
     'screenshot_keys' => array_values(array_unique(array_merge(envList('MICROLINK_API_KEYS'), envList('MICROLINK_API_KEY')))),
 
+    'quote_api' => env('QUOTE_API_URL', ''),
+    'quote_token'      => env('QUOTE_BOT_TOKEN', ''),
+    'quote_token_test' => env('QUOTE_BOT_TOKEN_TEST', ''),
+
     'backup' => [
         'token'  => env('GITHUB_TOKEN', ''),
         'repo'   => env('GITHUB_REPO', ''),
