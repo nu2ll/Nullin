@@ -2907,14 +2907,19 @@ final class Downloader
         $token = bin2hex(random_bytes(6));
         $job   = [
             'o' => $o, 'r' => $r, 'title' => $o . '/' . $r, 'desc' => mb_substr((string) ($info['description'] ?? ''), 0, 200),
-            'stars' => (int) ($info['stargazers_count'] ?? 0), 'bytes' => (int) ($info['size'] ?? 0) * 1024,
+            'stars' => (int) ($info['stargazers_count'] ?? 0),
             'branches' => $branches, 'default' => 0, 'cur' => $start,
             'tag' => is_array($rel) ? (string) ($rel['tag_name'] ?? '') : '', 'assets' => $assets,
             'owner' => $uid, 'chat' => $t['chat'], 'card' => (int) $t['card'], 'imid' => $t['imid'], 'reply_to' => $replyTo,
             'url' => 'https://github.com/' . $o . '/' . $r, 'b' => App::botIndex(),
         ];
         Store::set('gh', $token, $job);
-        self::show($job, self::ghText($job), self::ghKeyboard($token, $job));
+        self::show($job, self::ghText($job), self::ghKeyboard($token, $job), self::ghPreview($job));
+    }
+
+    private static function ghPreview(array $job): array
+    {
+        return ['url' => 'https://opengraph.githubassets.com/1/' . rawurlencode((string) $job['o']) . '/' . rawurlencode((string) $job['r']), 'prefer_large_media' => true, 'show_above_text' => true];
     }
 
     private static function ghRelease(string $o, string $r, string $tag): ?array
@@ -2934,9 +2939,6 @@ final class Downloader
         $meta   = ['👤 ' . h((string) $job['o'])];
         if ($job['stars'] > 0) {
             $meta[] = '⭐ ' . fa((string) $job['stars']);
-        }
-        if ($job['bytes'] > 0) {
-            $meta[] = '📦 ' . self::mb((float) $job['bytes']);
         }
         $meta[] = '📍 GitHub';
         $meta[] = '🌿 ' . h(mb_substr($branch, 0, 40));
@@ -2961,7 +2963,7 @@ final class Downloader
             if ($i === $cur) {
                 continue;
             }
-            $pair[] = btn(($i === (int) $job['default'] ? '🔙 ' : '🌿 ') . mb_substr((string) $b, 0, 24), "gh:{$token}:b{$i}", null);
+            $pair[] = btn('🌿 ' . mb_substr((string) $b, 0, 24), "gh:{$token}:b{$i}", null);
             if (count($pair) === 2) {
                 $rows[] = $pair;
                 $pair   = [];
@@ -3010,7 +3012,7 @@ final class Downloader
             }
             $job['cur'] = $i;
             Store::set('gh', $token, $job);
-            self::show($job, self::ghText($job), self::ghKeyboard($token, $job));
+            self::show($job, self::ghText($job), self::ghKeyboard($token, $job), self::ghPreview($job));
             $tg->answer($cq);
             return;
         }
@@ -3088,7 +3090,7 @@ final class Downloader
                 $branch = (string) $job['branches'][(int) $job['cur']];
                 $url    = 'https://codeload.github.com/' . $o . '/' . $r . '/zip/refs/heads/' . implode('/', array_map('rawurlencode', explode('/', $branch)));
                 $name   = (string) $job['r'] . '-' . str_replace('/', '-', $branch) . '.zip';
-                $size   = (int) $job['bytes'];
+                $size   = 0;
             }
             $max = self::maxBytes();
             if ($size > $max) {
