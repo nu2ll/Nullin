@@ -69,7 +69,8 @@ final class Quote
         }
         $out = [];
         if ($fid !== '') {
-            $out['photo'] = ['big_file_id' => $fid];
+            $url = self::isTest() ? $tg->fileUrl($fid) : null;
+            $out['photo'] = $url !== null ? ['url' => $url] : ['big_file_id' => $fid];
         }
         if ($es !== '') {
             $out['emoji_status'] = $es;
@@ -82,10 +83,26 @@ final class Quote
         return ['file_id' => (string) ($f['file_id'] ?? ''), 'width' => (int) ($f['width'] ?? 0), 'height' => (int) ($f['height'] ?? 0)];
     }
 
+    /** ربات بتا روی سرور تست تلگرامه؛ سرویس quote آدرس /test/ رو نمی‌شناسه، پس به‌جای file_id لینک مستقیم فایل می‌دیم */
+    private static function isTest(): bool
+    {
+        return App::botIndex() === 2;
+    }
+
+    private static function pack(array $sizes): array
+    {
+        if (!self::isTest() || !$sizes) {
+            return $sizes;
+        }
+        $f   = end($sizes);
+        $url = App::tg()->fileUrl((string) ($f['file_id'] ?? ''));
+        return $url === null ? $sizes : [['url' => $url, 'width' => $f['width'] ?? 0, 'height' => $f['height'] ?? 0] + $f];
+    }
+
     private static function media(array $m): array
     {
         if (!empty($m['photo']) && is_array($m['photo'])) {
-            return ['media' => array_map([self::class, 'size'], array_values($m['photo']))];
+            return ['media' => self::pack(array_map([self::class, 'size'], array_values($m['photo'])))];
         }
         if (!empty($m['sticker']) && is_array($m['sticker'])) {
             $s = $m['sticker'];
@@ -93,7 +110,7 @@ final class Quote
                 $s = $s['thumbnail'] + ['is_animated' => false];
             }
             return [
-                'media'     => [self::size($s) + ['is_animated' => !empty($s['is_animated'])]],
+                'media'     => [self::pack([self::size($s)])[0] + ['is_animated' => !empty($s['is_animated'])]],
                 'mediaType' => 'sticker',
             ];
         }
@@ -103,7 +120,7 @@ final class Quote
         foreach (['video', 'animation', 'video_note', 'document', 'audio'] as $k) {
             $t = $m[$k]['thumbnail'] ?? null;
             if (is_array($t) && !empty($t['file_id'])) {
-                return ['media' => [self::size($t)]] + ($k === 'video_note' ? ['mediaCrop' => true] : []);
+                return ['media' => self::pack([self::size($t)])];
             }
         }
         return [];
@@ -168,7 +185,7 @@ final class Quote
     private static function render(array $one): ?string
     {
         $url = self::endpoint();
-        $tok = trim((string) App::cfg(App::botIndex() === 2 ? 'quote_token_test' : 'quote_token', ''));
+        $tok = trim(App::tg()->token());
         $r   = Http::postJson($url, [
             'type'            => 'quote',
             'format'          => 'webp',

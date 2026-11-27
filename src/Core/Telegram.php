@@ -249,6 +249,13 @@ final class Telegram
         ], 8);
     }
 
+    public function fileUrl(string $fileId): ?string
+    {
+        $info = $this->call('getFile', ['file_id' => $fileId], 8);
+        $path = $info['result']['file_path'] ?? null;
+        return $path ? "https://api.telegram.org/file/bot{$this->token}/" . ($this->test ? 'test/' : '') . $path : null;
+    }
+
     public function download(string $fileId): ?string
     {
         $info = $this->call('getFile', ['file_id' => $fileId]);
