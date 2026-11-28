@@ -13,6 +13,7 @@ final class CallbackHandler
         'math'  => [MathDuel::class, 'onCallback'],
         'mem'   => [Memory::class, 'onCallback'],
         'dab'   => [DotsBoxes::class, 'onCallback'],
+        'rr'    => [RussianRoulette::class, 'onCallback'],
         'chess' => [Chess::class, 'onCallback'],
     ];
 

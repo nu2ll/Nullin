@@ -23,6 +23,7 @@ final class GamesMenu
         'math'  => MathDuel::class,
         'mem'   => Memory::class,
         'dab'   => DotsBoxes::class,
+        'rr'    => RussianRoulette::class,
     ];
 
     public static function vid(int|string $chatId, int $messageId): string
