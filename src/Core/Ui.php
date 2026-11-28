@@ -69,11 +69,11 @@ final class Ui
     {
         [$dir, $file] = self::ICONS[$key] ?? self::ICONS['robot'];
         $fluent = self::ICON_BASE . rawurlencode($dir) . '/3D/' . $file . '_3d.png';
-        $host   = (string) (env('PUBLIC_URL') ?: (env('RAILWAY_PUBLIC_DOMAIN') ? 'https://' . env('RAILWAY_PUBLIC_DOMAIN') : ''));
-        if ($host !== '') {
-            return rtrim($host, '/') . '/ic?m=' . (self::MONO[$key] ?? 'robot') . '&fb=' . rawurlencode($fluent);
+        $host   = App::ngrokUrl();
+        if ($host === '') {
+            return $fluent;
         }
-        return $fluent;
+        return $host . '/ic?m=' . (self::MONO[$key] ?? 'robot') . '&fb=' . rawurlencode($fluent);
     }
 
     public static function article(string $id, string $icon, string $title, string $desc, string $text, ?array $markup = null, bool $html = true, ?string $img = null): array
