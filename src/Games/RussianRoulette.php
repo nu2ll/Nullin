@@ -8,9 +8,6 @@ final class RussianRoulette
     private const MAX       = 4;
     private const BOT_KEY   = 'bot';
     private const BOT_THINK = [1200, 2200]; // ms the bot waits before it pulls the trigger
-    private const GAP       = '　';
-    private const ARROWS    = [1 => ['⬆️'], 2 => ['⬆️', '⬇️'], 3 => ['⬆️', '↘️', '↙️'], 4 => ['⬆️', '➡️', '⬇️', '⬅️']];
-    private const SEATS     = [1 => [[0, 1]], 2 => [[0, 1], [2, 1]], 3 => [[0, 1], [2, 2], [2, 0]], 4 => [[0, 1], [1, 2], [2, 1], [1, 0]]];
 
     public static function intro(): string
     {
@@ -46,14 +43,6 @@ final class RussianRoulette
         return bidi(h((string) ($s['players'][$u]['name'] ?? '?')));
     }
 
-    private static function arrow(array $s, string $u): string
-    {
-        $order = self::order($s);
-        $n     = max(1, min(self::MAX, count($order)));
-        $k     = array_search($u, $order, true);
-        return self::ARROWS[$n][$k === false ? 0 : $k] ?? '⬆️';
-    }
-
     private static function left(array $s): int
     {
         return count(array_filter($s['taken'] ?? [], static fn($t) => (int) $t === 0));
@@ -69,7 +58,7 @@ final class RussianRoulette
         $s['turn']   = (string) $order[0];
         $s['last']   = null;
         $s['winner'] = '';
-        foreach ($s['players'] as $u => $p) {
+        foreach (array_keys($s['players']) as $u) {
             $s['players'][$u]['alive'] = true;
         }
         return $s;
@@ -137,32 +126,89 @@ final class RussianRoulette
         return L('🤖 نالین داره ماشه رو می‌کشه...', '🤖 Nullin is pulling the trigger...');
     }
 
-    /** The table: a player emoji for every seat (😵 once knocked out) and the gun in the middle. */
-    private static function table(array $s): string
+    /** One player's seat on the table: the name sits in the button (👤 alive, 😵 out, 🏆 winner, green = their turn). */
+    private static function seat(array $s, string $u, int $max): array
     {
-        $order = self::order($s);
-        $n     = max(1, min(self::MAX, count($order)));
-        $g     = array_fill(0, 3, array_fill(0, 3, self::GAP));
-        $g[1][1] = !empty($s['last']['hit']) ? '💥' : '🔫';
-        foreach ($order as $k => $u) {
-            if (!isset(self::SEATS[$n][$k])) {
-                continue;
-            }
-            [$r, $c]    = self::SEATS[$n][$k];
-            $g[$r][$c] = !empty($s['players'][$u]['alive']) ? '👤' : '😵';
+        $p    = $s['players'][$u] ?? ['name' => '?'];
+        $name = $u === self::BOT_KEY ? L('نالین', 'Nullin') : (string) $p['name'];
+        if (mb_strlen($name) > $max) {
+            $name = mb_substr($name, 0, $max - 1) . '…';
         }
-        return implode("\n", array_map(static fn($row) => implode(' ', $row), $g));
+        $status = $s['status'] ?? '';
+        if (empty($p['alive'])) {
+            [$icon, $style] = ['😵', 'danger'];
+        } elseif ($status === 'over') {
+            [$icon, $style] = ['🏆', 'success'];
+        } elseif ($status === 'playing' && (string) ($s['turn'] ?? '') === $u) {
+            [$icon, $style] = ['👤', 'success'];
+        } else {
+            [$icon, $style] = ['👤', 'primary'];
+        }
+        if ($u === self::BOT_KEY && $icon === '👤') {
+            $icon = '🤖';
+        }
+        $b        = btn("{$icon} {$name}", 'noop', $style);
+        $b['ctr'] = true;
+        return $b;
     }
 
-    private static function playerList(array $s, bool $turn): string
+    private static function gun(array $s): array
     {
-        $l = [];
-        foreach (self::order($s) as $u) {
-            $l[] = self::arrow($s, $u) . ' ' . self::nm($s, $u)
-                . (empty($s['players'][$u]['alive']) ? ' 😵' : '')
-                . ($turn && (string) ($s['turn'] ?? '') === $u ? ' 👈' : '');
+        $b        = !empty($s['last']['hit']) ? btn('💥', 'noop', 'danger') : btn('🔫', 'noop', null);
+        $b['ctr'] = true;
+        return $b;
+    }
+
+    /** The table as buttons: seats around the gun. 2 = top/bottom, 3 = top + two below, 4 = a cross. */
+    private static function tableRows(array $s): array
+    {
+        $o = self::order($s);
+        $n = min(self::MAX, count($o));
+        $g = self::gun($s);
+        if ($n <= 1) {
+            return [[self::seat($s, $o[0], 18)], [$g]];
         }
-        return implode("\n", $l);
+        if ($n === 2) {
+            return [[self::seat($s, $o[0], 18)], [$g], [self::seat($s, $o[1], 18)]];
+        }
+        if ($n === 3) {
+            return [[self::seat($s, $o[0], 18)], [$g], [self::seat($s, $o[2], 10), self::seat($s, $o[1], 10)]];
+        }
+        return [[self::seat($s, $o[0], 18)], [self::seat($s, $o[3], 8), $g, self::seat($s, $o[1], 8)], [self::seat($s, $o[2], 18)]];
+    }
+
+    private static function lobbyKeyboard(array $s): array
+    {
+        return ikb(array_merge(self::tableRows($s), [
+            [btn(L('➕ پیوستن', '➕ Join'), self::P . ':join', 'success'), btn(L('▶️ شروع', '▶️ Start'), self::P . ':start')],
+            GameKit::cancelRow(self::P),
+        ]));
+    }
+
+    private static function playKeyboard(array $s): array
+    {
+        $taken = $s['taken'] ?? [];
+        $rows  = self::tableRows($s);
+        for ($r = 0; $r * self::COLS < self::CHAMBERS; $r++) {
+            $row = [];
+            for ($c = 0; $c < self::COLS; $c++) {
+                $i     = $r * self::COLS + $c;
+                $row[] = (int) ($taken[$i] ?? 0) > 0 ? btn('💨', 'noop', null) : btn('🔘 ' . fa((string) ($i + 1)), self::P . ":cell:{$i}", null);
+            }
+            $rows[] = $row;
+        }
+        $rows[] = GameKit::cancelRow(self::P);
+        return ikb($rows);
+    }
+
+    private static function overKeyboard(array $s): array
+    {
+        return ikb(array_merge(self::tableRows($s), [[btn(L('🔁 بازی دوباره', '🔁 Play again'), self::P . ':replay', 'success')]]));
+    }
+
+    private static function head(array $s, string $label): string
+    {
+        return '<b>' . self::title() . '</b> · ' . $label . "\n" . divider() . "\n";
     }
 
     private static function lastLine(array $s): string
@@ -180,52 +226,24 @@ final class RussianRoulette
 
     private static function lobbyText(array $s): string
     {
-        return '<b>' . self::title() . '</b> · ' . L('لابی', 'Lobby') . "\n" . divider() . "\n"
-            . self::table($s) . "\n" . divider() . "\n"
-            . L('👥 بازیکن‌ها (', '👥 Players (') . fa((string) count($s['players'])) . "):\n" . self::playerList($s, false) . "\n" . divider() . "\n"
+        return self::head($s, L('لابی', 'Lobby'))
+            . L('👥 بازیکن‌ها: ', '👥 Players: ') . fa((string) count($s['players'])) . L(' از ', ' of ') . fa((string) self::MAX) . "\n\n"
             . L("🔫 تفنگ ۶ تا خونه داره و یکیش گلوله‌ست؛\nهر کی گلوله بخوره حذف می‌شه 😵\n", "🔫 The gun has 6 chambers and one holds a bullet;\nwhoever gets it is out 😵\n")
             . L('➕ برای اومدن دکمه‌ی «پیوستن» رو بزن؛' . "\n" . 'با ۲ تا ۴ نفر سازنده می‌تونه شروع کنه.', '➕ Tap “Join” to get in;' . "\n" . 'the creator can start with 2 to 4 players.');
     }
 
-    private static function lobbyKeyboard(): array
-    {
-        return ikb([
-            [btn(L('➕ پیوستن', '➕ Join'), self::P . ':join', 'success'), btn(L('▶️ شروع', '▶️ Start'), self::P . ':start')],
-            GameKit::cancelRow(self::P),
-        ]);
-    }
-
-    private static function playKeyboard(array $s): array
-    {
-        $taken = $s['taken'] ?? [];
-        $rows  = [];
-        for ($r = 0; $r * self::COLS < self::CHAMBERS; $r++) {
-            $row = [];
-            for ($c = 0; $c < self::COLS; $c++) {
-                $i = $r * self::COLS + $c;
-                $row[] = (int) ($taken[$i] ?? 0) > 0 ? btn('💨', 'noop', 'primary') : btn('🔘 ' . fa((string) ($i + 1)), self::P . ":cell:{$i}", null);
-            }
-            $rows[] = $row;
-        }
-        $rows[] = GameKit::cancelRow(self::P);
-        return ikb($rows);
-    }
-
     private static function render(string $imid, array $s, ?string $note = null): void
     {
-        $head = '<b>' . self::title() . '</b> · ' . L('دور ', 'Round ') . fa((string) (int) ($s['round'] ?? 1)) . "\n" . divider() . "\n"
-            . self::table($s) . "\n" . divider() . "\n"
-            . self::playerList($s, ($s['status'] ?? '') === 'playing') . "\n" . divider() . "\n";
-
+        $head = self::head($s, L('دور ', 'Round ') . fa((string) (int) ($s['round'] ?? 1)));
         if (($s['status'] ?? '') === 'over') {
             $loser = (string) ($s['last']['uid'] ?? '');
             $end   = L('💥 <b>بوم!</b> ', '💥 <b>Boom!</b> ') . self::nm($s, $loser) . L(" گلوله خورد؛\n🏆 <b>", " got the bullet;\n🏆 <b>") . self::nm($s, (string) $s['winner']) . L(' برد!</b>', ' wins!</b>');
-            Rich::editInline($imid, $head . $end, GameKit::replayKeyboard(self::P));
+            Rich::editInline($imid, $head . $end, self::overKeyboard($s));
             return;
         }
         $n    = fa((string) self::left($s));
         $c    = fa((string) self::CHAMBERS);
-        $turn = self::arrow($s, (string) $s['turn']) . ' ' . self::nm($s, (string) $s['turn']);
+        $turn = self::nm($s, (string) $s['turn']);
         Rich::editInline(
             $imid,
             $head . self::lastLine($s)
@@ -255,7 +273,7 @@ final class RussianRoulette
                 } else {
                     $s['status'] = 'lobby';
                     GameKit::save($imid, $s);
-                    Rich::editInline($imid, self::lobbyText($s), self::lobbyKeyboard());
+                    Rich::editInline($imid, self::lobbyText($s), self::lobbyKeyboard($s));
                 }
             },
             function () use (&$s, $imid, $tg) {
@@ -296,7 +314,7 @@ final class RussianRoulette
                 return $st;
             });
             if ($res === 'ok' && is_array($joined)) {
-                Rich::editInline($imid, self::lobbyText($joined), self::lobbyKeyboard());
+                Rich::editInline($imid, self::lobbyText($joined), self::lobbyKeyboard($joined));
                 $tg->answer($cq, L('✅ اومدی تو بازی!', '✅ You joined the game!'));
             } elseif ($res === 'full') {
                 $tg->alert($cq, L('👥 ظرفیت پر شده؛ حداکثر ۴ نفر.', '👥 The table is full; 4 players at most.'));

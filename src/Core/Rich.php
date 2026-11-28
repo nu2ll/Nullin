@@ -138,8 +138,10 @@ final class Rich
         foreach ((array) ($kb['inline_keyboard'] ?? []) as $row) {
             $r   = '';
             $src = false;
+            $ctr = false;
             foreach ((array) $row as $b) {
                 $src   = $src || !empty($b['src']);
+                $ctr   = $ctr || !empty($b['ctr']);
                 $style = isset($b['style']) ? ' style="' . h((string) $b['style']) . '"' : '';
                 $label = h((string) ($b['text'] ?? ''));
                 if (isset($b['callback_data'])) {
@@ -159,7 +161,7 @@ final class Rich
                 $out  .= '<aside>' . h(AnswerButtons::sourcesLabel()) . '</aside>';
                 $shown = true;
             }
-            $out .= '<tg-button-row' . ($src ? ' align="center"' : '') . '>' . $r . '</tg-button-row>';
+            $out .= '<tg-button-row' . ($src || $ctr ? ' align="center"' : '') . '>' . $r . '</tg-button-row>';
         }
         return $out;
     }
