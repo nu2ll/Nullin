@@ -38,26 +38,6 @@ final class Icons
         return is_file($cache) ? $cache : null;
     }
 
-    public static function mono(string $name): ?string
-    {
-        if (!preg_match('/^[a-z0-9-]{2,40}$/', $name)) {
-            return null;
-        }
-        $cache = self::DIR . '/mono-' . $name . '.png';
-        if (is_file($cache) && filesize($cache) > 100) {
-            return $cache;
-        }
-        @mkdir(self::DIR, 0775, true);
-        $tmp = $cache . '.' . getmypid() . '.png';
-        @exec('timeout 25 python3 ' . escapeshellarg(NULLINI_ROOT . '/bin/tabler.py') . ' ' . escapeshellarg($name) . ' ' . escapeshellarg($tmp) . ' 2>/dev/null');
-        if (is_file($tmp) && filesize($tmp) > 100) {
-            @rename($tmp, $cache);
-            return $cache;
-        }
-        @unlink($tmp);
-        return null;
-    }
-
     public static function all(): array
     {
         $list = [];

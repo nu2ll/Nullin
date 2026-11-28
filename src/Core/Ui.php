@@ -2,78 +2,60 @@
 
 final class Ui
 {
-    private const ICON_BASE = 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/';
+    // OpenMoji (color, outline style) PNG 618x618 — CC BY-SA 4.0
+    private const ICON_BASE = 'https://cdn.jsdelivr.net/gh/hfg-gmuend/openmoji@15.0.0/color/618x618/';
 
     private const ICONS = [
-        'info'     => ['Bust in silhouette', 'bust_in_silhouette'],
-        'calc'     => ['Abacus', 'abacus'],
-        'date'     => ['Calendar', 'calendar'],
-        'rates'    => ['Currency exchange', 'currency_exchange'],
-        'pass'     => ['Key', 'key'],
-        'coin'     => ['Coin', 'coin'],
-        'fal'      => ['Crystal ball', 'crystal_ball'],
-        'rps'      => ['Rock', 'rock'],
-        'ttt'      => ['Cross mark', 'cross_mark'],
-        'c4'       => ['Red circle', 'red_circle'],
-        'math'     => ['Input numbers', 'input_numbers'],
-        'mem'      => ['Joker', 'joker'],
-        'chess'    => ['Chess pawn', 'chess_pawn'],
-        'whisper'  => ['Shushing face', 'shushing_face'],
-        'chat'     => ['Speech balloon', 'speech_balloon'],
-        'weather'  => ['Sun behind rain cloud', 'sun_behind_rain_cloud'],
-        'nid'      => ['Identification card', 'identification_card'],
-        'card'     => ['Credit card', 'credit_card'],
-        'sheba'    => ['Bank', 'bank'],
-        'funstat'  => ['Magnifying glass tilted left', 'magnifying_glass_tilted_left'],
-        'ai'       => ['Brain', 'brain'],
-        'love'     => ['Heart with arrow', 'heart_with_arrow'],
-        'roast'    => ['Fire', 'fire'],
-        'translate' => ['Globe with meridians', 'globe_with_meridians'],
-        'qr'       => ['Framed picture', 'framed_picture'],
-        'image'    => ['Artist palette', 'artist_palette'],
-        'dice'     => ['Game die', 'game_die'],
-        'warn'     => ['Warning', 'warning'],
-        'fail'     => ['Cross mark', 'cross_mark'],
-        'ok'       => ['Check mark button', 'check_mark_button'],
-        'stop'     => ['Stop sign', 'stop_sign'],
-        'lock'     => ['Locked with key', 'locked_with_key'],
-        'robot'    => ['Robot', 'robot'],
-        'search'   => ['Magnifying glass tilted right', 'magnifying_glass_tilted_right'],
-        'font'     => ['Input latin letters', 'input_latin_letters'],
-        'download' => ['Inbox tray', 'inbox_tray'],
-        'gift'     => ['Wrapped gift', 'wrapped_gift'],
-        'wiki'     => ['Books', 'books'],
-        'gif'      => ['Film frames', 'film_frames'],
-        'screenshot' => ['Camera', 'camera'],
-        'group'    => ['Busts in silhouette', 'busts_in_silhouette'],
-        'linkcheck' => ['Shield', 'shield'],
-        'short'    => ['Link', 'link'],
-        'like'     => ['Red heart', 'red_heart'],
-        'unit'     => ['Straight ruler', 'straight_ruler'],
-    ];
-
-    private const MONO = [
-        'info' => 'user', 'calc' => 'calculator', 'date' => 'calendar', 'rates' => 'currency-dollar', 'pass' => 'key',
-        'coin' => 'coin', 'fal' => 'crystal-ball', 'rps' => 'hand-rock', 'ttt' => 'x', 'c4' => 'circle',
-        'math' => 'math', 'mem' => 'cards', 'chess' => 'chess', 'whisper' => 'eye-off', 'chat' => 'message-circle',
-        'weather' => 'cloud-rain', 'nid' => 'id', 'card' => 'credit-card', 'sheba' => 'building-bank',
-        'funstat' => 'zoom-question', 'ai' => 'brain', 'love' => 'heart', 'roast' => 'flame', 'translate' => 'language',
-        'qr' => 'qrcode', 'image' => 'palette', 'dice' => 'dice', 'warn' => 'alert-triangle', 'fail' => 'x',
-        'ok' => 'check', 'stop' => 'hand-stop', 'lock' => 'lock', 'robot' => 'robot', 'search' => 'search',
-        'font' => 'letter-case', 'download' => 'download', 'gift' => 'gift', 'wiki' => 'books', 'gif' => 'movie',
-        'screenshot' => 'camera', 'group' => 'users', 'linkcheck' => 'shield', 'short' => 'link', 'like' => 'heart',
-        'unit' => 'ruler-measure',
+        'info'      => '1F464',
+        'calc'      => '1F9EE',
+        'date'      => '1F4C5',
+        'rates'     => '1F4B1',
+        'pass'      => '1F511',
+        'coin'      => '1FA99',
+        'fal'       => '1F52E',
+        'rps'       => '1FAA8',
+        'ttt'       => '274C',
+        'c4'        => '1F534',
+        'math'      => '1F522',
+        'mem'       => '1F0CF',
+        'chess'     => '265F',
+        'whisper'   => '1F92B',
+        'chat'      => '1F4AC',
+        'weather'   => '1F326',
+        'nid'       => '1FAAA',
+        'card'      => '1F4B3',
+        'sheba'     => '1F3E6',
+        'funstat'   => '1F50D',
+        'ai'        => '1F9E0',
+        'love'      => '1F498',
+        'roast'     => '1F525',
+        'translate' => '1F310',
+        'qr'        => '1F5BC',
+        'image'     => '1F3A8',
+        'dice'      => '1F3B2',
+        'warn'      => '26A0',
+        'fail'      => '274C',
+        'ok'        => '2705',
+        'stop'      => '1F6D1',
+        'lock'      => '1F510',
+        'robot'     => '1F916',
+        'search'    => '1F50E',
+        'font'      => '1F524',
+        'download'  => '1F4E5',
+        'gift'      => '1F381',
+        'wiki'      => '1F4DA',
+        'gif'       => '1F39E',
+        'screenshot'=> '1F4F7',
+        'group'     => '1F465',
+        'linkcheck' => '1F6E1',
+        'short'     => '1F517',
+        'like'      => '2764',
+        'unit'      => '1F4CF',
     ];
 
     public static function icon(string $key): string
     {
-        [$dir, $file] = self::ICONS[$key] ?? self::ICONS['robot'];
-        $fluent = self::ICON_BASE . rawurlencode($dir) . '/3D/' . $file . '_3d.png';
-        $host   = App::ngrokUrl();
-        if ($host === '') {
-            return $fluent;
-        }
-        return $host . '/ic?m=' . (self::MONO[$key] ?? 'robot') . '&fb=' . rawurlencode($fluent);
+        return self::ICON_BASE . (self::ICONS[$key] ?? self::ICONS['robot']) . '.png';
     }
 
     public static function article(string $id, string $icon, string $title, string $desc, string $text, ?array $markup = null, bool $html = true, ?string $img = null): array
