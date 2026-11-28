@@ -128,7 +128,7 @@ final class GameKit
             if (time() - $asked > 15) {
                 $s['resign_ask'] = [(string) $uid => time()];
                 $onResign(false);
-                $tg->alert($cq, L("🏳 مطمئنی؟\nبرای تسلیم تا ۱۵ ثانیه دیگه دوباره بزن.", "🏳 Are you sure?\nTap again within 15 seconds to resign."));
+                $tg->answer($cq, L("🏳 مطمئنی؟\nبرای تسلیم تا ۱۵ ثانیه دیگه دوباره بزن.", "🏳 Are you sure?\nTap again within 15 seconds to resign."));
                 return true;
             }
             unset($s['resign_ask']);
