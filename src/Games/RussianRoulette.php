@@ -13,8 +13,8 @@ final class RussianRoulette
     public static function intro(): string
     {
         return L(
-            "<b>🔫 روسی‌رولت</b>\n\nتفنگ ۶ تا خونه داره و فقط یکیش گلوله‌ست؛\nهر نفر به نوبت ماشه رو می‌کشه و قبل از هر نوبت تفنگ می‌چرخه 🌀،\nهر کی گلوله بخوره حذف می‌شه 😵\nو آخرین نفر زنده می‌بره!\n\nحالت بازی رو انتخاب کن:",
-            "<b>🔫 Russian roulette</b>\n\nThe gun has 6 chambers and only one holds a bullet;\nplayers take turns pulling the trigger and the gun is spun before every turn 🌀,\nwhoever gets the bullet is out 😵\nand the last player standing wins!\n\nPick a game mode:"
+            "<b>🔫 روسی‌رولت</b>\n\nجرئت داری ماشه رو بکشی؟\nهر کی گلوله بخوره حذف می‌شه!\n\nحالت بازی رو انتخاب کن:",
+            "<b>🔫 Russian Roulette</b>\n\nDare to pull the trigger?\nWhoever takes the bullet is out!\n\nPick a game mode:"
         );
     }
 
@@ -25,7 +25,7 @@ final class RussianRoulette
 
     private static function title(): string
     {
-        return L('🔫 روسی‌رولت', '🔫 Russian roulette');
+        return L('🔫 روسی‌رولت', '🔫 Russian Roulette');
     }
 
     private static function order(array $s): array
@@ -106,17 +106,41 @@ final class RussianRoulette
         return $s;
     }
 
+    /** The gun spins: the arrow in the middle of the table turns clockwise, slows down and stops on $to. $pre is the state before the pull, so nothing is spoiled. */
+    private static function animate(string $imid, array $pre, int $to): void
+    {
+        $n      = count(self::DIRS);
+        $from   = (int) ($pre['dir'] ?? 0) % $n;
+        $total  = $n + ((($to - $from) % $n) + $n) % $n; // at least one full turn, ends exactly on $to
+        $frames = 4;
+        $delays = [250, 300, 400, 550]; // ms before each frame: it slows down
+        $turn   = self::nm($pre, (string) $pre['turn']);
+        $text   = self::head($pre) . L('دور ', 'Round ') . fa((string) (int) ($pre['round'] ?? 1)) . "\n"
+            . L("🌀 تفنگ داره می‌چرخه...\n👉 نوبت: {$turn}", "🌀 The gun is spinning...\n👉 Turn: {$turn}");
+        for ($k = 1; $k <= $frames; $k++) {
+            usleep($delays[$k - 1] * 1000);
+            $f         = $pre;
+            $f['dir']  = ($from + intdiv($k * $total, $frames + 1)) % $n;
+            $f['last'] = null;
+            Rich::editInline($imid, $text, ikb(self::tableRows($f)));
+        }
+        usleep(600000);
+    }
+
     /** The bot plays by itself after your safe pull: waits, then pulls the trigger. */
     private static function botTurn(string $imid): void
     {
         usleep(random_int(self::BOT_THINK[0], self::BOT_THINK[1]) * 1000);
-        $upd = Store::update(GameKit::NS, $imid, static function ($st) {
+        $pre = null;
+        $upd = Store::update(GameKit::NS, $imid, static function ($st) use (&$pre) {
             if (!is_array($st) || ($st['status'] ?? '') !== 'playing' || ($st['mode'] ?? '') !== 'bot' || (string) ($st['turn'] ?? '') !== self::BOT_KEY) {
                 return null;
             }
+            $pre = $st;
             return self::pull($st, self::BOT_KEY);
         });
         if (is_array($upd)) {
+            self::animate($imid, $pre, (int) $upd['dir']);
             self::render($imid, $upd);
         }
     }
@@ -206,8 +230,9 @@ final class RussianRoulette
         return ikb(array_merge(self::tableRows($s), [[btn(L('🔁 بازی دوباره', '🔁 Play again'), self::P . ':replay', 'success')]]));
     }
 
-    private static function head(array $s, string $label): string
+    private static function head(array $s, ?string $label = null): string
     {
+        $label ??= ($s['mode'] ?? '') === 'bot' ? L('با ربات', 'Vs bot') : L('چند نفره', 'Multiplayer');
         return '<b>' . self::title() . '</b> · ' . $label . "\n" . divider() . "\n";
     }
 
@@ -218,35 +243,34 @@ final class RussianRoulette
         }
         $who = self::nm($s, (string) $s['last']['uid']);
         if (!empty($s['last']['hit'])) {
-            return L("💥 <b>بوم!</b> {$who} گلوله خورد و حذف شد 😵؛\n🔄 تفنگ دوباره پر شد و چرخید 🌀\n\n", "💥 <b>Boom!</b> {$who} got the bullet and is out 😵;\n🔄 the gun is reloaded and spun 🌀\n\n");
+            return L("💥 <b>بوم!</b> {$who} گلوله خورد و حذف شد 😵\n\n", "💥 <b>Boom!</b> {$who} took the bullet and is out 😵\n\n");
         }
-        return L("💨 {$who} ماشه رو کشید؛\nخالی بود 😮‍💨\n🌀 تفنگ دوباره چرخید.\n\n", "💨 {$who} pulled the trigger;\nit was empty 😮‍💨\n🌀 the gun was spun again.\n\n");
+        return L("💨 {$who} ماشه رو کشید؛\nخالی بود 😮‍💨\n\n", "💨 {$who} pulled the trigger;\nit was empty 😮‍💨\n\n");
     }
 
     private static function lobbyText(array $s): string
     {
         return self::head($s, L('لابی', 'Lobby'))
-            . L('👥 بازیکن‌ها: ', '👥 Players: ') . fa((string) count($s['players'])) . L(' از ', ' of ') . fa((string) self::MAX) . "\n\n"
-            . L("🔫 تفنگ ۶ تا خونه داره و یکیش گلوله‌ست؛\nهر کی گلوله بخوره حذف می‌شه 😵\n", "🔫 The gun has 6 chambers and one holds a bullet;\nwhoever gets it is out 😵\n")
+            . L('👥 بازیکن‌ها: ', '👥 Players: ') . fa((string) count($s['players'])) . L(' از ', ' of ') . fa((string) self::MAX) . "\n" . divider() . "\n"
+            . L("🔫 تفنگ ۶ خونه داره و فقط یکیش گلوله‌ست؛\nهر نوبت تفنگ می‌چرخه 🌀\n", "🔫 The gun has 6 chambers and only one holds a bullet;\nit is spun every turn 🌀\n")
             . L('➕ برای اومدن دکمه‌ی «پیوستن» رو بزن؛' . "\n" . 'با ۲ تا ۴ نفر سازنده می‌تونه شروع کنه.', '➕ Tap “Join” to get in;' . "\n" . 'the creator can start with 2 to 4 players.');
     }
 
     private static function render(string $imid, array $s, ?string $note = null): void
     {
-        $head = self::head($s, L('دور ', 'Round ') . fa((string) (int) ($s['round'] ?? 1)));
+        $head = self::head($s);
         if (($s['status'] ?? '') === 'over') {
             $loser = (string) ($s['last']['uid'] ?? '');
-            $end   = L('💥 <b>بوم!</b> ', '💥 <b>Boom!</b> ') . self::nm($s, $loser) . L(" گلوله خورد؛\n🏆 <b>", " got the bullet;\n🏆 <b>") . self::nm($s, (string) $s['winner']) . L(' برد!</b>', ' wins!</b>');
+            $end   = L('💥 <b>بوم!</b> ', '💥 <b>Boom!</b> ') . self::nm($s, $loser) . L(" گلوله خورد؛\n🏆 <b>", " took the bullet;\n🏆 <b>") . self::nm($s, (string) $s['winner']) . L(' برد!</b>', ' wins!</b>');
             Rich::editInline($imid, $head . $end, self::overKeyboard($s));
             return;
         }
-        $c    = fa((string) self::CHAMBERS);
         $turn = self::nm($s, (string) $s['turn']);
         Rich::editInline(
             $imid,
-            $head . self::lastLine($s)
-                . L("🔫 تفنگ {$c} خونه داره و یکیش گلوله‌ست؛\nهر نوبت دوباره می‌چرخه، پس شانس هر بار ۱ از {$c}ـه 😈\n\n", "🔫 The gun has {$c} chambers and one holds a bullet;\nit is spun every turn, so each pull is a 1 in {$c} chance 😈\n\n")
-                . ($note ?? L("👉 نوبت: {$turn}", "👉 Turn: {$turn}")),
+            $head . L('دور ', 'Round ') . fa((string) (int) ($s['round'] ?? 1)) . "\n" . self::lastLine($s)
+                . ($note ?? L("👉 نوبت: {$turn}", "👉 Turn: {$turn}"))
+                . L("\n<i>قبل از هر نوبت تفنگ می‌چرخه؛\nشانس هر بار ۱ از ۶ـه.</i>", "\n<i>The gun is spun before every turn;\neach pull is a 1 in 6 chance.</i>"),
             self::playKeyboard($s)
         );
     }
@@ -364,7 +388,8 @@ final class RussianRoulette
         }
 
         $res = null;
-        $upd = Store::update(GameKit::NS, $imid, static function ($st) use ($uid, &$res) {
+        $pre = null;
+        $upd = Store::update(GameKit::NS, $imid, static function ($st) use ($uid, &$res, &$pre) {
             if (!is_array($st) || ($st['status'] ?? '') !== 'playing') {
                 $res = 'over';
                 return null;
@@ -373,6 +398,7 @@ final class RussianRoulette
                 $res = 'turn';
                 return null;
             }
+            $pre = $st;
             $st  = self::pull($st, $uid);
             $res = !empty($st['last']['hit']) ? 'hit' : 'safe';
             return $st;
@@ -382,8 +408,9 @@ final class RussianRoulette
             case 'safe':
             case 'hit':
                 $botNext = ($upd['mode'] ?? '') === 'bot' && $upd['status'] === 'playing' && (string) $upd['turn'] === self::BOT_KEY;
+                $tg->answer($cq); // silent: the spin must not be spoiled by a toast
+                self::animate($imid, $pre, (int) $upd['dir']);
                 self::render($imid, $upd, $botNext ? self::thinking() : null);
-                $tg->answer($cq, $res === 'hit' ? L('💥 بوم!', '💥 Boom!') : L('💨 خالی بود', '💨 Empty'));
                 if ($botNext) {
                     self::botTurn($imid);
                 }
