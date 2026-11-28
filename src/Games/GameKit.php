@@ -23,7 +23,7 @@ final class GameKit
 
     public static function fresh(string $game, array $creator, array $extra = []): array
     {
-        return ['game' => $game, 'status' => 'mode', 'p1' => $creator, 'p2' => null] + $extra;
+        return ['game' => $game, 'status' => 'mode', 'p1' => $creator, 'p2' => null, 'lang' => Lang::get()] + $extra;
     }
 
     public static function ensure(string $imid, string $game, array $from, array $extra = []): array
@@ -31,6 +31,10 @@ final class GameKit
         $s = self::load($imid);
         if ($s === null || ($s['game'] ?? '') !== $game) {
             $s = self::fresh($game, self::player($from), $extra);
+        }
+        // The inline message is shared: keep it in the creator's language whoever taps a button.
+        if (!empty($s['lang'])) {
+            Lang::pin((string) $s['lang']);
         }
         return $s;
     }

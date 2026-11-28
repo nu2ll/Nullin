@@ -6,14 +6,15 @@ final class RussianRoulette
     private const CHAMBERS  = 6;
     private const COLS      = 3;
     private const MAX       = 4;
+    private const DIRS      = ['⬆️', '↗️', '➡️', '↘️', '⬇️', '↙️', '⬅️', '↖️']; // where the spun gun points
     private const BOT_KEY   = 'bot';
     private const BOT_THINK = [1200, 2200]; // ms the bot waits before it pulls the trigger
 
     public static function intro(): string
     {
         return L(
-            "<b>🔫 روسی‌رولت</b>\n\nتفنگ ۶ تا خونه داره و فقط یکیش گلوله‌ست؛\nهر نفر یه خونه رو انتخاب می‌کنه و ماشه رو می‌کشه،\nهر کی گلوله بخوره حذف می‌شه 😵\nو آخرین نفر زنده می‌بره!\n\nحالت بازی رو انتخاب کن:",
-            "<b>🔫 Russian roulette</b>\n\nThe gun has 6 chambers and only one holds a bullet;\nplayers take turns picking a chamber and pulling the trigger,\nwhoever gets the bullet is out 😵\nand the last player standing wins!\n\nPick a game mode:"
+            "<b>🔫 روسی‌رولت</b>\n\nتفنگ ۶ تا خونه داره و فقط یکیش گلوله‌ست؛\nهر نفر به نوبت ماشه رو می‌کشه و قبل از هر نوبت تفنگ می‌چرخه 🌀،\nهر کی گلوله بخوره حذف می‌شه 😵\nو آخرین نفر زنده می‌بره!\n\nحالت بازی رو انتخاب کن:",
+            "<b>🔫 Russian roulette</b>\n\nThe gun has 6 chambers and only one holds a bullet;\nplayers take turns pulling the trigger and the gun is spun before every turn 🌀,\nwhoever gets the bullet is out 😵\nand the last player standing wins!\n\nPick a game mode:"
         );
     }
 
@@ -43,18 +44,13 @@ final class RussianRoulette
         return bidi(h((string) ($s['players'][$u]['name'] ?? '?')));
     }
 
-    private static function left(array $s): int
-    {
-        return count(array_filter($s['taken'] ?? [], static fn($t) => (int) $t === 0));
-    }
 
     private static function begin(array $s, array $order): array
     {
         $s['status'] = 'playing';
         $s['order']  = array_values(array_map('strval', $order));
         $s['round']  = 1;
-        $s['bullet'] = random_int(0, self::CHAMBERS - 1);
-        $s['taken']  = array_fill(0, self::CHAMBERS, 0); // 0 untouched, 1 safe pull, 3 the bullet
+        $s['dir']    = self::spin(null);
         $s['turn']   = (string) $order[0];
         $s['last']   = null;
         $s['winner'] = '';
@@ -79,11 +75,21 @@ final class RussianRoulette
     }
 
     /** Pulls the trigger on chamber $i for $uid. A hit knocks that player out and reloads the gun for the next round. */
-    private static function pull(array $s, int $i, string $uid): array
+    /** The gun is spun before every pull: a new direction, and each pull is a fresh 1-in-6 chance. */
+    private static function spin(?int $prev): int
     {
-        $hit            = $i === (int) $s['bullet'];
-        $s['taken'][$i] = $hit ? 3 : 1;
-        $s['last']      = ['uid' => $uid, 'i' => $i, 'hit' => $hit];
+        do {
+            $d = random_int(0, count(self::DIRS) - 1);
+        } while ($d === $prev);
+        return $d;
+    }
+
+    /** Pulls the trigger for $uid. A hit knocks that player out; either way the gun is spun again. */
+    private static function pull(array $s, string $uid): array
+    {
+        $hit        = random_int(0, self::CHAMBERS - 1) === 0;
+        $s['last']  = ['uid' => $uid, 'hit' => $hit];
+        $s['dir']   = self::spin(isset($s['dir']) ? (int) $s['dir'] : null);
         if (!$hit) {
             $s['turn'] = self::nextAlive($s, $uid);
             return $s;
@@ -96,13 +102,11 @@ final class RussianRoulette
             return $s;
         }
         $s['round']++;
-        $s['bullet'] = random_int(0, self::CHAMBERS - 1);
-        $s['taken']  = array_fill(0, self::CHAMBERS, 0);
-        $s['turn']   = self::nextAlive($s, $uid);
+        $s['turn'] = self::nextAlive($s, $uid);
         return $s;
     }
 
-    /** The bot plays by itself after your safe pull: waits, then pulls on a random free chamber. */
+    /** The bot plays by itself after your safe pull: waits, then pulls the trigger. */
     private static function botTurn(string $imid): void
     {
         usleep(random_int(self::BOT_THINK[0], self::BOT_THINK[1]) * 1000);
@@ -110,11 +114,7 @@ final class RussianRoulette
             if (!is_array($st) || ($st['status'] ?? '') !== 'playing' || ($st['mode'] ?? '') !== 'bot' || (string) ($st['turn'] ?? '') !== self::BOT_KEY) {
                 return null;
             }
-            $free = array_values(array_filter(range(0, self::CHAMBERS - 1), static fn($i) => (int) $st['taken'][$i] === 0));
-            if ($free === []) {
-                return null;
-            }
-            return self::pull($st, $free[array_rand($free)], self::BOT_KEY);
+            return self::pull($st, self::BOT_KEY);
         });
         if (is_array($upd)) {
             self::render($imid, $upd);
@@ -152,9 +152,17 @@ final class RussianRoulette
         return $b;
     }
 
+    /** The middle of the table: the spun gun as an arrow that changes direction every turn (💥 right after a hit). */
     private static function gun(array $s): array
     {
-        $b        = !empty($s['last']['hit']) ? btn('💥', 'noop', 'danger') : btn('🔫', 'noop', null);
+        if (!empty($s['last']['hit'])) {
+            $e = '💥';
+            $b = btn($e, 'noop', 'danger');
+        } elseif (isset($s['dir'])) {
+            $b = btn(self::DIRS[(int) $s['dir'] % count(self::DIRS)], 'noop', null);
+        } else {
+            $b = btn('🔫', 'noop', null);
+        }
         $b['ctr'] = true;
         return $b;
     }
@@ -187,16 +195,8 @@ final class RussianRoulette
 
     private static function playKeyboard(array $s): array
     {
-        $taken = $s['taken'] ?? [];
-        $rows  = self::tableRows($s);
-        for ($r = 0; $r * self::COLS < self::CHAMBERS; $r++) {
-            $row = [];
-            for ($c = 0; $c < self::COLS; $c++) {
-                $i     = $r * self::COLS + $c;
-                $row[] = (int) ($taken[$i] ?? 0) > 0 ? btn('💨', 'noop', null) : btn('🔘 ' . fa((string) ($i + 1)), self::P . ":cell:{$i}", null);
-            }
-            $rows[] = $row;
-        }
+        $rows   = self::tableRows($s);
+        $rows[] = [btn(L('🔫 ماشه رو بکش', '🔫 Pull the trigger'), self::P . ':pull', 'danger')];
         $rows[] = GameKit::cancelRow(self::P);
         return ikb($rows);
     }
@@ -217,11 +217,10 @@ final class RussianRoulette
             return '';
         }
         $who = self::nm($s, (string) $s['last']['uid']);
-        $n   = fa((string) ((int) $s['last']['i'] + 1));
         if (!empty($s['last']['hit'])) {
-            return L("💥 <b>بوم!</b> {$who} گلوله خورد و حذف شد 😵؛\n🔄 تفنگ دوباره پر شد.\n\n", "💥 <b>Boom!</b> {$who} got the bullet and is out 😵;\n🔄 the gun is reloaded.\n\n");
+            return L("💥 <b>بوم!</b> {$who} گلوله خورد و حذف شد 😵؛\n🔄 تفنگ دوباره پر شد و چرخید 🌀\n\n", "💥 <b>Boom!</b> {$who} got the bullet and is out 😵;\n🔄 the gun is reloaded and spun 🌀\n\n");
         }
-        return L("💨 {$who} خونه‌ی {$n} رو زد؛\nخالی بود 😮‍💨\n\n", "💨 {$who} pulled chamber {$n};\nit was empty 😮‍💨\n\n");
+        return L("💨 {$who} ماشه رو کشید؛\nخالی بود 😮‍💨\n🌀 تفنگ دوباره چرخید.\n\n", "💨 {$who} pulled the trigger;\nit was empty 😮‍💨\n🌀 the gun was spun again.\n\n");
     }
 
     private static function lobbyText(array $s): string
@@ -241,13 +240,12 @@ final class RussianRoulette
             Rich::editInline($imid, $head . $end, self::overKeyboard($s));
             return;
         }
-        $n    = fa((string) self::left($s));
         $c    = fa((string) self::CHAMBERS);
         $turn = self::nm($s, (string) $s['turn']);
         Rich::editInline(
             $imid,
             $head . self::lastLine($s)
-                . L("🔫 خونه‌های باقی‌مونده: {$n} از {$c}؛\nیکیشون گلوله‌ست 😈\n\n", "🔫 Chambers left: {$n} of {$c};\none of them holds the bullet 😈\n\n")
+                . L("🔫 تفنگ {$c} خونه داره و یکیش گلوله‌ست؛\nهر نوبت دوباره می‌چرخه، پس شانس هر بار ۱ از {$c}ـه 😈\n\n", "🔫 The gun has {$c} chambers and one holds a bullet;\nit is spun every turn, so each pull is a 1 in {$c} chance 😈\n\n")
                 . ($note ?? L("👉 نوبت: {$turn}", "👉 Turn: {$turn}")),
             self::playKeyboard($s)
         );
@@ -348,17 +346,12 @@ final class RussianRoulette
             return;
         }
 
-        if (!str_starts_with($data, self::P . ':cell:')) {
+        if ($data !== self::P . ':pull') {
             $tg->answer($cq);
             return;
         }
         if (($s['status'] ?? '') !== 'playing') {
             $tg->answer($cq, L('⌛️ این بازی تموم شده', '⌛️ This game is over'));
-            return;
-        }
-        $i = (int) substr($data, strlen(self::P . ':cell:'));
-        if ($i < 0 || $i >= self::CHAMBERS) {
-            $tg->answer($cq);
             return;
         }
         if (!isset($s['players'][$uid])) {
@@ -371,7 +364,7 @@ final class RussianRoulette
         }
 
         $res = null;
-        $upd = Store::update(GameKit::NS, $imid, static function ($st) use ($uid, $i, &$res) {
+        $upd = Store::update(GameKit::NS, $imid, static function ($st) use ($uid, &$res) {
             if (!is_array($st) || ($st['status'] ?? '') !== 'playing') {
                 $res = 'over';
                 return null;
@@ -380,11 +373,7 @@ final class RussianRoulette
                 $res = 'turn';
                 return null;
             }
-            if ((int) ($st['taken'][$i] ?? 1) !== 0) {
-                $res = 'used';
-                return null;
-            }
-            $st  = self::pull($st, $i, $uid);
+            $st  = self::pull($st, $uid);
             $res = !empty($st['last']['hit']) ? 'hit' : 'safe';
             return $st;
         });
@@ -401,9 +390,6 @@ final class RussianRoulette
                 return;
             case 'turn':
                 $tg->answer($cq, L('⏳ نوبت تو نیست', '⏳ It’s not your turn'));
-                return;
-            case 'used':
-                $tg->answer($cq, L('🈵 این خونه رو قبلاً زدن', '🈵 This chamber is already used'));
                 return;
             default:
                 $tg->answer($cq, L('⌛️ این بازی تموم شده', '⌛️ This game is over'));

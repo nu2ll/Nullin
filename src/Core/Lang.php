@@ -22,6 +22,12 @@ final class Lang
         return self::$cur;
     }
 
+    /** Switches the current language for this process only (no store write, keeps the Telegram language code). */
+    public static function pin(string $lang): void
+    {
+        self::$cur = $lang === 'en' ? 'en' : 'fa';
+    }
+
     public static function is(string $lang): bool
     {
         return self::$cur === $lang;

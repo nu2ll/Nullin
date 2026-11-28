@@ -151,7 +151,26 @@ final class Giveaway
             L("<b>🎁 قرعه‌کشی</b>\n\n⏳ دارم آماده‌اش می‌کنم...", "<b>🎁 Giveaway</b>\n\n⏳ Getting it ready..."), ikb([[btn(L('⏳ صبر کن...', '⏳ Hold on...'), 'noop', null)]]));
     }
 
+    /** Runs $f in the giveaway's own language so every public edit stays in it, whoever or whatever triggered it. */
+    private static function pinned(array $g, callable $f): mixed
+    {
+        $prev = Lang::get();
+        if (!empty($g['lang'])) {
+            Lang::pin((string) $g['lang']);
+        }
+        try {
+            return $f();
+        } finally {
+            Lang::pin($prev);
+        }
+    }
+
     private static function inlineKeyboard(array $g, string $ask = ''): array
+    {
+        return self::pinned($g, fn() => self::inlineKeyboardRaw($g, $ask));
+    }
+
+    private static function inlineKeyboardRaw(array $g, string $ask = ''): array
     {
         $id = $g['id'];
         if ($ask !== '') {
@@ -188,6 +207,7 @@ final class Giveaway
                 'id' => $id, 'owner' => (int) $d['owner'], 'chat' => 0, 'imid' => $imid, 'title' => L('چت', 'Chat'), 'type' => 'inline', 'username' => '',
                 'prize' => $d['prize'], 'winners' => (int) $d['winners'], 'ends' => $ends, 'status' => 'live', 'created' => time(),
                 'msg' => 0, 'mgr' => [0, 0], 'won' => [], 'total' => 0, 'bot' => App::botIndex(),
+                'lang' => Lang::forUser(['id' => (int) $d['owner']]),
             ];
         }) ?? Store::get('gw', $id);
     }
@@ -209,7 +229,7 @@ final class Giveaway
             Rich::editInline($g['imid'], self::publicText($g, self::count($g['id'])), self::inlineKeyboard($g));
         } else {
             $txt = self::publicText($g, self::count($g['id']));
-            $kb  = self::joinKeyboard($g['id']);
+            $kb  = self::pinned($g, fn() => self::joinKeyboard($g['id']));
             Rich::editMsg($g['chat'], (int) $g['msg'], $txt, $kb);
         }
     }
@@ -439,6 +459,11 @@ final class Giveaway
 
     public static function publicText(array $g, int $count): string
     {
+        return self::pinned($g, fn() => self::publicTextRaw($g, $count));
+    }
+
+    private static function publicTextRaw(array $g, int $count): string
+    {
         return L("🎁 <b>قرعه‌کشی!</b>\n\n", "🎁 <b>Giveaway!</b>\n\n")
             . L('🏆 جایزه: <b>', '🏆 Prize: <b>') . h($g['prize']) . "</b>\n"
             . L('👑 تعداد برنده: <b>', '👑 Winners: <b>') . fa($g['winners']) . L("</b> نفر\n", "</b>\n")
@@ -468,6 +493,11 @@ final class Giveaway
     }
 
     private static function resultText(array $g): string
+    {
+        return self::pinned($g, fn() => self::resultTextRaw($g));
+    }
+
+    private static function resultTextRaw(array $g): string
     {
         $head = L("🎉 <b>قرعه‌کشی تموم شد!</b>\n\n", "🎉 <b>The giveaway is over!</b>\n\n");
         $body = L('🏆 جایزه: <b>', '🏆 Prize: <b>') . h($g['prize']) . "</b>\n"
@@ -629,7 +659,7 @@ final class Giveaway
                 Store::delete('gw_dirty', $id);
                 Db::run('DELETE FROM gw_entries WHERE gid = ?', [$id]);
                 Store::delete('gw', $id);
-                self::editPublic($g, L("❌ <b>این قرعه‌کشی لغو شد.</b>", "❌ <b>This giveaway was cancelled.</b>") . "\n\n🏆 " . h($g['prize']));
+                self::editPublic($g, self::pinned($g, static fn() => L("❌ <b>این قرعه‌کشی لغو شد.</b>", "❌ <b>This giveaway was cancelled.</b>")) . "\n\n🏆 " . h($g['prize']));
                 $tg->answer($cq, L('👌 لغو شد', '👌 Cancelled'));
                 if ($imid) {
                     return;
@@ -682,6 +712,7 @@ final class Giveaway
             'won'      => [],
             'total'    => 0,
             'bot'      => App::botIndex(),
+            'lang'     => Lang::get(),
         ];
         $r = Rich::send($t['id'], self::publicText($g, 0), self::joinKeyboard($id));
         if (empty($r['ok'])) {
