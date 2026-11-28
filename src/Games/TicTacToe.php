@@ -8,7 +8,7 @@ final class TicTacToe
 
     public static function intro(): string
     {
-        return L("<b>⭕ دوز</b>\n\nسه‌تا پشت سر هم ببر! حالت بازی رو انتخاب کن:", "<b>⭕ Tic-Tac-Toe</b>\n\nGet three in a row! Pick a game mode:");
+        return L("<b>⭕ دوز</b>\n\nسه‌تا پشت سر هم ببر!\n\nحالت بازی رو انتخاب کن:", "<b>⭕ Tic-Tac-Toe</b>\n\nGet three in a row!\n\nPick a game mode:");
     }
 
     public static function modeKeyboard(): array

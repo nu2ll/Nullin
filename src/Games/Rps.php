@@ -12,7 +12,7 @@ final class Rps
 
     public static function intro(): string
     {
-        return L("<b>✊ سنگ کاغذ قیچی</b>\n\nبهترین از ۳ دور! حالت بازی رو انتخاب کن:", "<b>✊ Rock Paper Scissors</b>\n\nBest of 3 rounds! Pick a game mode:");
+        return L("<b>✊ سنگ کاغذ قیچی</b>\n\nبهترین از ۳ دور!\n\nحالت بازی رو انتخاب کن:", "<b>✊ Rock Paper Scissors</b>\n\nBest of 3 rounds!\n\nPick a game mode:");
     }
 
     public static function modeKeyboard(): array

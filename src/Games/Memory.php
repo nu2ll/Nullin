@@ -11,7 +11,7 @@ final class Memory
 
     public static function intro(): string
     {
-        return L("<b>🃏 بازی حافظه</b>\n\nکارت‌های هم‌شکل رو پیدا کن!\nحالت بازی رو انتخاب کن:", "<b>🃏 Memory</b>\n\nFind the matching cards!\nPick a game mode:");
+        return L("<b>🃏 بازی حافظه</b>\n\nکارت‌های هم‌شکل رو پیدا کن!\n\nحالت بازی رو انتخاب کن:", "<b>🃏 Memory</b>\n\nFind the matching cards!\n\nPick a game mode:");
     }
 
     public static function modeKeyboard(): array

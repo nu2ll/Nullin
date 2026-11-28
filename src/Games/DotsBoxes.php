@@ -7,12 +7,19 @@ final class DotsBoxes
     private const H     = 12;
     private const EDGES = 24;
     private const BOXES = 9;
+    private const FULL  = (1 << 24) - 1;
+    private const SKILL = 80;
+    private const SOLVE = 15;
+
+    private static array $memo = [];
+    private static array $adj  = [];
+    private static array $bm   = [];
 
     public static function intro(): string
     {
         return L(
-            "<b>📦 نقطه و جعبه</b>\n\nبین نقطه‌ها خط بکش؛ هر کی ضلع آخر یه مربع رو ببنده،\nاون مربع مال اونه و یه نوبت دیگه هم می‌گیره.\nآخرش هر کی مربع بیشتری داشته باشه می‌بره!\nحالت بازی رو انتخاب کن:",
-            "<b>📦 Dots & Boxes</b>\n\nDraw lines between the dots; whoever closes the last side of a square\nowns it and plays again.\nThe player with the most squares wins!\nPick a game mode:"
+            "<b>📦 نقطه و جعبه</b>\n\nبین نقطه‌ها خط بکش؛\nمربعی که ببندی مال خودته و یه نوبت دیگه می‌گیری.\nآخرش هر کی مربع بیشتری داشته باشه می‌بره!\n\nحالت بازی رو انتخاب کن:",
+            "<b>📦 Dots & Boxes</b>\n\nDraw lines between the dots; close a square to own it and play again.\nThe player with the most squares wins!\n\nPick a game mode:"
         );
     }
 
@@ -89,9 +96,89 @@ final class DotsBoxes
         return [count(array_keys($s['boxes'], 1, true)), count(array_keys($s['boxes'], 2, true))];
     }
 
+    private static function prepare(): void
+    {
+        if (self::$bm) {
+            return;
+        }
+        for ($b = 0; $b < self::BOXES; $b++) {
+            $m = 0;
+            foreach (self::boxEdges($b) as $e) {
+                $m |= 1 << $e;
+            }
+            self::$bm[$b] = $m;
+        }
+        for ($e = 0; $e < self::EDGES; $e++) {
+            self::$adj[$e] = self::edgeBoxes($e);
+        }
+    }
+
+    private static function gain(int $mask, int $e): int
+    {
+        $n   = $mask | (1 << $e);
+        $got = 0;
+        foreach (self::$adj[$e] as $b) {
+            if (($n & self::$bm[$b]) === self::$bm[$b]) {
+                $got++;
+            }
+        }
+        return $got > 0 ? $got + self::value($n) : -self::value($n);
+    }
+
+    private static function value(int $mask): int
+    {
+        if ($mask === self::FULL) {
+            return 0;
+        }
+        if (isset(self::$memo[$mask])) {
+            return self::$memo[$mask];
+        }
+        $best = -99;
+        for ($e = 0; $e < self::EDGES; $e++) {
+            if ($mask & (1 << $e)) {
+                continue;
+            }
+            $v = self::gain($mask, $e);
+            if ($v > $best) {
+                $best = $v;
+            }
+        }
+        return self::$memo[$mask] = $best;
+    }
+
+    private static function solve(array $s): int
+    {
+        self::prepare();
+        $mask = 0;
+        foreach ($s['edges'] as $e => $o) {
+            if ($o !== 0) {
+                $mask |= 1 << $e;
+            }
+        }
+        $best = -99;
+        $pool = [];
+        for ($e = 0; $e < self::EDGES; $e++) {
+            if ($mask & (1 << $e)) {
+                continue;
+            }
+            $v = self::gain($mask, $e);
+            if ($v > $best) {
+                $best = $v;
+                $pool = [$e];
+            } elseif ($v === $best) {
+                $pool[] = $e;
+            }
+        }
+        return $pool[array_rand($pool)];
+    }
+
     private static function botMove(array $s): int
     {
-        $free = array_keys($s['edges'], 0, true);
+        $free  = array_keys($s['edges'], 0, true);
+        $sharp = random_int(1, 100) <= self::SKILL;
+        if ($sharp && count($free) <= self::SOLVE) {
+            return self::solve($s);
+        }
         $take = [];
         $cost = [];
         foreach ($free as $e) {
@@ -110,7 +197,7 @@ final class DotsBoxes
             }
             $cost[$give][] = $e;
         }
-        if ($take && random_int(1, 100) <= 80) {
+        if ($take && $sharp) {
             return $take[array_rand($take)];
         }
         ksort($cost);

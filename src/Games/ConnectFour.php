@@ -9,7 +9,7 @@ final class ConnectFour
 
     public static function intro(): string
     {
-        return L("<b>🔴 دوز سکه‌ای</b>\n\nچهارتا هم‌رنگ پشت سر هم بچین!\nحالت بازی رو انتخاب کن:", "<b>🔴 Connect Four</b>\n\nLine up four discs of your color!\nPick a game mode:");
+        return L("<b>🔴 دوز سکه‌ای</b>\n\nچهارتا هم‌رنگ پشت سر هم بچین!\n\nحالت بازی رو انتخاب کن:", "<b>🔴 Connect Four</b>\n\nLine up four discs of your color!\n\nPick a game mode:");
     }
 
     public static function modeKeyboard(): array
