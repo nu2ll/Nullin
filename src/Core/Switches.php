@@ -41,7 +41,6 @@ final class Switches
         'math'     => ['🔢 دوئل ریاضی', '🔢 Math duel'],
         'mem'      => ['🃏 بازی حافظه', '🃏 Memory'],
         'dab'      => ['📦 نقطه و جعبه', '📦 Dots & Boxes'],
-        'rr'       => ['🔫 روسی‌رولت', '🔫 Russian roulette'],
     ];
 
     public const COMMAND_SWITCH = [
@@ -56,7 +55,7 @@ final class Switches
         'secretary' => 'business',
     ];
 
-    private const GAME_KEYS = ['chess', 'ttt', 'c4', 'rps', 'math', 'mem', 'dab', 'rr'];
+    private const GAME_KEYS = ['chess', 'ttt', 'c4', 'rps', 'math', 'mem', 'dab'];
 
     private static function load(): array
     {

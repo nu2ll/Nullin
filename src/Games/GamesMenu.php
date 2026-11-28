@@ -23,7 +23,6 @@ final class GamesMenu
         'math'  => MathDuel::class,
         'mem'   => Memory::class,
         'dab'   => DotsBoxes::class,
-        'rr'    => RussianRoulette::class,
     ];
 
     public static function vid(int|string $chatId, int $messageId): string
@@ -50,13 +49,17 @@ final class GamesMenu
 
     private static function keyboard(): array
     {
-        $rows = [];
-        $row  = [];
+        // rows of 2, then 3, then 2 buttons (repeating if more games are ever added)
+        $sizes = [2, 3, 2];
+        $rows  = [];
+        $row   = [];
+        $r     = 0;
         foreach (self::enabled() as $key) {
             $row[] = btn(Switches::label($key), self::P . ':' . $key, 'primary');
-            if (count($row) === 2) {
+            if (count($row) === $sizes[$r % count($sizes)]) {
                 $rows[] = $row;
                 $row    = [];
+                $r++;
             }
         }
         if ($row) {
