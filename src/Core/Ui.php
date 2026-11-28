@@ -16,6 +16,7 @@ final class Ui
         'ttt'      => ['Cross mark', 'cross_mark'],
         'c4'       => ['Red circle', 'red_circle'],
         'math'     => ['Input numbers', 'input_numbers'],
+        'mem'      => ['Joker', 'joker'],
         'chess'    => ['Chess pawn', 'chess_pawn'],
         'whisper'  => ['Shushing face', 'shushing_face'],
         'chat'     => ['Speech balloon', 'speech_balloon'],
@@ -78,7 +79,7 @@ final class Ui
             unset($r['input_message_content']['parse_mode']);
         }
         if (Rich::usable($markup)) {
-            $keep = preg_match('/^(?:(?:fal|unit|calc|coin|pass|chess|ttt|c4|rps|math)$|(?:ai|tr)q_|rs_|st_|lv_|gwi_|wk_|pc_|gif_|ss_)/', $id) === 1;
+            $keep = preg_match('/^(?:(?:fal|unit|calc|coin|pass|chess|ttt|c4|rps|math|mem)$|(?:ai|tr)q_|rs_|st_|lv_|gwi_|wk_|pc_|gif_|ss_)/', $id) === 1;
             $r['input_message_content'] = Rich::inlineContent($html ? $text : h($text), $markup, $img);
             if ($keep) {
                 $r['reply_markup'] = ikb([[btn('Nullin', 'noop', null)]]);
@@ -1010,7 +1011,8 @@ final class Ui
                 . L("با ربات یا با دوستات:\n\n", "with the bot or with your friends:\n\n")
                 . L("♟️ شطرنج (۳ سطح سختی)\n", "♟️ Chess (3 difficulty levels)\n")
                 . L("⭕ دوز · 🔴 دوز سکه‌ای\n", "⭕ Tic-tac-toe · 🔴 Connect Four\n")
-                . L("✊ سنگ‌کاغذقیچی · 🔢 دوئل ریاضی", "✊ Rock-paper-scissors · 🔢 Math duel"),
+                . L("✊ سنگ‌کاغذقیچی · 🔢 دوئل ریاضی\n", "✊ Rock-paper-scissors · 🔢 Math duel\n")
+                . L("🃏 بازی حافظه", "🃏 Memory"),
 
             'group' => L("<b>👥 نالین در گروه</b>\n", "<b>👥 Nullin in groups</b>\n")
                 . L("منو به گروهت اضافه کن و:\n\n", "Add me to your group and:\n\n")

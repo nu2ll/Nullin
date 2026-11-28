@@ -38,6 +38,10 @@ final class MessageHandler
             Ui::syncMemberCommands(App::tg(), (int) $msg['chat']['id'], $userId);
         }
 
+        if ($text !== '' && $text[0] === '/' && preg_match('/^\/[a-zA-Z_]+@(\w+)/u', $text, $tm) === 1 && strcasecmp($tm[1], App::botUsername()) !== 0) {
+            return;
+        }
+
         if ($text !== '' && $text[0] === '/' && self::tidy($msg, $text, $private, static fn() => self::command($msg, $text, $private))) {
             App::tg()->react($msg['chat']['id'], (int) ($msg['message_id'] ?? 0), '👾');
             return;

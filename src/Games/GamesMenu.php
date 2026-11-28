@@ -21,6 +21,7 @@ final class GamesMenu
         'c4'    => ConnectFour::class,
         'rps'   => Rps::class,
         'math'  => MathDuel::class,
+        'mem'   => Memory::class,
     ];
 
     public static function vid(int|string $chatId, int $messageId): string
