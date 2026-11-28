@@ -4,6 +4,22 @@ $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 
 if ($path === '/ic') {
     require_once dirname(__DIR__) . '/src/Core/Icons.php';
+    if (isset($_GET['m'])) {
+        $mono = Icons::mono((string) $_GET['m']);
+        if ($mono === null) {
+            $fb = (string) ($_GET['fb'] ?? '');
+            if (str_starts_with($fb, 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/')) {
+                header('Location: ' . $fb, true, 302);
+                return true;
+            }
+            http_response_code(404);
+            return true;
+        }
+        header('Content-Type: image/png');
+        header('Cache-Control: public, max-age=2592000, immutable');
+        readfile($mono);
+        return true;
+    }
     $cache = Icons::path((string) ($_GET['d'] ?? ''), (string) ($_GET['f'] ?? ''));
     if ($cache === null) {
         http_response_code(404);

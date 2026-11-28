@@ -52,10 +52,28 @@ final class Ui
         'unit'     => ['Straight ruler', 'straight_ruler'],
     ];
 
+    private const MONO = [
+        'info' => 'user', 'calc' => 'calculator', 'date' => 'calendar', 'rates' => 'currency-dollar', 'pass' => 'key',
+        'coin' => 'coin', 'fal' => 'crystal-ball', 'rps' => 'hand-rock', 'ttt' => 'x', 'c4' => 'circle',
+        'math' => 'math', 'mem' => 'cards', 'chess' => 'chess', 'whisper' => 'eye-off', 'chat' => 'message-circle',
+        'weather' => 'cloud-rain', 'nid' => 'id', 'card' => 'credit-card', 'sheba' => 'building-bank',
+        'funstat' => 'zoom-question', 'ai' => 'brain', 'love' => 'heart', 'roast' => 'flame', 'translate' => 'language',
+        'qr' => 'qrcode', 'image' => 'palette', 'dice' => 'dice', 'warn' => 'alert-triangle', 'fail' => 'x',
+        'ok' => 'check', 'stop' => 'hand-stop', 'lock' => 'lock', 'robot' => 'robot', 'search' => 'search',
+        'font' => 'letter-case', 'download' => 'download', 'gift' => 'gift', 'wiki' => 'books', 'gif' => 'movie',
+        'screenshot' => 'camera', 'group' => 'users', 'linkcheck' => 'shield', 'short' => 'link', 'like' => 'heart',
+        'unit' => 'ruler-measure',
+    ];
+
     public static function icon(string $key): string
     {
         [$dir, $file] = self::ICONS[$key] ?? self::ICONS['robot'];
-        return self::ICON_BASE . rawurlencode($dir) . '/3D/' . $file . '_3d.png';
+        $fluent = self::ICON_BASE . rawurlencode($dir) . '/3D/' . $file . '_3d.png';
+        $host   = (string) (env('PUBLIC_URL') ?: (env('RAILWAY_PUBLIC_DOMAIN') ? 'https://' . env('RAILWAY_PUBLIC_DOMAIN') : ''));
+        if ($host !== '') {
+            return rtrim($host, '/') . '/ic?m=' . (self::MONO[$key] ?? 'robot') . '&fb=' . rawurlencode($fluent);
+        }
+        return $fluent;
     }
 
     public static function article(string $id, string $icon, string $title, string $desc, string $text, ?array $markup = null, bool $html = true, ?string $img = null): array
