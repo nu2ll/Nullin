@@ -7,8 +7,8 @@
  */
 final class UserMemory
 {
-    private const MAX_ITEMS = 200;
-    private const MAX_LEN   = 300;
+    private const MAX_ITEMS = 20;
+    private const MAX_LEN   = 200;
 
     private static function key($userId): string
     {

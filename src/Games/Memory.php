@@ -6,7 +6,7 @@ final class Memory
     private const PAIRS = 8;
     private const COLS  = 4;
     private const HIDE  = '❓';
-    private const BOT_MEMORY = 60;
+    private const BOT_MEMORY = 55;
     private const BOT_THINK  = [1200, 2200]; // ms the bot waits before each of its moves
 
     public static function intro(): string
