@@ -136,7 +136,7 @@ final class CallbackHandler
             VoicePick::onCallback($cq, $data);
             return;
         }
-        if (str_starts_with($data, 'mem:')) {
+        if (preg_match('/^mem:\d+:[yn]$/', $data)) {
             UserMemory::onCallback($cq, $data);
             return;
         }
