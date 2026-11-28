@@ -12,6 +12,7 @@ final class CallbackHandler
         'c4'    => [ConnectFour::class, 'onCallback'],
         'math'  => [MathDuel::class, 'onCallback'],
         'mem'   => [Memory::class, 'onCallback'],
+        'dab'   => [DotsBoxes::class, 'onCallback'],
         'chess' => [Chess::class, 'onCallback'],
     ];
 
